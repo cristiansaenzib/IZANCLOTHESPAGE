@@ -1,0 +1,991 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#343339">
+<meta name="robots" content="noindex, nofollow">
+<title>Administrar · IZAN Clothes</title>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Syncopate:wght@400;700&family=Playfair+Display:ital@1&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+
+<link rel="stylesheet" href="admin.css">
+</head>
+<body>
+<header>
+  <div class="brand"><div class="mark"><b>IZAN</b></div><span class="t">ADMIN</span></div>
+  <div class="nav"><a class="btn ghost" href="index.html" style="text-decoration:none">Ver tienda</a><button class="btn" id="out" hidden onclick="logout()">Salir</button></div>
+</header>
+
+<div id="login" class="login" hidden><span class="blob b1"></span><span class="blob b2"></span>
+  <h1>Acceso</h1><p class="note serif">Solo para administradores.</p>
+  <label for="em">Correo</label><input id="em" type="email" autocomplete="username">
+  <label for="pw">Contraseña</label><input id="pw" type="password" autocomplete="current-password" onkeydown="if(event.key==='Enter')login()">
+  <button class="btn acc" onclick="login()">Entrar</button>
+  <div class="err" id="lerr"></div>
+</div>
+
+<div id="panel" hidden></div>
+
+<div class="mo" id="mo"><div><p id="mq"></p><div class="ab"><button class="btn ghost" id="mn">Cancelar</button><button class="btn acc" id="my">Sí, eliminar</button></div></div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
+<script src="config.js"></script>
+<script src="shared.js"></script>
+<script>
+let backOk = false, guides = [], guidesOk = false, guidesErr = null, gDraft = null, movements = [], movementsErr = null;
+let cats = [], products = [], codes = [], orders = [], ordersErr = null, codesErr = null, tiers = parseTiers(), countMode = 'ref', settings = { whatsapp: C.WHATSAPP, hero_banners: [], home_tiles: [], visual_content: {} }, lastCat = '', logged = null, busy = false;
+const MODAL_OK = 'Sí, eliminar';
+
+function ask(q) { return new Promise(r => { $('#mq').textContent = q; $('#my').textContent = MODAL_OK; $('#mn').textContent = 'Cancelar'; $('#mo').classList.add('on'); const f = v => { $('#mo').classList.remove('on'); r(v); }; $('#my').onclick = () => f(true); $('#mn').onclick = () => f(false); }); }
+function modal(html, okText, onOk) {
+  $('#mq').innerHTML = html; $('#my').textContent = okText; $('#mn').textContent = 'Cancelar'; $('#mo').classList.add('on');
+  const close = () => { $('#mo').classList.remove('on'); $('#my').textContent = MODAL_OK; };
+  $('#my').onclick = async () => { if (await onOk() !== false) close(); };
+  $('#mn').onclick = close;
+}
+const say = (id, t) => { const m = $('#' + id); if (m) m.textContent = t; };
+
+/* ---- selector de niveles de descuento (casillas) ---- */
+const tierName = t => t.kind === 'pct' ? `${t.pct}% (desde ${t.min} uds)` : `${t.name} (${tierReq(tiers, t)}, precio propio)`;
+const tierBoxes = (pre, on) => tiers.map(t => `<label class="tk"><input type="checkbox" id="${pre}${t.key}" ${on.includes(t.key) ? 'checked' : ''}> ${esc(tierName(t))}</label>`).join('');
+const readBoxes = pre => tiers.filter(t => $('#' + pre + t.key).checked).map(t => t.key);
+const allKeys = () => tiers.map(t => t.key);
+/* casilla "usar los de la categoría" + casillas propias. catSel = id del <select> de categoría */
+function tierPicker(pre, own, catId) {
+  const base = parseKeys(own) || effectiveCat(catId);
+  return `<label class="tk"><input type="checkbox" id="${pre}inh" ${own == null || parseKeys(own) == null ? 'checked' : ''} onchange="togInh('${pre}','${catId || ''}')"> Usar los descuentos de la categoría</label>
+    <div class="tierbox" id="${pre}box" ${parseKeys(own) == null ? 'hidden' : ''}>${tierBoxes(pre, base)}</div>`;
+}
+const effectiveCat = id => parseKeys((cats.find(c => c.id == id) || {}).tiers) || allKeys();
+function togInh(pre, catSelOrId) {
+  const inh = $('#' + pre + 'inh').checked; $('#' + pre + 'box').hidden = inh;
+  if (!inh) { const el = $('#' + catSelOrId), id = el ? el.value : catSelOrId, keys = effectiveCat(id); tiers.forEach(t => $('#' + pre + t.key).checked = keys.includes(t.key)); }
+}
+
+const ADMIN_EMAIL = 'saenz1098@gmail.com';
+
+/* MODO PRUEBA LOCAL: solo si NO hay Supabase configurado Y la página se abre desde este computador
+   (localhost, 127.0.0.1 o archivo directo). En un sitio publicado nunca se activa: sigue cerrado. */
+const DEV = LOCAL && (['localhost', '127.0.0.1', '[::1]'].includes(location.hostname) || location.protocol === 'file:');
+async function seedDemo() {
+  if ((await sb.from('categories').select()).data.length) return;
+  const { data: [cat] } = await sb.from('categories').insert({ name: 'Camisetas oversized' });
+  await sb.from('products').insert([
+    { category_id: cat.id, name: 'Oversized Negra', description: 'Algodón pesado, corte oversized.', color: 'Negro', price: 120000, price_promo: 99000, stock_s: 5, stock_m: 8, stock_l: 8, stock_xl: 4, is_best_seller: true },
+    { category_id: cat.id, name: 'Oversized Blanca', description: 'Sin promoción: se ve solo el precio normal.', color: 'Blanco', price: 110000, price_dist: 80000, price_mayor: 70000, stock_s: 6, stock_m: 6, stock_l: 6, stock_xl: 6 },
+    { category_id: cat.id, name: 'Oversized Verde oliva', description: 'Promoción de ejemplo.', color: 'Verde oliva', price: 130000, price_promo: 104000, stock_s: 3, stock_m: 5, stock_l: 5, stock_xl: 2, is_new_arrival: true }
+  ]);
+}
+async function init() {
+  if (DEV) {
+    await seedDemo();
+    await showPanel();
+    document.body.insertAdjacentHTML('afterbegin', '<div style="background:#343339;color:#fff;font:600 12px Inter,sans-serif;padding:8px 14px;text-align:center">MODO PRUEBA LOCAL · los datos viven solo en este navegador y no afectan tu tienda real</div>');
+    return;
+  }
+  // Fail closed: nunca habilitar el panel usando el almacenamiento local simulado.
+  if (LOCAL || !C.SUPABASE_URL || !C.SUPABASE_ANON_KEY || !window.supabase) {
+    showLogin();
+    say('lerr', 'Administración deshabilitada: configura Supabase en config.js.');
+    $('#em').disabled = true; $('#pw').disabled = true;
+    document.querySelector('#login button').disabled = true;
+    return;
+  }
+  const { data, error } = await sb.auth.getSession();
+  if (!error && data.session) {
+    if ((data.session.user.email || '').toLowerCase() === ADMIN_EMAIL) await showPanel();
+    else { await sb.auth.signOut(); showLogin(); say('lerr', 'Esta cuenta no tiene permisos de administrador.'); }
+  } else showLogin();
+  sb.auth.onAuthStateChange(async (_e, session) => {
+    if (session && (session.user.email || '').toLowerCase() === ADMIN_EMAIL) await showPanel();
+    else {
+      if (session) await sb.auth.signOut();
+      showLogin();
+    }
+  });
+}
+function showLogin() { logged = false; $('#login').hidden = false; $('#panel').hidden = true; $('#out').hidden = true; }
+async function showPanel() {
+  if (DEV) { logged = true; $('#login').hidden = true; $('#panel').hidden = false; $('#out').hidden = false; await loadAll(); return; }
+  if (LOCAL || !C.SUPABASE_URL || !C.SUPABASE_ANON_KEY) { showLogin(); say('lerr', 'Administración no disponible sin Supabase.'); return; }
+  const { data, error } = await sb.auth.getSession();
+  if (error || !data.session || (data.session.user.email || '').toLowerCase() !== ADMIN_EMAIL) {
+    showLogin(); say('lerr', 'Esta cuenta no tiene permisos de administrador.'); return;
+  }
+  logged = true; $('#login').hidden = true; $('#panel').hidden = false; $('#out').hidden = false;
+  await loadAll();
+}
+async function login() {
+  if (LOCAL || !sb) return;
+  say('lerr', 'Verificando credenciales…');
+  const email = $('#em').value.trim().toLowerCase();
+  if (email !== ADMIN_EMAIL) { say('lerr', 'Correo o contraseña incorrectos.'); return; }
+  const { error } = await sb.auth.signInWithPassword({ email, password: $('#pw').value });
+  say('lerr', error ? 'Correo o contraseña incorrectos.' : '');
+}
+async function logout() { if (sb && !LOCAL) await sb.auth.signOut(); }
+
+async function loadAll() {
+  const [c, p, s, k, o, mv] = await Promise.all([sb.from('categories').select('*').order('created_at'), sb.from('products').select('*').order('created_at', { ascending: false }), sb.from('settings').select('*'), sb.from('wholesale_codes').select('*').order('created_at', { ascending: false }), sb.from('orders').select('*').order('created_at', { ascending: false }), sb.from('inventory_movements').select('*').order('created_at', { ascending: false })]);
+  codes = k.data || []; codesErr = k.error; orders = o.data || []; ordersErr = o.error; movements = mv.data || []; movementsErr = mv.error;
+  cats = c.data || []; products = p.data || [];
+  const g = await sb.from('size_guides').select('*').order('created_at'); guides = g.data || []; guidesOk = !g.error; guidesErr = g.error;
+  backOk = LOCAL || (products.length ? ('image_path_back' in products[0]) : !(await sb.from('products').select('image_path_back')).error);
+  const w = (s.data || []).find(r => r.key === 'whatsapp'); settings.whatsapp = (w && w.value) || C.WHATSAPP;
+  const hb = (s.data || []).find(r => r.key === 'hero_banners'); settings.hero_banners = parseHeroAdmin(hb && hb.value);
+  const vc = (s.data || []).find(r => r.key === 'visual_content'); settings.visual_content = parseVisualAdmin(vc && vc.value);
+  const ht = (s.data || []).find(r => r.key === 'home_tiles'); settings.home_tiles = parseHeroAdmin(ht && ht.value);
+  tiers = parseTiers(s.data); countMode = parseCountMode(s.data);
+  renderPanel();
+}
+
+/* ================= NAVEGACIÓN POR SECCIONES ================= */
+const ICON = {
+  home: '<path d="M3 11l9-8 9 8M5 10v10h14V10"/>',
+  mail: '<path d="M4 5h16v14H4zM4 7l8 6 8-6"/>',
+  image: '<rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-8 9"/>',
+  tag: '<path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8.5" r="1.3"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  grid: '<rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/>',
+  percent: '<path d="M19 5L5 19"/><circle cx="7" cy="7" r="2.5"/><circle cx="17" cy="17" r="2.5"/>',
+  key: '<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M16 7l3 3"/>',
+  ruler: '<rect x="2" y="8" width="20" height="8" rx="1.5"/><path d="M6 8v3M10 8v4M14 8v3M18 8v4"/>',
+  cog: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/>'
+};
+const ic = n => `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[n]}</svg>`;
+
+const VIEWS = [
+  // Menú agrupado por tareas, manteniendo las pantallas y funciones existentes.
+  { id: 'resumen', group: 'Resumen', ico: 'home', name: 'Resumen', desc: 'Una mirada rápida a cómo va tu tienda.' },
+  { id: 'pedidos', group: 'Pedidos y cotizaciones', ico: 'mail', name: 'Pedidos y cotizaciones', desc: 'Revisa las cotizaciones que llegan desde el carrito y marca como vendidos los pedidos confirmados.' },
+  { id: 'catalogo', group: 'Productos e inventario', ico: 'grid', name: 'Catálogo', desc: 'Edita precios, fotos, inventario y estado de cada producto cargado.' },
+  { id: 'nuevo', group: 'Productos e inventario', ico: 'plus', name: 'Nuevo producto', desc: 'Crea una referencia nueva con fotos, precios e inventario por talla.' },
+  { id: 'categorias', group: 'Productos e inventario', ico: 'tag', name: 'Categorías', desc: 'Organiza el catálogo y define qué descuentos usa cada categoría.' },
+  { id: 'reglas', group: 'Precios y mayoristas', ico: 'percent', name: 'Reglas de precios', desc: 'Descuentos por cantidad y condiciones de distribuidor y mayorista.' },
+  { id: 'codigos', group: 'Precios y mayoristas', ico: 'key', name: 'Códigos mayorista', desc: 'Un código por cliente para que vea todo a precio mayorista.' },
+  { id: 'campanas', group: 'Diseño de la tienda', ico: 'image', name: 'Campañas', desc: 'Crea campañas de portada con una sola imagen o con tres imágenes simétricas, y elige cuáles se muestran.' },
+  { id: 'visual', group: 'Diseño de la tienda', ico: 'image', name: 'Contenido visual', desc: 'Elige el color de fondo de la tienda y edita avisos y textos del inicio.' },
+  { id: 'pie', group: 'Diseño de la tienda', ico: 'image', name: 'Pie de página', desc: 'Edita cada texto del pie: marca, tienda, horario, contacto, redes y línea legal, con vista previa.' },
+  { id: 'guias', group: 'Diseño de la tienda', ico: 'ruler', name: 'Guías de tallas', desc: 'Guarda las medidas exactas por categoría y elige qué guía lleva cada producto.' },
+  { id: 'ajustes', group: 'Configuración', ico: 'cog', name: 'Configuración', desc: 'Configura los datos de contacto, WhatsApp y otras opciones de la tienda.' },
+  { id: 'herramientas', group: 'Reportes y copias de seguridad', ico: 'grid', name: 'Inventario y reportes', desc: 'Ajustes de stock con historial, importación masiva y exportación de datos.' }
+];
+let view = (location.hash || '').slice(1), orderFilter = 'pending'; if (view === 'portada') view = 'campanas';
+if (!VIEWS.some(v => v.id === view)) view = 'resumen';
+function go(v) { view = v; try { history.replaceState(null, '', '#' + v); } catch (e) {} renderPanel(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+window.addEventListener('hashchange', () => { const h = location.hash.slice(1); if (VIEWS.some(v => v.id === h) && h !== view) { view = h; if (logged) renderPanel(); } });
+const setOrderFilter = k => { orderFilter = k; renderPanel(); };
+const isSold = o => o.status === 'sold';
+const shortId = o => String(o.id).slice(0, 8).toUpperCase();
+
+/* ================= SHELL ================= */
+function renderPanel() {
+  const cur = VIEWS.find(v => v.id === view) || VIEWS[0], pend = orders.filter(o => !isSold(o)).length;
+  const body = { resumen: vResumen, pedidos: vPedidos, campanas: vCampanas, visual: vVisual, pie: vPie, categorias: vCategorias, guias: vGuias, nuevo: vNuevo, catalogo: vCatalogo, reglas: vReglas, codigos: vCodigos, ajustes: vAjustes, herramientas: vHerramientas }[cur.id]();
+  document.title = cur.name + ' · Administrar · IZAN Clothes';
+  let lastGroup = '';
+  const nav = VIEWS.map(v => {
+    const head = v.group !== lastGroup ? `<p class="adm-group">${v.group}</p>` : ''; lastGroup = v.group;
+    return `${head}<button class="adm-link ${v.id === cur.id ? 'on' : ''}" onclick="go('${v.id}')" ${v.id === cur.id ? 'aria-current="page"' : ''}><span class="ico">${ic(v.ico)}</span><span class="lbl2">${v.name}</span>${v.id === 'pedidos' && pend ? `<em>${pend}</em>` : ''}</button>`;
+  }).join('');
+  $('#panel').innerHTML = `<div class="adm-shell">
+    <nav class="adm-side" aria-label="Secciones de administración">${nav}</nav>
+    <section class="adm-main" aria-live="polite">
+      <div class="adm-head"><div><p class="eyebrow">${cur.group}</p><h2>${cur.name}</h2><p class="note">${cur.desc}</p></div></div>
+      ${body}
+    </section></div>`;
+  renderHeroAdminList();
+  const nv = $('.adm-side'), on = $('.adm-link.on');
+  if (nv && on && nv.scrollWidth > nv.clientWidth) nv.scrollLeft = Math.max(0, on.offsetLeft - 16);
+}
+
+/* ================= VISTAS ================= */
+function vResumen() {
+  const pend = orders.filter(o => !isSold(o)), agotados = products.filter(p => p.sold_out || !SZ.some(z => stock(p, z))), lowStock = products.filter(p => !p.sold_out && SZ.some(z => stock(p,z)>0 && stock(p,z)<=3));
+  const camp = (settings.hero_banners || []).filter(b => b.active !== false).length, cods = codes.filter(k => k.active).length;
+  const stat = (v, n, label, cls) => `<button class="stat ${cls}" onclick="go('${v}')"><b>${n}</b><span>${label}</span><i aria-hidden="true">↗</i></button>`;
+  const mini = o => `<button class="mini" onclick="go('pedidos')"><span><b>#${esc(shortId(o))}</b><small>${new Date(o.created_at).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' })}</small></span><span class="mini-t">${fmt(o.total)}</span><span class="pill ${isSold(o) ? 'ok' : 'wait'}">${isSold(o) ? 'Vendido' : 'Pendiente'}</span></button>`;
+  const quick = (v, ico, t) => `<button class="quick" onclick="go('${v}')"><span class="ico">${ic(ico)}</span>${t}</button>`;
+  return `<div class="stats">
+      ${stat('pedidos', pend.length, 'Cotizaciones pendientes', 's-orange')}
+      ${stat('catalogo', products.length, products.length == 1 ? 'Producto cargado' : 'Productos cargados', 's-blue')}
+      ${stat('categorias', cats.length, cats.length == 1 ? 'Categoría' : 'Categorías', 's-lilac')}
+      ${stat('campanas', camp, camp == 1 ? 'Campaña activa' : 'Campañas activas', 's-lime')}
+      ${stat('codigos', cods, 'Códigos mayorista activos', 's-ink')}
+      ${stat('catalogo', agotados.length, 'Referencias agotadas', 's-soft')}
+      ${stat('herramientas', lowStock.length, 'Referencias con stock bajo (1–3)', 's-orange')}
+    </div>
+    <div class="split">
+      <section class="panel"><div class="panel-h"><h3>Últimas cotizaciones</h3><button class="chip" onclick="go('pedidos')">Ver todas</button></div>
+        ${ordersErr ? '<p class="note">No se pudo cargar Pedidos. Ejecuta <b>migracion_pedidos.sql</b> en Supabase.</p>' : orders.slice(0, 4).map(mini).join('') || '<p class="note">Todavía no hay cotizaciones registradas.</p>'}
+      </section>
+      <section class="panel"><div class="panel-h"><h3>Accesos rápidos</h3></div>
+        <div class="quicks">${quick('campanas', 'image', 'Nueva campaña')}${quick('nuevo', 'plus', 'Nuevo producto')}${quick('categorias', 'tag', 'Nueva categoría')}${quick('codigos', 'key', 'Crear código')}</div>
+      </section>
+    </div>`;
+}
+
+function vPedidos() {
+  const cnt = k => orders.filter(o => k === 'all' || (k === 'sold') === isSold(o)).length;
+  const list = orders.filter(o => orderFilter === 'all' || (orderFilter === 'sold') === isSold(o));
+  const f = (k, t) => `<button class="chip ${orderFilter === k ? 'on' : ''}" onclick="setOrderFilter('${k}')">${t} <small>${cnt(k)}</small></button>`;
+  return `<section class="panel">
+    <div class="panel-h"><div class="chips-row">${f('pending', 'Pendientes')}${f('sold', 'Vendidas')}${f('all', 'Todas')}</div><button class="chip" onclick="loadAll()">↻ Actualizar</button></div>
+    <p class="note">Marca como vendido únicamente cuando confirmes la venta; el inventario se descontará una sola vez. Eliminar una cotización no modifica el inventario.</p>
+    ${ordersErr ? '<p class="note">No se pudo cargar Pedidos. Ejecuta el archivo <b>migracion_pedidos.sql</b> en Supabase y vuelve a cargar.</p>' : list.length ? `<div class="orders">${list.map(orderCard).join('')}</div>` : `<div class="empty-box">${orderFilter === 'pending' ? 'No tienes cotizaciones pendientes.' : 'No hay cotizaciones en esta lista.'}</div>`}
+  </section>`;
+}
+
+function vCampanas() {
+  const legacy = parseHeroAdmin(settings.home_tiles), hasLegacy = legacy.length === 3 && legacy.some(t => t && t.image);
+  return `<section class="panel" id="heroAdmin">
+    <div class="panel-h"><div><h3>Campañas de la portada</h3><p class="note">Cada campaña puede ser de <b>una imagen</b> o de <b>tres imágenes</b> (simétricas, del mismo tamaño). Todas ocupan el mismo espacio en la tienda y las activas se alternan automáticamente. Una imagen: fotos horizontales de unos 1800 × 900 px. Tres imágenes: fotos verticales 4:5 (unos 1000 × 1250 px) con el producto centrado.</p></div><button class="btn acc" onclick="addHeroBanner()">+ Nueva campaña</button></div>
+    ${hasLegacy ? `<div class="empty-box" style="margin-bottom:14px">Tienes una portada de tres imágenes de la versión anterior. <button class="chip" onclick="importLegacyTiles()">Convertirla en campaña</button></div>` : ''}
+    <div id="heroAdminList" class="hero-list"></div><p class="note" id="heromsg"></p>
+  </section>`;
+}
+
+function paletteCards(sel) {
+  return `<div class="pal-pick" role="radiogroup" aria-label="Paleta de color de fondo">${Object.keys(BG_PALETTES).map(k => { const p = BG_PALETTES[k]; return `<label class="pal-opt"><input type="radio" name="vpalette" value="${k}" ${k === sel ? 'checked' : ''}><span class="pal-prev" style="background:${p.bg}"><i style="background:${p.card};border-color:${p.line}"></i><i style="background:${p.card};border-color:${p.line}"></i><b style="background:${p.ink}"></b></span><span class="pal-name">${p.name}</span><small>${p.desc}</small><span class="pal-sw"><u style="background:${p.bg}"></u><u style="background:${p.card}"></u><u style="background:${p.line}"></u><u style="background:${p.ink}"></u></span></label>`; }).join('')}</div>`;
+}
+function vVisual() {
+  const v = { ...DEFAULT_VISUAL, ...(settings.visual_content || {}) };
+  const pal = BG_PALETTES[v.bg_palette] ? v.bg_palette : DEFAULT_PALETTE;
+  return `<section class="panel"><div class="panel-h"><div><h3>Color de fondo de la tienda</h3><p class="note">Elige una de las tres paletas minimalistas. Cambia el fondo, las líneas y los tonos de texto de toda la tienda.</p></div></div>
+    ${paletteCards(pal)}
+  </section>
+  <section class="panel"><div class="panel-h"><div><h3>Textos de la página inicial</h3><p class="note">Edita los avisos y textos de la parte superior e intermedia. El pie de página tiene su propio apartado: <b>Pie de página</b>.</p></div></div>
+    <div class="fg">
+      <div style="grid-column:1/-1"><label for="vannounce">Avisos de la franja superior</label><textarea id="vannounce" rows="3" placeholder="Un aviso por línea">${esc(v.announcement)}</textarea><small class="note">Cada línea será un aviso rotativo.</small></div>
+      <div><label for="vfeaturedLabel">Texto pequeño de destacados</label><input id="vfeaturedLabel" value="${esc(v.featured_label)}"></div>
+      <div><label for="vfeaturedTitle">Título de destacados</label><input id="vfeaturedTitle" value="${esc(v.featured_title)}"></div>
+      <div style="grid-column:1/-1"><label for="vticker">Franja intermedia (texto animado)</label><textarea id="vticker" rows="3">${esc(v.ticker)}</textarea></div>
+      <div><label for="vcatalogLabel">Etiqueta sobre el catálogo</label><input id="vcatalogLabel" value="${esc(v.catalog_label)}"></div>
+    </div><p><button class="btn acc" onclick="saveVisualContent()">Guardar cambios visuales</button> <span class="note" id="vmsg"></span></p>
+  </section>`;
+}
+async function saveVisualContent() {
+  const picked = document.querySelector('input[name=vpalette]:checked');
+  const v = {
+    ...(settings.visual_content || {}),
+    announcement: $('#vannounce').value.trim(), featured_label: $('#vfeaturedLabel').value.trim(), featured_title: $('#vfeaturedTitle').value.trim(),
+    ticker: $('#vticker').value.trim(), catalog_label: $('#vcatalogLabel').value.trim(),
+    bg_palette: picked && BG_PALETTES[picked.value] ? picked.value : DEFAULT_PALETTE
+  };
+  const { error } = await sb.from('settings').upsert({ key: 'visual_content', value: JSON.stringify(v) });
+  if (error) { say('vmsg', 'No se pudo guardar: ' + error.message); return; }
+  settings.visual_content = v; say('vmsg', 'Cambios guardados ✓. Se verán en la tienda al actualizarla.');
+}
+
+/* ===== Pie de página: un campo por cada texto, con vista previa en vivo ===== */
+function vPie() {
+  const f = parseFooter(settings.visual_content);
+  const t = (id, label, val, extra = '') => `<div><label for="${id}">${label}</label><input id="${id}" value="${esc(val)}" ${extra}></div>`;
+  const a = (id, label, val, rows, hint) => `<div style="grid-column:1/-1"><label for="${id}">${label}</label><textarea id="${id}" rows="${rows}">${esc(val)}</textarea>${hint ? `<small class="note">${hint}</small>` : ''}</div>`;
+  const c = (id, on, label) => `<label class="tk" style="grid-column:1/-1"><input type="checkbox" id="${id}" ${on ? 'checked' : ''}> ${label}</label>`;
+  return `<section class="panel"><div class="panel-h"><div><h3>Vista previa</h3><p class="note">Así se verá el pie de página. Se actualiza mientras escribes.</p></div></div>
+    <div class="foot-preview-wrap"><footer class="site-footer" id="footPreview">${footerHTML(f, { preview: true })}</footer></div></section>
+  <section class="panel" oninput="refreshFooterPreview()" onchange="refreshFooterPreview()">
+    <div class="panel-h"><div><h3>Marca</h3><p class="note">Frase principal y descripción corta junto al logo.</p></div></div>
+    <div class="fg">${t('fslogan', 'Frase destacada', f.slogan, 'maxlength="80"')}${t('ftagline', 'Descripción corta', f.tagline, 'maxlength="140"')}</div>
+    <div class="panel-h" style="margin-top:22px"><div><h3>Tienda</h3><p class="note">Una línea por renglón. La primera se resalta como dirección principal.</p></div></div>
+    <div class="fg">${c('fshowStore', f.show_store, 'Mostrar esta columna')}${t('fstoreTitle', 'Título de la columna', f.store_title, 'maxlength="30"')}${a('fstoreLines', 'Dirección y datos', f.store_lines, 3, 'Ejemplo: <b>Bogotá</b> (Enter) <b>C.C. Punto Once | 5018</b>')}</div>
+    <div class="panel-h" style="margin-top:22px"><div><h3>Horario</h3><p class="note">Escribe cada fila como <b>Días | Horas</b>; se muestra en dos columnas alineadas.</p></div></div>
+    <div class="fg">${c('fshowHours', f.show_hours, 'Mostrar esta columna')}${t('fhoursTitle', 'Título de la columna', f.hours_title, 'maxlength="30"')}${a('fhours', 'Filas de horario', f.hours, 3, 'Ejemplo: <b>Lun–Sáb | 9am–5pm</b>')}</div>
+    <div class="panel-h" style="margin-top:22px"><div><h3>Contacto</h3><p class="note">Opcional. Escribe cada fila como <b>Etiqueta | Dato</b>. Los correos y teléfonos se vuelven enlaces automáticamente.</p></div></div>
+    <div class="fg">${c('fshowContact', f.show_contact, 'Mostrar esta columna')}${t('fcontactTitle', 'Título de la columna', f.contact_title, 'maxlength="30"')}${a('fcontactLines', 'Filas de contacto', f.contact_lines, 3, 'Ejemplo: <b>WhatsApp | +57 300 000 0000</b>')}</div>
+    <div class="panel-h" style="margin-top:22px"><div><h3>Redes sociales</h3><p class="note">Solo se muestran las redes que tengan enlace.</p></div></div>
+    <div class="fg">${t('fsocialTitle', 'Título de la columna', f.social_title, 'maxlength="30"')}<div></div>${t('figLabel', 'Instagram · texto', f.instagram_label, 'maxlength="40"')}${t('figUrl', 'Instagram · enlace', f.instagram_url, 'type="url" placeholder="https://www.instagram.com/..."')}${t('fttLabel', 'TikTok · texto', f.tiktok_label, 'maxlength="40"')}${t('fttUrl', 'TikTok · enlace', f.tiktok_url, 'type="url" placeholder="https://www.tiktok.com/@..."')}${c('fshowHandles', f.show_handles, 'Mostrar el nombre de usuario junto a cada ícono')}</div>
+    <div class="panel-h" style="margin-top:22px"><div><h3>Línea inferior</h3><p class="note">Derechos y enlaces legales. Usa <b>{año}</b> para que el año se actualice solo.</p></div></div>
+    <div class="fg">${t('flegal', 'Texto legal', f.legal, 'maxlength="140"')}${t('fpolicy', 'Texto del enlace de la política de datos (vacío = ocultar)', f.policy_text, 'maxlength="80"')}${c('fshowAdmin', f.show_admin, 'Mostrar el enlace discreto “Administrar”')}</div>
+    <p><button class="btn acc" onclick="saveFooter()">Guardar pie de página</button> <button class="chip" onclick="resetFooterForm()">Restablecer textos sugeridos</button> <span class="note" id="fmsg"></span></p>
+  </section>`;
+}
+function readFooterForm() {
+  const v = id => ($('#' + id) ? $('#' + id).value.trim() : ''), k = id => !!($('#' + id) && $('#' + id).checked);
+  return { slogan: v('fslogan'), tagline: v('ftagline'), show_store: k('fshowStore'), store_title: v('fstoreTitle'), store_lines: v('fstoreLines'), show_hours: k('fshowHours'), hours_title: v('fhoursTitle'), hours: v('fhours'), show_contact: k('fshowContact'), contact_title: v('fcontactTitle'), contact_lines: v('fcontactLines'), social_title: v('fsocialTitle'), instagram_label: v('figLabel'), instagram_url: v('figUrl'), tiktok_label: v('fttLabel'), tiktok_url: v('fttUrl'), show_handles: k('fshowHandles'), legal: v('flegal'), policy_text: v('fpolicy'), show_admin: k('fshowAdmin') };
+}
+function refreshFooterPreview() { const el = $('#footPreview'); if (el) el.innerHTML = footerHTML(readFooterForm(), { preview: true }); }
+async function resetFooterForm() {
+  if (!confirm('¿Restablecer todos los textos del pie de página a los sugeridos? Se perderán los cambios sin guardar.')) return;
+  settings.visual_content = { ...(settings.visual_content || {}), footer: { ...DEFAULT_FOOTER } }; renderPanel();
+}
+async function saveFooter() {
+  const f = readFooterForm();
+  for (const [k, n] of [['instagram_url', 'Instagram'], ['tiktok_url', 'TikTok']]) if (f[k] && !/^https:\/\//i.test(f[k])) { say('fmsg', `El enlace de ${n} debe comenzar por https://`); return; }
+  const v = { ...(settings.visual_content || {}), footer: f };
+  const { error } = await sb.from('settings').upsert({ key: 'visual_content', value: JSON.stringify(v) });
+  if (error) { say('fmsg', 'No se pudo guardar: ' + error.message); return; }
+  settings.visual_content = v; say('fmsg', 'Pie de página guardado ✓. Se verá en la tienda al actualizarla.');
+}
+
+
+function vCategorias() {
+  return `<section class="panel">
+    <div class="panel-h"><h3>Nueva categoría</h3></div>
+    <div class="fg" style="grid-template-columns:1fr"><div><label for="cn">Nombre</label><input id="cn" placeholder="Ej. Camisetas oversized"></div></div>
+    <label>Descuentos que usa esta categoría</label>
+    <div class="tierbox">${tierBoxes('cn_', allKeys())}</div>
+    <p><button class="btn acc" onclick="saveCat()">+ Crear categoría</button> <span class="note" id="cmsg"></span></p>
+  </section>
+  <section class="panel">
+    <div class="panel-h"><h3>Categorías creadas</h3><span class="pill">${cats.length}</span></div>
+    ${cats.length ? `<div class="cat-list">${cats.map((c, i) => { const n = products.filter(p => p.category_id == c.id).length, k = effectiveCat(c.id);
+      return `<article class="cat-card c${i % 4}"><div><b>${esc(c.name)}</b><small>${n} ${n == 1 ? 'producto' : 'productos'}</small><small>Descuentos: ${tiers.filter(t => k.includes(t.key)).map(t => tierLabel(t)).join(' · ') || 'ninguno'}</small></div><div class="row-actions"><button class="chip" onclick="editCat('${c.id}')">✎ Editar</button><button class="chip danger" onclick="delCat('${c.id}')">Eliminar</button></div></article>`; }).join('')}</div>` : '<div class="empty-box">Todavía no hay categorías. Crea la primera arriba.</div>'}
+  </section>`;
+}
+
+
+/* ================= GUÍAS DE TALLAS ================= */
+const gBlank = () => ({ id: null, name: '', note: 'Medidas en centímetros (cm), con la prenda extendida en plano.', cols: ['Ancho', 'Largo', 'Manga'], rows: {} });
+const guideOptions = sel => '<option value="">Sin guía de tallas</option>' + guides.map(g => `<option value="${g.id}" ${g.id == sel ? 'selected' : ''}>${esc(g.name)}</option>`).join('');
+const guideField = (id, sel) => guidesOk
+  ? `<div><label for="${id}">Guía de tallas</label><select id="${id}">${guideOptions(sel)}</select>${guides.length ? '' : '<small class="note">Aún no hay guías. Créalas en Tienda → Guías de tallas.</small>'}</div>`
+  : '';
+
+function vGuias() {
+  if (!guidesOk) return `<section class="panel"><div class="empty-box">Para usar las guías de tallas falta ejecutar <b>una sola vez</b> el archivo <b>migracion_guias_tallas.sql</b> en Supabase → SQL Editor.${guidesErr ? `<br><small>${esc(guidesErr.message)}</small>` : ''}</div></section>`;
+  if (!gDraft) gDraft = gBlank();
+  const d = gDraft;
+  return `<section class="panel">
+    <div class="panel-h"><h3>${d.id ? 'Editar guía' : 'Nueva guía'}</h3>${d.id ? '<button class="chip" onclick="gCancel()">Cancelar edición</button>' : ''}</div>
+    <div class="fg" style="grid-template-columns:1fr 1fr">
+      <div><label for="gname">Nombre de la guía (por categoría)</label><input id="gname" value="${esc(d.name)}" placeholder="Ej. Camisetas oversized"></div>
+      <div><label for="gnote">Nota (opcional)</label><input id="gnote" value="${esc(d.note)}" placeholder="Ej. Medidas en cm, prenda en plano"></div>
+    </div>
+    <label>Medidas exactas por talla</label>
+    <div class="gscroll-admin"><table class="gtable">
+      <thead><tr><th>Talla</th>${d.cols.map((c, i) => `<th><div class="gcolh"><input class="gcol" value="${esc(c)}" placeholder="Medida (cm)" aria-label="Nombre de la medida ${i + 1}"><button type="button" class="gx" onclick="gDelCol(${i})" title="Quitar esta medida" aria-label="Quitar medida">×</button></div></th>`).join('')}<th><button type="button" class="chip" onclick="gAddCol()">+ Medida</button></th></tr></thead>
+      <tbody>${GSZ.map(z => `<tr><th>${z}</th>${d.cols.map((c, i) => `<td><input class="gcell" data-z="${z}" data-i="${i}" value="${esc((d.rows[z] || [])[i] || '')}" aria-label="${z} · ${esc(c)}"></td>`).join('')}<td></td></tr>`).join('')}</tbody>
+    </table></div>
+    <p class="note">Las tallas que dejes vacías no aparecen en la tienda. Puedes escribir rangos (ej. 52–54). Cambia los nombres de las medidas como necesites (Pecho, Cintura, Cadera…).</p>
+    <p><button class="btn acc" onclick="gSave()">${d.id ? 'Guardar cambios' : '+ Crear guía'}</button> <span class="note" id="gmsg"></span></p>
+  </section>
+  <section class="panel">
+    <div class="panel-h"><h3>Guías creadas</h3><span class="pill">${guides.length}</span></div>
+    ${guides.length ? `<div class="cat-list">${guides.map((g, i) => { const G = parseGuide(g), n = products.filter(p => p.size_guide_id == g.id).length, sz = GSZ.filter(z => (G.rows[z] || []).some(v => String(v).trim()));
+      return `<article class="cat-card c${i % 4}"><div><b>${esc(g.name)}</b><small>Tallas: ${sz.join(' · ') || 'ninguna'}</small><small>Medidas: ${esc(G.cols.join(' · ')) || '—'}</small><small>Usada en ${n} ${n == 1 ? 'producto' : 'productos'}</small></div><div class="row-actions"><button class="chip" onclick="gEdit('${g.id}')">✎ Editar</button><button class="chip" onclick="gDup('${g.id}')">Duplicar</button><button class="chip danger" onclick="gDel('${g.id}')">Eliminar</button></div></article>`; }).join('')}</div>` : '<div class="empty-box">Todavía no hay guías. Crea la primera arriba.</div>'}
+  </section>`;
+}
+function gSync() {
+  if (!gDraft || !$('#gname')) return;
+  const d = gDraft; d.name = $('#gname').value; d.note = $('#gnote').value;
+  d.cols = [...document.querySelectorAll('.gcol')].map(i => i.value);
+  const rows = {}; GSZ.forEach(z => rows[z] = d.cols.map(() => ''));
+  document.querySelectorAll('.gcell').forEach(i => { rows[i.dataset.z][+i.dataset.i] = i.value; });
+  d.rows = rows;
+}
+function gAddCol() { gSync(); gDraft.cols.push(''); renderPanel(); const l = document.querySelectorAll('.gcol'); if (l.length) l[l.length - 1].focus(); }
+function gDelCol(i) { gSync(); gDraft.cols.splice(i, 1); GSZ.forEach(z => { if (gDraft.rows[z]) gDraft.rows[z].splice(i, 1); }); renderPanel(); }
+function gCancel() { gDraft = null; renderPanel(); }
+function gEdit(id) {
+  const g = guides.find(x => x.id == id); if (!g) return;
+  const G = parseGuide(g), rows = {}; GSZ.forEach(z => rows[z] = G.cols.map((_, i) => String((G.rows[z] || [])[i] ?? '')));
+  gDraft = { id: g.id, name: G.name, note: G.note, cols: G.cols.slice(), rows };
+  renderPanel(); window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+function gPayload() {
+  gSync(); const d = gDraft, name = d.name.trim();
+  if (!name) { say('gmsg', 'Escribe el nombre de la guía.'); return null; }
+  const keep = d.cols.map((c, i) => c.trim() ? i : -1).filter(i => i >= 0);
+  if (!keep.length) { say('gmsg', 'Agrega al menos una medida (ej. Ancho).'); return null; }
+  const rows = {};
+  GSZ.forEach(z => { const v = keep.map(i => String((d.rows[z] || [])[i] ?? '').trim()); if (v.some(Boolean)) rows[z] = v; });
+  if (!Object.keys(rows).length) { say('gmsg', 'Llena las medidas de al menos una talla.'); return null; }
+  return { name, note: d.note.trim(), measures: JSON.stringify(keep.map(i => d.cols[i].trim())), sizes: JSON.stringify(rows) };
+}
+async function gSave() {
+  const row = gPayload(); if (!row) return;
+  say('gmsg', 'Guardando…');
+  const q = gDraft.id ? sb.from('size_guides').update(row).eq('id', gDraft.id) : sb.from('size_guides').insert(row);
+  const { error } = await q;
+  if (error) return say('gmsg', 'Error: ' + error.message);
+  gDraft = null; await loadAll(); say('gmsg', 'Guía guardada ✓');
+}
+async function gDup(id) {
+  const g = guides.find(x => x.id == id); if (!g) return;
+  const { error } = await sb.from('size_guides').insert({ name: g.name + ' (copia)', note: g.note || '', measures: g.measures, sizes: g.sizes });
+  if (error) return alert('No se pudo duplicar: ' + error.message);
+  await loadAll();
+}
+async function gDel(id) {
+  const g = guides.find(x => x.id == id), n = products.filter(p => p.size_guide_id == id).length;
+  if (!await ask(`¿Eliminar la guía "${g ? g.name : ''}"?${n ? ` Los ${n} productos que la usan quedarán sin guía.` : ''}`)) return;
+  if (n) await sb.from('products').update({ size_guide_id: null }).eq('size_guide_id', id);
+  const { error } = await sb.from('size_guides').delete().eq('id', id);
+  if (error) return alert('No se pudo eliminar: ' + error.message);
+  if (gDraft && gDraft.id == id) gDraft = null;
+  await loadAll();
+}
+
+function vNuevo() {
+  if (!cats.length) return `<section class="panel"><div class="empty-box">Crea primero una categoría para poder agregar productos.<br><button class="btn acc" style="margin-top:14px" onclick="go('categorias')">Ir a Categorías</button></div></section>`;
+  return `<section class="panel">
+    <div class="fg">
+      <div><label for="nc">Categoría</label><select id="nc" onchange="lastCat=this.value;togInh('nt_','nc')">${cats.map(c => `<option value="${c.id}" ${c.id == lastCat ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></div>
+      <div><label for="nn">Nombre del producto</label><input id="nn" placeholder="Ej. Boxy Fit 270 g"></div>
+      <div><label for="ncolor">Color</label><input id="ncolor" placeholder="Ej. Negro, verde oliva"></div>
+      ${guideField('ngu', '')}
+      <div><label for="nf">Foto frontal</label><input id="nf" type="file" accept="image/*"></div>
+      ${backOk ? `<div><label for="nfb">Foto trasera (opcional)</label><input id="nfb" type="file" accept="image/*"></div>` : ''}
+    </div>
+    ${backOk ? '<p class="note">La foto trasera se muestra sola cuando el cliente pasa el mouse sobre el producto en la tienda.</p>' : '<p class="note">Para agregar foto trasera ejecuta <b>una sola vez</b> el archivo <b>migracion_foto_trasera.sql</b> en Supabase → SQL Editor.</p>'}
+    <label for="nd">Descripción</label><textarea id="nd" rows="3" placeholder="Describe la prenda: gramaje (ej. 220 g/m²), material, horma, detalles, etc."></textarea>
+    <fieldset class="product-flags"><legend>Destacar en la tienda</legend>
+      <label><input id="nbest" type="checkbox"> Best seller (carrusel de inicio)</label>
+      <label><input id="nlast" type="checkbox"> Últimas unidades</label>
+      <label><input id="nnew" type="checkbox"> Lo más nuevo</label>
+    </fieldset>
+    <div class="fg">
+      <div><label for="np">Precio detal (COP)</label><input id="np" type="number" min="0" step="1000" placeholder="0"></div>
+      <div><label for="npp">Precio promoción (COP)</label><input id="npp" type="number" min="0" step="1000" placeholder="0 = sin promoción"></div>
+      <div><label for="npd">Precio distribuidor (COP)</label><input id="npd" type="number" min="0" step="1000" placeholder="0 = no aplica"></div>
+      <div><label for="npm">Precio mayorista (COP)</label><input id="npm" type="number" min="0" step="1000" placeholder="0 = no aplica"></div>
+    </div>
+    <label>Descuentos que usa este producto</label>
+    ${tierPicker('nt_', null, 'nc')}
+    <div class="fg">${SZ.map(z => `<div><label for="ns${z}">Inventario talla ${z}</label><input id="ns${z}" type="number" min="0" step="1" placeholder="0"></div>`).join('')}</div>
+    <p><button class="btn acc" id="sv" onclick="saveNew()">Guardar producto</button> <span class="note" id="msg"></span></p>
+  </section>`;
+}
+
+function productRow(p) {
+  const own = parseKeys(p.tiers), keys = tierKeys(p, cats.find(c => c.id == p.category_id), tiers), catName = (cats.find(c => c.id == p.category_id) || {}).name || 'Sin categoría';
+  return `<div class="product-row" data-name="${esc(String(p.name).toLowerCase())}" data-cat="${esc(p.category_id)}">
+    <div class="pr-photos"><img class="front" src="${imgUrl(p.image_path)}" alt="${esc(p.name)}">${backOk && p.image_path_back ? `<img class="back" src="${imgUrl(p.image_path_back)}" alt="Parte trasera de ${esc(p.name)}" title="Foto trasera">` : ''}</div>
+    <div class="product-info">
+      <div class="pi-head"><b>${esc(p.name)}</b>${p.sold_out ? '<span class="pill out">Agotado</span>' : ''}${p.color ? `<span class="pill">${esc(p.color)}</span>` : ''}</div>
+      <small>${esc(catName)}${guidesOk ? ' · Guía: ' + (((guides.find(g => g.id == p.size_guide_id) || {}).name) ? esc(guides.find(g => g.id == p.size_guide_id).name) : '<i>sin guía</i>') : ''}</small>
+      <small>Inventario: ${SZ.map(z => `${z} <b>${stock(p, z)}</b>`).join(' · ')}</small>
+      <small>Descuentos: ${tiers.filter(t => tierUsable(p, t, keys)).map(t => (t.kind == 'pct' ? tierLabel(t) + ' (' + t.min + '+)' : tierLabel(t))).join(' · ') || 'ninguno'} ${own ? '' : '<i>(de la categoría)</i>'}</small>
+      <div class="row-actions">
+        <label class="chip">${backOk ? 'Foto frontal' : 'Cambiar foto'}<input type="file" accept="image/*" hidden onchange="newPhoto('${p.id}',this.files[0])"></label>
+        ${backOk ? `<label class="chip ${p.image_path_back ? 'on' : ''}">${p.image_path_back ? 'Cambiar trasera' : '+ Foto trasera'}<input type="file" accept="image/*" hidden onchange="newPhoto('${p.id}',this.files[0],'back')"></label>` : ''}
+        ${backOk && p.image_path_back ? `<button class="chip danger" onclick="removeBack('${p.id}')">Quitar trasera</button>` : ''}
+        <button class="chip" onclick="editProduct('${p.id}')">✎ Editar</button>
+        <button class="chip" onclick="duplicateProduct('${p.id}')">Duplicar</button>
+        <button class="chip ${p.sold_out ? 'on' : ''}" onclick="toggleSold('${p.id}')">${p.sold_out ? 'Reactivar' : 'Marcar agotado'}</button>
+        <button class="chip danger" onclick="del('${p.id}')">Eliminar</button>
+      </div>
+    </div>
+    <div class="price-box"><small>Detal</small><input type="number" min="0" step="1000" value="${price(p)}" onchange="setPrice('${p.id}','price',this.value)"></div>
+    <div class="price-box"><small>Promoción${onPromo(p) ? ' ✓' : ''}</small><input type="number" min="0" step="1000" value="${+p.price_promo || 0}" onchange="setPrice('${p.id}','price_promo',this.value)"></div>
+    <div class="price-box"><small>Distribuidor</small><input type="number" min="0" step="1000" value="${+p.price_dist || 0}" onchange="setPrice('${p.id}','price_dist',this.value)"></div>
+    <div class="price-box"><small>Mayorista</small><input type="number" min="0" step="1000" value="${+p.price_mayor || 0}" onchange="setPrice('${p.id}','price_mayor',this.value)"></div>
+  </div>`;
+}
+function filterCatalog() {
+  const q = ($('#catq').value || '').trim().toLowerCase(), c = $('#catf').value;
+  document.querySelectorAll('.product-row').forEach(r => { r.hidden = !((!q || r.dataset.name.includes(q)) && (c === 'all' || r.dataset.cat === c)); });
+  document.querySelectorAll('.cat-block').forEach(b => { b.hidden = (q || c !== 'all') && !b.querySelector('.product-row:not([hidden])'); });
+}
+function vCatalogo() {
+  if (!cats.length) return `<section class="panel"><div class="empty-box">Todavía no hay categorías ni productos.<br><button class="btn acc" style="margin-top:14px" onclick="go('categorias')">Crear una categoría</button></div></section>`;
+  return `<section class="panel">
+    <div class="toolbar"><input id="catq" type="search" placeholder="Buscar producto por nombre…" oninput="filterCatalog()" aria-label="Buscar producto"><select id="catf" onchange="filterCatalog()" aria-label="Filtrar por categoría"><option value="all">Todas las categorías</option>${cats.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select><button class="btn acc" onclick="go('nuevo')">+ Nuevo producto</button></div>
+    <p class="note">Las cuatro cajas de cada producto son: precio detal, promoción (0 = sin promoción), distribuidor y mayorista. Edita nombre, color, descripción, categoría, descuentos o fotografía con ✎ Editar.</p>
+    ${cats.map(c => { const l = products.filter(p => p.category_id == c.id);
+      return `<div class="cat-block"><div class="ch"><b>${esc(c.name)}</b><span class="pill">${l.length}</span><span class="grow"></span><button class="chip" onclick="editCat('${c.id}')">✎ Editar categoría</button></div>${l.map(productRow).join('') || '<p class="note">Sin productos.</p>'}</div>`; }).join('')}
+  </section>`;
+}
+
+function vReglas() {
+  return `<section class="panel">
+    <p class="note">1 unidad = precio <b>detal</b>. Los descuentos porcentuales (5%, 10%, 15%) se miden por referencia o por pedido según la opción inferior.<br><b>Distribuidor:</b> de 6 a 11 unidades, mínimo 3 tallas diferentes.<br><b>Mayorista:</b> desde 12 unidades; con 3 o 4 tallas aplica directamente. Si lleva solo 2 tallas, debe llevar mínimo 3 unidades de cada talla. Las reglas se evalúan sobre todo el pedido, mezclando diseños y categorías.</p>
+    ${tiers.map(t => `<div class="tier-row3"><span>${t.kind == 'pct' ? '<b>' + esc(t.name || 'Descuento') + '</b>' : '<b>' + esc(t.name) + '</b>'}</span>${t.kind == 'pct'
+      ? `<div><small>Desde (unidades)</small><input id="tm_${t.key}" type="number" min="2" step="1" value="${t.min}"></div><div><small>Descuento (%)</small><input id="tp_${t.key}" type="number" min="0" max="90" step="1" value="${t.pct}"></div>`
+      : `<div><small>Unidades mínimas (total)</small><input id="tt_${t.key}" type="number" min="1" step="1" value="${t.total}"></div><div><small>Condición de surtido</small><input id="ts_${t.key}" type="number" min="1" max="${SZ.length}" step="1" value="${t.sizes}"></div><div><small>Tallas mín. si lleva más</small><input id="tf_${t.key}" type="number" min="1" max="${SZ.length}" step="1" value="${t.flex}"></div>`}</div>`).join('')}
+    <div class="rule-create" style="border-top:1px solid var(--line,#ddd);margin-top:20px;padding-top:16px">
+      <h3>Crear regla personalizada</h3><p class="note">Crea un descuento porcentual por cantidad. Después podrás asignarlo a cada producto o dejar que lo herede de su categoría.</p>
+      <div class="edit-prices"><div><label for="newRuleName">Nombre de la regla</label><input id="newRuleName" maxlength="60" placeholder="Ej. Promoción lanzamiento"></div><div><label for="newRuleMin">Desde cuántas unidades</label><input id="newRuleMin" type="number" min="2" step="1" value="5"></div><div><label for="newRulePct">Descuento (%)</label><input id="newRulePct" type="number" min="1" max="90" step="1" value="20"></div></div>
+      <button class="btn ghost" onclick="addCustomRule()">+ Crear regla</button> <span class="note" id="newRuleMsg"></span>
+    </div>
+    <label for="cm">Cómo se cuentan las unidades de los descuentos</label>
+    <select id="cm"><option value="ref" ${countMode == 'ref' ? 'selected' : ''}>Por referencia (unidades del mismo diseño, en cualquier talla)</option><option value="order" ${countMode == 'order' ? 'selected' : ''}>Por pedido (suma de todas las prendas del carrito)</option></select>
+    <p><button class="btn acc" onclick="saveRules()">Guardar reglas</button> <span class="note" id="tmsg"></span></p>
+  </section>`;
+}
+
+function vCodigos() {
+  return `<section class="panel">
+    <p class="note">Un cliente con código ve y paga <b>todos</b> los productos a precio mayorista (sin condición de tallas). Solo aplica a productos que tengan precio mayorista y ese nivel activo; los demás se cobran con las reglas normales.</p>
+    ${codesErr ? '<p class="note">No se pudo leer la tabla de códigos. Ejecuta <b>migracion_mayoristas.sql</b> en Supabase.</p>' : `
+    <div class="fg code-form">
+      <div><label for="wcc">Cliente</label><input id="wcc" placeholder="Nombre o negocio"></div>
+      <div><label for="wck">Código</label><input id="wck" placeholder="Ej. K7M2QX9P" style="text-transform:uppercase"></div>
+      <div class="code-actions"><button class="chip" onclick="genCode()">Generar</button> <button class="btn acc" onclick="saveCode()">+ Crear</button></div>
+    </div>
+    <p class="note" id="wcmsg"></p>
+    <div class="code-list">${codes.map(k => `<div class="code-row ${k.active ? '' : 'off'}"><b class="code">${esc(k.code)}</b><span class="note grow">${esc(k.client_name || '—')}${k.active ? '' : ' (desactivado)'}</span><button class="chip ${k.active ? '' : 'on'}" onclick="toggleCode('${k.id}')">${k.active ? 'Desactivar' : 'Activar'}</button><button class="chip danger" onclick="delCode('${k.id}')">Eliminar</button></div>`).join('') || '<div class="empty-box">Aún no hay códigos.</div>'}</div>`}
+  </section>`;
+}
+
+function vAjustes() {
+  return `<section class="panel">
+      <div class="panel-h"><h3>Destino de pedidos</h3></div>
+      <label for="wn">Enlace de WhatsApp o número con indicativo</label>
+      <input id="wn" value="${esc(settings.whatsapp)}" onchange="saveWa(this.value)">
+      <p class="note" id="wmsg"></p>
+    </section>
+    ${LOCAL ? `<section class="panel"><div class="panel-h"><h3>Modo local (sin Supabase)</h3></div>
+      <p class="note">Estás editando sin credenciales: todo se guarda solo en este navegador y la tienda (index.html) lo muestra desde aquí. Usa el mismo navegador para ambas páginas. Exporta una copia de vez en cuando.</p>
+      <button class="chip" onclick="exportBackup()">↓ Exportar copia</button> <label class="chip">↑ Importar copia<input type="file" accept=".json" hidden onchange="importBackup(this.files[0])"></label></section>` : ''}`;
+}
+
+function vHerramientas() {
+  const available = products.length ? products.map(p => `<option value="${p.id}">${esc(p.name)} · ${esc((cats.find(c=>c.id===p.category_id)||{}).name||'Sin categoría')} · stock S ${stock(p,'S')} / M ${stock(p,'M')} / L ${stock(p,'L')} / XL ${stock(p,'XL')}</option>`).join('') : '<option value="">No hay productos</option>';
+  const recent = movements.slice(0,12).map(m => `<tr><td>${m.created_at ? new Date(m.created_at).toLocaleString('es-CO') : '—'}</td><td>${esc(m.product_name||'Producto')}</td><td>${esc(String(m.size||'').toUpperCase())}</td><td>${Number(m.delta)>0?'+':''}${Number(m.delta)||0}</td><td>${esc(m.reason||'—')}</td></tr>`).join('');
+  return `<section class="panel"><div class="panel-h"><div><h3>Actualizar inventario</h3><p class="note">Registra entradas, salidas o correcciones con motivo. El sistema conserva el stock anterior y el nuevo.</p></div></div>
+    ${LOCAL ? '<p class="note">Modo local: los movimientos quedan guardados en este navegador.</p>' : movementsErr ? '<p class="note">Para habilitar el historial, ejecuta una sola vez <b>migracion_inventario_historial.sql</b> en Supabase.</p>' : ''}
+    <div class="fg"><div style="grid-column:1/-1"><label for="mvproduct">Producto</label><select id="mvproduct">${available}</select></div>
+    <div><label for="mvsize">Talla</label><select id="mvsize"><option>S</option><option>M</option><option>L</option><option>XL</option></select></div>
+    <div><label for="mvdelta">Cambio de unidades (+ entrada / − salida)</label><input id="mvdelta" type="number" step="1" min="-9999" max="9999" placeholder="Ej. 10 o -2"></div>
+    <div style="grid-column:1/-1"><label for="mvreason">Motivo del movimiento</label><input id="mvreason" maxlength="160" placeholder="Ej. Entrada de proveedor, conteo físico, devolución"></div></div>
+    <p><button class="btn acc" onclick="adjustStock()" ${products.length?'':'disabled'}>Guardar movimiento</button> <span class="note" id="mvmsg"></span></p>
+  </section>
+  <section class="panel"><div class="panel-h"><div><h3>Importar y exportar productos</h3><p class="note">Descarga un CSV editable en Excel. Para actualizar en bloque, conserva la columna <b>id</b> y no la modifiques. La importación solo actualiza referencias existentes; no crea ni elimina productos.</p></div></div>
+    <div class="row-actions"><button class="btn acc" onclick="exportProductsCsv()">↓ Descargar inventario CSV</button><label class="chip">↑ Importar CSV actualizado<input type="file" accept=".csv,text/csv" hidden onchange="importProductsCsv(this.files[0])"></label><button class="chip" onclick="exportOrdersCsv()">↓ Exportar cotizaciones CSV</button><button class="chip" onclick="exportBackup()">↓ Copia JSON de respaldo</button></div><p class="note" id="csvmsg"></p>
+  </section>
+  <section class="panel"><div class="panel-h"><div><h3>Historial de inventario</h3><p class="note">Últimos movimientos registrados por el administrador. Las ventas anteriores a activar este historial no aparecerán retroactivamente.</p></div></div>
+    ${movementsErr && !LOCAL ? '<p class="note">Historial no disponible hasta ejecutar la migración SQL indicada arriba.</p>' : recent ? `<div style="overflow-x:auto"><table class="data-table"><thead><tr><th>Fecha</th><th>Producto</th><th>Talla</th><th>Variación</th><th>Motivo</th></tr></thead><tbody>${recent}</tbody></table></div>` : '<div class="empty-box">Todavía no hay movimientos registrados.</div>'}
+  </section>`;
+}
+async function adjustStock() {
+  const id=$('#mvproduct').value, size=$('#mvsize').value, delta=Number($('#mvdelta').value), reason=$('#mvreason').value.trim(), p=products.find(x=>x.id===id);
+  if(!p) return say('mvmsg','Selecciona un producto válido.');
+  if(!Number.isInteger(delta)||delta===0) return say('mvmsg','El cambio debe ser un número entero distinto de cero.');
+  if(!reason) return say('mvmsg','Escribe el motivo del movimiento.');
+  const before=stock(p,size), after=before+delta;
+  if(after<0) return say('mvmsg',`No se puede dejar inventario negativo. Disponible: ${before}.`);
+  if(!await ask(`Confirmar ajuste de ${delta>0?'+':''}${delta} unidades para ${p.name}, talla ${size}. Stock: ${before} → ${after}.`)) return;
+  const col='stock_'+size.toLowerCase();
+  const {error}=await sb.from('products').update({[col]:after,sold_out: after===0 && !SZ.some(z=>z!==size&&stock(p,z)>0)}).eq('id',id);
+  if(error) return say('mvmsg','No se pudo actualizar el stock: '+error.message);
+  const {error: logError}=await sb.from('inventory_movements').insert({product_id:id,product_name:p.name,size,delta,before_stock:before,after_stock:after,reason,source:'manual'});
+  await loadAll();
+  if(logError) { say('mvmsg','Stock actualizado, pero no se guardó el historial. Ejecuta la migración SQL y registra el movimiento manualmente si lo necesitas.'); return; }
+  say('mvmsg','Inventario actualizado e historial guardado ✓');
+}
+function csvCell(v) { const s=String(v??''); return /[",\r\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; }
+function downloadText(name,text,mime='text/csv;charset=utf-8;') { const blob=new Blob(['\ufeff',text],{type:mime}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000); }
+function exportProductsCsv() {
+  const cols=['id','category_id','name','description','price','price_promo','price_dist','price_mayor','stock_s','stock_m','stock_l','stock_xl','sold_out','color'];
+  downloadText('izan-inventario-'+new Date().toISOString().slice(0,10)+'.csv',[cols.join(','),...products.map(p=>cols.map(k=>csvCell(p[k])).join(','))].join('\r\n'));
+}
+function parseCsv(text) {
+  const rows=[]; let row=[],cell='',quoted=false;
+  for(let i=0;i<text.length;i++){const c=text[i];if(quoted){if(c==='"'&&text[i+1]==='"'){cell+='"';i++;}else if(c==='"')quoted=false;else cell+=c;}else if(c==='"')quoted=true;else if(c===','){row.push(cell);cell='';}else if(c==='\n'){row.push(cell.replace(/\r$/,''));rows.push(row);row=[];cell='';}else cell+=c;}
+  if(cell.length||row.length){row.push(cell.replace(/\r$/,''));rows.push(row);} return rows.filter(r=>r.some(v=>String(v).trim()!==''));
+}
+async function importProductsCsv(file) {
+  if(!file) return;
+  try {
+    const rows=parseCsv(await file.text()); if(rows.length<2) throw new Error('El CSV no contiene filas de productos.');
+    const headers=rows[0].map(h=>h.trim().replace(/^\ufeff/,'')), required=['id']; if(!required.every(k=>headers.includes(k))) throw new Error('Falta la columna id. Descarga primero el CSV de inventario desde este panel.');
+    const allowed=['name','category_id','description','price','price_promo','price_dist','price_mayor','stock_s','stock_m','stock_l','stock_xl','sold_out','color'];
+    const updates=[]; const seen=new Set();
+    for(let i=1;i<rows.length;i++) { const obj={};headers.forEach((h,j)=>obj[h]=(rows[i][j]??'').trim()); const id=obj.id; if(!id) continue; if(seen.has(id)) throw new Error(`ID repetido en la fila ${i+1}.`); seen.add(id); if(!products.some(p=>p.id===id)) throw new Error(`El ID de la fila ${i+1} no existe en el catálogo. No se importó nada.`);
+      const upd={}; allowed.forEach(k=>{if(headers.includes(k)&&obj[k]!==undefined){if(['price','price_promo','price_dist','price_mayor','stock_s','stock_m','stock_l','stock_xl'].includes(k)){if(obj[k]==='') return;const n=Number(obj[k]);if(!Number.isInteger(n)||n<0) throw new Error(`Valor inválido en ${k}, fila ${i+1}. Debe ser un entero igual o mayor que cero.`);upd[k]=n;}else if(k==='sold_out'){if(obj[k]!=='')upd[k]=['true','1','sí','si'].includes(obj[k].toLowerCase());}else if(obj[k]!=='')upd[k]=obj[k];}});
+      if(Object.keys(upd).length) updates.push({id,upd,row:i+1});
+    }
+    if(!updates.length) throw new Error('No se encontraron cambios para importar.');
+    if(!await ask(`Se actualizarán ${updates.length} productos existentes. Los campos vacíos se conservarán. ¿Continuar?`)) return;
+    for(const item of updates){const {error}=await sb.from('products').update(item.upd).eq('id',item.id);if(error)throw new Error(`Fila ${item.row}: ${error.message}`);}
+    await loadAll();say('csvmsg',`Importación completada: ${updates.length} productos actualizados. Revisa el catálogo.`);
+  } catch(e){say('csvmsg','No se pudo importar: '+(e.message||e));}
+}
+function exportOrdersCsv() {
+  const cols=['id','created_at','status','total','customer_name','customer_phone','customer_city','customer_address','customer_email','items'];
+  downloadText('izan-cotizaciones-'+new Date().toISOString().slice(0,10)+'.csv',[cols.join(','),...orders.map(o=>cols.map(k=>csvCell(k==='items'?JSON.stringify(o[k]||[]):o[k])).join(','))].join('\r\n'));
+}
+
+function orderCard(o) {
+  const items = Array.isArray(o.items) ? o.items : [], sold = isSold(o);
+  const units = o.units || items.reduce((a, i) => a + (+i.quantity || 0), 0);
+  return `<article class="order-card ${sold ? 'is-sold' : ''}">
+    <div class="order-top"><div><b>Pedido #${esc(shortId(o))}</b><small>${new Date(o.created_at).toLocaleString('es-CO')}</small></div><span class="pill ${sold ? 'ok' : 'wait'}">${sold ? 'Vendido' : 'Pendiente'}</span></div>
+    ${(o.customer_name || o.customer_phone || o.customer_id_number || o.customer_address || o.customer_city || o.customer_email) ? `<div class="note" style="margin:10px 0;padding:9px 11px;border-radius:8px;background:#f5f4f2;line-height:1.7"><b>DATOS DE ENVÍO</b><br><b>Nombre completo:</b> ${esc(o.customer_name || '—')}<br><b>Cédula:</b> ${esc(o.customer_id_number || '—')}<br><b>Celular:</b> ${o.customer_phone ? `<a href="https://wa.me/${String(o.customer_phone).replace(/\D/g, '')}" target="_blank" rel="noopener">${esc(o.customer_phone)}</a>` : '—'}<br><b>Dirección:</b> ${esc(o.customer_address || '—')}<br><b>Ciudad:</b> ${esc(o.customer_city || '—')}<br><b>Correo electrónico:</b> ${esc(o.customer_email || '—')}</div>` : ''}
+    <ul class="order-items">${items.map(i => `<li><span>${esc(i.quantity)} × ${esc(i.product_name)} <em>talla ${esc(i.size)}</em></span><span>${fmt(i.unit_price)} c/u</span></li>`).join('') || '<li>Sin detalle de prendas</li>'}</ul>
+    <div class="order-total"><span>${esc(units)} unidades${o.wholesale_code ? ` · Código mayorista: <b>${esc(o.wholesale_code)}</b>` : ''}</span><b>${fmt(o.total)}</b></div>
+    <div class="row-actions"><button class="chip" onclick="downloadOrderPdf('${o.id}')">↓ Descargar PDF</button>${sold ? '<span class="chip on">Inventario descontado</span>' : `<button class="chip ok" onclick="markOrderSold('${o.id}')">✓ Pedido vendido</button>`}<button class="chip danger" onclick="deleteOrder('${o.id}')">Eliminar pedido</button></div>
+  </article>`;
+}
+
+async function downloadOrderPdf(id) {
+  const o = orders.find(x => String(x.id) === String(id)); if (!o) return alert('No se encontró la cotización.');
+  if (!window.jspdf?.jsPDF) return alert('No se pudo cargar el generador PDF. Revisa tu conexión e inténtalo de nuevo.');
+  const { jsPDF } = window.jspdf, doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const margin = 14, pageW = 210, contentW = pageW - margin * 2; let y = 17;
+  const ensure = h => { if (y + h > 276) { doc.addPage(); y = 17; } };
+  const items = Array.isArray(o.items) ? o.items : [];
+  const units = o.units || items.reduce((a,i)=>a+(+i.quantity||0),0);
+  const total = Number(o.total || 0);
+  const sub = items.reduce((a,i)=>a+(Number(i.unit_price)||0)*(Number(i.quantity)||0),0);
+  // Mismo estilo visual y jerarquía que el PDF generado desde el carrito del cliente.
+  doc.setFillColor(52,51,57); doc.rect(0,0,pageW,34,'F');
+  doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(21); doc.text('IZAN CLOTHES',margin,15);
+  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.text('RESUMEN DE COTIZACIÓN',margin,23);
+  doc.text(`Pedido #${shortId(o)}`,pageW-margin,15,{align:'right'});
+  doc.text(`Fecha: ${new Date(o.created_at).toLocaleDateString('es-CO')}`,pageW-margin,23,{align:'right'});
+  y=43; doc.setTextColor(52,51,57); doc.setFontSize(9);
+  doc.text('Resumen de las prendas seleccionadas y sus valores estimados.',margin,y); y+=8;
+  if (o.customer_name || o.customer_phone || o.customer_id_number || o.customer_address || o.customer_city || o.customer_email) {
+    const customerLines = [
+      `Nombre completo: ${o.customer_name || '—'}`, `Cédula: ${o.customer_id_number || '—'}`,
+      `Celular: ${o.customer_phone || '—'}`, `Dirección: ${o.customer_address || '—'}`,
+      `Ciudad: ${o.customer_city || '—'}`, `Correo electrónico: ${o.customer_email || '—'}`
+    ];
+    const blockH = 10 + customerLines.length*5; ensure(blockH);
+    doc.setFillColor(245,245,246); doc.roundedRect(margin,y-3,contentW,blockH,2,2,'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.text('DATOS DE ENVÍO',margin+4,y+2);
+    doc.setFont('helvetica','normal'); doc.setFontSize(8.5);
+    customerLines.forEach((t,j)=>doc.text(doc.splitTextToSize(t,contentW-8),margin+4,y+7+j*5)); y+=blockH+4;
+  }
+  const groups = new Map();
+  items.forEach(i=>{
+    const key=String(i.product_id || i.product_name || 'Producto');
+    if(!groups.has(key)) groups.set(key,{name:i.product_name||'Producto',rows:[],qty:0,subtotal:0,image:i.image_url||i.image_path||i.image||''});
+    const g=groups.get(key), q=Number(i.quantity)||0, unit=Number(i.unit_price)||0;
+    g.rows.push({size:i.size||'—',q,unit}); g.qty+=q; g.subtotal+=q*unit;
+    if(!g.image) g.image=i.image_url||i.image_path||i.image||'';
+  });
+  for (const g of groups.values()) {
+    const imageW=28, imageH=34, textX=margin+36, textW=contentW-42;
+    const title=doc.splitTextToSize(String(g.name),textW);
+    const rows=g.rows.map(r=>`${r.size}: ${r.q} und. × ${fmt(r.unit)} = ${fmt(r.q*r.unit)}`);
+    const textHeight=title.length*4.5+rows.length*5+10, h=Math.max(imageH+6,textHeight+5);
+    ensure(h); const cardY=y-3;
+    doc.setFillColor(245,245,246); doc.roundedRect(margin,cardY,contentW,h,2,2,'F');
+    // Las fotos se incluyen cuando el registro de la cotización contiene una URL de imagen accesible.
+    if(g.image){
+      try {
+        let src=String(g.image);
+        if(!/^https?:|^data:image\//i.test(src)) src=new URL(src,location.href).href;
+        const im=await new Promise((resolve,reject)=>{const el=new Image();el.crossOrigin='anonymous';el.onload=()=>resolve(el);el.onerror=reject;el.src=src;});
+        const canvas=document.createElement('canvas'); const scale=Math.min(1,500/Math.max(im.naturalWidth,im.naturalHeight)); canvas.width=Math.max(1,Math.round(im.naturalWidth*scale)); canvas.height=Math.max(1,Math.round(im.naturalHeight*scale));
+        canvas.getContext('2d').drawImage(im,0,0,canvas.width,canvas.height);
+        const data=canvas.toDataURL('image/jpeg',0.86), ratio=Math.min(imageW/canvas.width,imageH/canvas.height), iw=canvas.width*ratio, ih=canvas.height*ratio;
+        doc.addImage(data,'JPEG',margin+3+(imageW-iw)/2,cardY+(h-ih)/2,iw,ih,undefined,'MEDIUM');
+      } catch(e) { /* El PDF debe seguir generándose si una foto no está disponible. */ }
+    }
+    doc.setTextColor(52,51,57); doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.text(title,textX,y+1);
+    let yy=y+1+title.length*4.5; doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(90,91,93);
+    rows.forEach(t=>{const wrapped=doc.splitTextToSize(t,textW);doc.text(wrapped,textX,yy);yy+=Math.max(5,wrapped.length*4);});
+    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(52,51,57);
+    doc.text(`${g.qty} unidades`,textX,yy+1); doc.text(fmt(g.subtotal),pageW-margin-4,yy+1,{align:'right'});
+    y+=h+3;
+  }
+  ensure(48); y+=2; doc.setDrawColor(190); doc.line(margin,y,pageW-margin,y); y+=8;
+  doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(52,51,57);
+  doc.text('Total de unidades',margin,y); doc.text(String(units),pageW-margin,y,{align:'right'}); y+=7;
+  doc.text('Subtotal',margin,y); doc.text(fmt(sub),pageW-margin,y,{align:'right'}); y+=7;
+  if(sub>total){doc.text('Descuento aplicado',margin,y);doc.text(`− ${fmt(sub-total)}`,pageW-margin,y,{align:'right'});y+=7;}
+  doc.setFillColor(52,51,57); doc.roundedRect(margin,y-5,contentW,15,2,2,'F');
+  doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(12); doc.text('TOTAL ESTIMADO',margin+4,y+4); doc.text(fmt(total),pageW-margin-4,y+4,{align:'right'}); y+=18;
+  if(o.wholesale_code){ensure(9);doc.setTextColor(90,91,93);doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.text(`Código mayorista: ${o.wholesale_code}`,margin,y);y+=6;}
+  doc.setTextColor(90,91,93); doc.setFont('helvetica','normal'); doc.setFontSize(8.5);
+  const foot=doc.splitTextToSize('Cotización sujeta a confirmación de inventario y cierre de venta por WhatsApp.',contentW); ensure(foot.length*4+4); doc.text(foot,margin,y+2);
+  doc.save(`Cotizacion-IZAN-${shortId(o)}.pdf`);
+}
+async function markOrderSold(id) {
+  const o = orders.find(x => x.id == id); if (!o || o.status === 'sold') return;
+  if (!await ask('¿Confirmas la venta? Se descontarán del inventario las cantidades de esta cotización.')) return;
+  const items = Array.isArray(o.items) ? o.items : [];
+  const totals = {};
+  items.forEach(i => { const z = String(i.size || '').toLowerCase(); if (!i.product_id || !['s','m','l','xl'].includes(z)) return; const k = i.product_id; totals[k] = totals[k] || {}; totals[k][z] = (totals[k][z] || 0) + (+i.quantity || 0); });
+  // Validar todo el stock antes de cambiarlo.
+  for (const [pid, qtys] of Object.entries(totals)) {
+    const product = products.find(x => x.id == pid);
+    if (!product) { alert('No se encontró uno de los productos de la cotización. No se modificó el inventario.'); return; }
+    for (const [z, q] of Object.entries(qtys)) if (stock(product, z.toUpperCase()) < q) { alert(`Inventario insuficiente para ${product.name}, talla ${z.toUpperCase()}. Disponible: ${stock(product,z.toUpperCase())}, solicitado: ${q}. No se descontó nada.`); return; }
+  }
+  for (const [pid, qtys] of Object.entries(totals)) {
+    const product = products.find(x => x.id == pid), update = {};
+    Object.entries(qtys).forEach(([z,q]) => update['stock_' + z] = stock(product,z.toUpperCase()) - q);
+    const { error } = await sb.from('products').update(update).eq('id', pid);
+    if (error) { alert('Error al actualizar el inventario: ' + error.message + '. Verifica las existencias antes de volver a intentarlo.'); await loadAll(); return; }
+  }
+  const { error } = await sb.from('orders').update({ status: 'sold', sold_at: new Date().toISOString() }).eq('id', id).eq('status', 'pending');
+  if (error) { alert('Se actualizó el inventario, pero no se pudo marcar el pedido como vendido. Contacta al administrador antes de reintentar para evitar un descuento duplicado.'); await loadAll(); return; }
+  await loadAll();
+}
+async function deleteOrder(id) {
+  if (!await ask('¿Eliminar esta cotización? Esta acción no modifica el inventario.')) return;
+  const { error } = await sb.from('orders').delete().eq('id', id);
+  if (error) { alert('No se pudo eliminar el pedido: ' + error.message); return; }
+  await loadAll();
+}
+
+function editCat(id) {
+  const c = cats.find(x => x.id == id); if (!c) return;
+  modal(`<div class="edit-modal"><h3 style="margin-top:0">Editar categoría</h3><label>Nombre</label><input id="ecn" value="${esc(c.name)}"><label>Descuentos que usa la categoría</label><div class="tierbox">${tierBoxes('ec_', effectiveCat(id))}</div><p class="note">Los productos que usan "los de la categoría" se actualizan solos.</p></div>`, 'Guardar cambios', async () => {
+    const name = $('#ecn').value.trim(); if (!name) { alert('El nombre es obligatorio.'); return false; }
+    const { error } = await sb.from('categories').update({ name, tiers: JSON.stringify(readBoxes('ec_')) }).eq('id', id);
+    if (error) { alert('No se pudo guardar: ' + error.message); return false; }
+    await loadAll();
+  });
+}
+const DEFAULT_VISUAL = { announcement:'HECHO EN COLOMBIA\nTIENDA EN BOGOTÁ · C.C. PUNTO ONCE\nPIDE TU COTIZACIÓN POR WHATSAPP\nPRECIOS POR MAYOR CON CÓDIGO\nBOXY FIT ✦ OVERSIZED ✦ ACID WASH', featured_label:'LOS FAVORITOS', featured_title:'BEST SELLERS', ticker:'PREMIUM 310 ✦ BOXY FIT ✦ ACID WASH ✦ 180 · 210 · 270 G/M² ✦ HECHO EN COLOMBIA ✦ SERIGRAFÍA ✦ TANK TOPS ✦ ACID WASH', catalog_label:'CATEGORÍA', bg_palette:'marfil' };
+function parseVisualAdmin(raw) { try { const x=typeof raw==='string'?JSON.parse(raw):raw; return x && typeof x==='object' ? {...DEFAULT_VISUAL,...x} : {...DEFAULT_VISUAL}; } catch(e) { return {...DEFAULT_VISUAL}; } }
+function parseHeroAdmin(raw) { try { const x=typeof raw==='string'?JSON.parse(raw):raw; return Array.isArray(x)?x:[]; } catch(e) { return []; } }
+const heroSrc = s => !s ? '' : /^(https?:|data:|\/|\.\/)/.test(s) ? s : imgUrl(s);
+function renderHeroAdminList() {
+  const el = $('#heroAdminList'); if (!el) return; const list = settings.hero_banners || [];
+  el.innerHTML = list.length ? list.map((b, i) => {
+    const triple = b.layout === 'triple' && Array.isArray(b.tiles);
+    const thumb = triple
+      ? `<div class="hero-thumb hero-thumb-3">${[0,1,2].map(k => { const u = heroSrc(b.tiles[k] && b.tiles[k].image); return `<i style="${u ? `background-image:url('${esc(u)}')` : ''}"></i>`; }).join('')}`
+      : `<div class="hero-thumb" style="background-image:url('${esc(heroSrc(b.image))}')">`;
+    const off = b.active === false;
+    return `<article class="hero-card ${off ? 'off' : ''}">${thumb}<span class="pill ${off ? '' : 'ok'}">${off ? 'Oculta' : 'Activa'}</span><span class="hero-n">${String(i + 1).padStart(2, '0')}</span></div><div class="hero-body"><b>${esc(b.title || 'Campaña sin título')}</b><p class="note">${triple ? 'Formato: tres imágenes' : 'Formato: una imagen'}${!triple && b.subtitle ? ' · ' + esc(b.subtitle) : ''}</p><div class="row-actions"><button class="chip" onclick="editHeroBanner(${i})">✎ Editar</button><button class="chip" onclick="toggleHeroBanner(${i})">${off ? 'Activar' : 'Ocultar'}</button><button class="chip danger" onclick="deleteHeroBanner(${i})">Eliminar</button></div></div></article>`;
+  }).join('') : '<div class="empty-box">Aún no hay campañas personalizadas. Crea una de una imagen o de tres imágenes.</div>';
+}
+async function persistHero() { const {error}=await sb.from('settings').upsert({key:'hero_banners',value:JSON.stringify(settings.hero_banners||[])}); if(error){say('heromsg','Error al guardar: '+error.message);return false;} say('heromsg','Cambios guardados ✓'); await loadAll(); return true; }
+function heroForm(b={}) {
+  const triple = b.layout === 'triple';
+  const tiles = Array.isArray(b.tiles) && b.tiles.length === 3 ? b.tiles : [{}, {}, {}];
+  const catOpts = sel => `<option value="">Todas las categorías</option>` + cats.map(c => `<option value="${esc(c.id)}" ${String(sel||'')===String(c.id)?'selected':''}>${esc(c.name)}</option>`).join('');
+  const tileBlock = (t, i) => `<div class="camp-tile-adm"><h4>Imagen ${i+1}</h4><div class="camp-prev" id="hbtprev${i}" style="${t.image?`background-image:url('${esc(heroSrc(t.image))}')`:''}"></div><label>Fotografía (vertical 4:5, ideal 1000 × 1250 px)</label><input id="hbtimg${i}" type="file" accept="image/*" onchange="previewCampTile(${i})"><small class="note">${t.image?'Ya hay una imagen guardada. Selecciona otra solo si quieres reemplazarla.':'Sube la foto de esta posición.'}</small><label>Título</label><input id="hbttitle${i}" maxlength="70" value="${esc(t.title||'')}"><label>Descripción</label><textarea id="hbtdesc${i}" rows="2" maxlength="180">${esc(t.description||'')}</textarea><label>Texto del botón</label><input id="hbtcta${i}" maxlength="32" value="${esc(t.cta||'EXPLORAR')}"><label>Destino del botón</label><input id="hbtlink${i}" value="${esc(t.link||'#catalogo')}" placeholder="#catalogo o https://..."><label>Categoría que se abre al pulsar (opcional)</label><select id="hbtcat${i}">${catOpts(t.category_id)}</select></div>`;
+  return `<div class="edit-modal ${triple?'wide':''}" id="campForm"><h3 style="margin-top:0">${b.id?'Editar campaña':'Nueva campaña'}</h3>
+    <label>Formato de la campaña</label>
+    <div class="camp-layout-pick">
+      <label class="camp-opt"><input type="radio" name="hblayout" value="single" ${triple?'':'checked'} onchange="campLayoutToggle()"><b>Una imagen</b><small>Una foto grande con título, descripción y botón.</small></label>
+      <label class="camp-opt"><input type="radio" name="hblayout" value="triple" ${triple?'checked':''} onchange="campLayoutToggle()"><b>Tres imágenes</b><small>Tres fotos simétricas, del mismo tamaño, que juntas ocupan lo mismo que una campaña.</small></label>
+    </div>
+    <div id="campSingle" style="${triple?'display:none':''}">
+      <label>Texto pequeño superior</label><input id="hbeyebrow" value="${esc(b.eyebrow||'IZAN CLOTHES · NUEVA COLECCIÓN')}">
+      <label>Título principal</label><textarea id="hbtitle" rows="2" placeholder="Ej. Nueva temporada.\nNuevo nivel.">${esc(triple?'':(b.title||''))}</textarea>
+      <label>Descripción</label><textarea id="hbsubtitle" rows="2">${esc(b.subtitle||'')}</textarea>
+      <label>Imagen de portada para computador (horizontal, ideal 1800 × 900 px)</label><input id="hbfile" type="file" accept="image/*"><small class="note">${b.image?'Ya hay una imagen para computador. Selecciona otra solo si quieres reemplazarla.':''}</small>
+      <label>Imagen de portada para celular (vertical, ideal 900 × 1200 px)</label><input id="hbmobilefile" type="file" accept="image/*"><small class="note">${b.mobile_image?'Ya hay una imagen para celular. Selecciona otra solo si quieres reemplazarla.':'Si la dejas vacía, se usará la imagen de computador.'}</small>
+      <label>Texto del botón</label><input id="hbcta" value="${esc(b.cta||'Ver colección')}">
+      <label>Destino del botón</label><input id="hblink" value="${esc(b.link||'#catalogo')}" placeholder="#catalogo o URL">
+    </div>
+    <div id="campTriple" style="${triple?'':'display:none'}">
+      <label>Nombre de la campaña (solo lo ves tú)</label><input id="hbname" maxlength="70" value="${esc(triple?(b.title||''):'')}" placeholder="Ej. Colección octubre">
+      <div class="camp-tiles-grid">${tiles.map(tileBlock).join('')}</div>
+      <small class="note">Las tres imágenes se muestran con el mismo ancho y alto. En celular se apilan una debajo de otra, también del mismo tamaño; centra el producto en la foto para que no se recorte.</small>
+    </div>
+    <label class="tk"><input type="checkbox" id="hbactive" ${b.active===false?'':'checked'}> Mostrar en la portada</label></div>`;
+}
+function campLayoutToggle() {
+  const t = document.querySelector('input[name=hblayout]:checked').value === 'triple';
+  $('#campSingle').style.display = t ? 'none' : ''; $('#campTriple').style.display = t ? '' : 'none'; $('#campForm').classList.toggle('wide', t);
+}
+function previewCampTile(i) {
+  const f = $('#hbtimg'+i), el = $('#hbtprev'+i); if (!f || !f.files || !f.files[0] || !el) return;
+  const url = URL.createObjectURL(f.files[0]); el.style.backgroundImage = `url("${url}")`;
+}
+/* Lee el formulario, valida todo y solo entonces sube imágenes. Devuelve la campaña o null si hay algo por corregir. */
+async function readCampaignForm(old = {}) {
+  const layout = document.querySelector('input[name=hblayout]:checked').value, active = $('#hbactive').checked;
+  const okLink = l => /^(https:\/\/|#|\/[^/])/i.test(l);
+  const id = old.id || crypto.randomUUID();
+  if (layout === 'triple') {
+    const oldTiles = Array.isArray(old.tiles) ? old.tiles : [], draft = [];
+    for (let i = 0; i < 3; i++) {
+      const link = $('#hbtlink'+i).value.trim() || '#catalogo', file = $('#hbtimg'+i).files[0];
+      if (!okLink(link)) { alert(`El destino de la imagen ${i+1} debe ser un enlace https:// o una sección como #catalogo.`); return null; }
+      if (!file && !(oldTiles[i] && oldTiles[i].image)) { alert(`Sube una fotografía para la imagen ${i+1}.`); return null; }
+      draft.push({ title: $('#hbttitle'+i).value.trim(), description: $('#hbtdesc'+i).value.trim(), cta: $('#hbtcta'+i).value.trim() || 'EXPLORAR', link, category_id: $('#hbtcat'+i).value || '', file, image: (oldTiles[i] && oldTiles[i].image) || '' });
+    }
+    const tiles = [];
+    for (const d of draft) { const { file, ...t } = d; if (file) t.image = await upload(file); tiles.push(t); }
+    return { ...old, id, layout: 'triple', title: $('#hbname').value.trim() || 'Campaña de tres imágenes', active, tiles };
+  }
+  const title = $('#hbtitle').value.trim(); if (!title) { alert('Escribe un título para la campaña.'); return null; }
+  const link = $('#hblink').value.trim() || '#catalogo'; if (!okLink(link)) { alert('El destino del botón debe ser un enlace https:// o una sección como #catalogo.'); return null; }
+  const b = { ...old, id, layout: 'single', eyebrow: $('#hbeyebrow').value.trim(), title, subtitle: $('#hbsubtitle').value.trim(), cta: $('#hbcta').value.trim(), link, active, image: old.image || '' };
+  const f = $('#hbfile').files[0], mf = $('#hbmobilefile').files[0];
+  if (f) b.image = await upload(f); if (mf) b.mobile_image = await upload(mf);
+  return b;
+}
+function addHeroBanner() { modal(heroForm({}), 'Guardar campaña', async () => { try { const b = await readCampaignForm({}); if (!b) return false; settings.hero_banners.push(b); return await persistHero(); } catch (e) { alert('No se pudo guardar: ' + (e.message || e)); return false; } }); }
+function editHeroBanner(i) { const old = settings.hero_banners[i]; if (!old) return; modal(heroForm(old), 'Guardar cambios', async () => { try { const b = await readCampaignForm(old); if (!b) return false; settings.hero_banners[i] = b; return await persistHero(); } catch (e) { alert('No se pudo guardar: ' + (e.message || e)); return false; } }); }
+async function toggleHeroBanner(i) { settings.hero_banners[i].active = settings.hero_banners[i].active === false; await persistHero(); }
+async function deleteHeroBanner(i) {
+  if (!await ask('¿Eliminar esta campaña de la portada?')) return;
+  const b = settings.hero_banners[i]; settings.hero_banners.splice(i, 1); await persistHero();
+  const imgs = [b && b.image, b && b.mobile_image, ...(b && Array.isArray(b.tiles) ? b.tiles.map(t => t && t.image) : [])].filter(Boolean);
+  for (const p of imgs) await rmImg(p);
+}
+/* Convierte la antigua "Portada · 3 imágenes" en una campaña de tres imágenes (sin volver a subir las fotos). */
+async function importLegacyTiles() {
+  const t = parseHeroAdmin(settings.home_tiles); if (t.length !== 3) return;
+  settings.hero_banners.push({ id: crypto.randomUUID(), layout: 'triple', title: 'Portada de tres imágenes', active: true, tiles: t.map(x => ({ title: (x && x.title) || '', description: (x && x.description) || '', cta: (x && x.cta) || 'EXPLORAR', link: (x && x.link) || '#catalogo', image: (x && x.image) || '', category_id: (x && x.category_id) || '' })) });
+  if (await persistHero()) { await sb.from('settings').upsert({ key: 'home_tiles', value: '[]' }); settings.home_tiles = []; renderPanel(); }
+}
+
+function editProduct(id) {
+  const p = products.find(x => x.id == id); if (!p) return;
+  const catOptions = cats.map(c => `<option value="${c.id}" ${c.id == p.category_id ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
+  modal(`<div class="edit-modal">
+    <h3 style="margin-top:0">Editar producto</h3>
+    <label>Categoría</label><select id="epcat" onchange="togInh('ep_','epcat')">${catOptions}</select>
+    <label>Nombre</label><input id="epname" value="${esc(p.name)}">
+    <label>Color</label><input id="epcolor" value="${esc(p.color || '')}" placeholder="Ej. Negro, verde oliva">
+    ${guideField('epgu', p.size_guide_id)}
+    <label>Descripción</label><textarea id="epdesc" rows="4">${esc(p.description || '')}</textarea>
+    <fieldset class="product-flags"><legend>Destacar en la tienda</legend>
+      <label><input id="epbest" type="checkbox" ${p.is_best_seller ? 'checked' : ''}> Best seller (aparece en el carrusel de inicio)</label>
+      <label><input id="eplast" type="checkbox" ${p.is_last_units ? 'checked' : ''}> Últimas unidades</label>
+      <label><input id="epnew" type="checkbox" ${p.is_new_arrival ? 'checked' : ''}> Lo más nuevo</label>
+    </fieldset>
+    <div class="edit-prices"><div><label>Precio detal (COP)</label><input id="epprice" type="number" min="0" step="1000" value="${price(p)}"></div>
+    <div><label>Precio promoción (COP) · 0 = sin promoción</label><input id="eppromo" type="number" min="0" step="1000" value="${+p.price_promo || 0}"></div>
+    <div><label>Precio distribuidor (COP)</label><input id="eppd" type="number" min="0" step="1000" value="${+p.price_dist || 0}"></div>
+    <div><label>Precio mayorista (COP)</label><input id="eppm" type="number" min="0" step="1000" value="${+p.price_mayor || 0}"></div></div>
+    <label>Descuentos que usa este producto</label>
+    ${tierPicker('ep_', p.tiers, p.category_id)}
+    <label>Inventario por talla</label>
+    <div class="edit-stock">${SZ.map(z => `<div><label>${z}</label><input id="es${z}" type="number" min="0" step="1" value="${stock(p, z)}"></div>`).join('')}</div>
+  </div>`, 'Guardar cambios', async () => {
+    const update = { category_id: $('#epcat').value, name: $('#epname').value.trim(), description: $('#epdesc').value.trim(), color: $('#epcolor').value.trim(), price: +$('#epprice').value || 0, price_promo: +$('#eppromo').value || 0, price_dist: +$('#eppd').value || 0, price_mayor: +$('#eppm').value || 0, tiers: $('#ep_inh').checked ? null : JSON.stringify(readBoxes('ep_')), is_best_seller: $('#epbest').checked, is_last_units: $('#eplast').checked, is_new_arrival: $('#epnew').checked };
+    if (guidesOk) update.size_guide_id = $('#epgu').value || null;
+    SZ.forEach(z => update['stock_' + z.toLowerCase()] = Math.max(0, parseInt($('#es' + z).value) || 0));
+    if (!update.name) { alert('El nombre es obligatorio.'); return false; }
+    if (update.price_promo && update.price_promo >= update.price) { alert('El precio de promoción debe ser menor al precio detal (o déjalo en 0).'); return false; }
+    const { error } = await sb.from('products').update(update).eq('id', id);
+    if (error) { alert('No se pudo guardar: ' + error.message); return false; }
+    await loadAll();
+  });
+}
+
+async function shrink(file) {
+  const bmp = await createImageBitmap(file), s = Math.min(1, 1000 / Math.max(bmp.width, bmp.height));
+  const c = document.createElement('canvas'); c.width = Math.round(bmp.width * s); c.height = Math.round(bmp.height * s);
+  c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+  return new Promise(r => c.toBlob(r, 'image/webp', .85));
+}
+async function upload(file) {
+  const path = crypto.randomUUID() + '.webp';
+  const { error } = await sb.storage.from('products').upload(path, await shrink(file), { contentType: 'image/webp', cacheControl: '31536000' });
+  if (error) throw error; return path;
+}
+const rmImg = async path => { if (path) try { await sb.storage.from('products').remove([path]); } catch (e) {} };
+
+async function saveCat() {
+  const n = $('#cn').value.trim(); if (!n) return;
+  const { error } = await sb.from('categories').insert({ name: n, tiers: JSON.stringify(readBoxes('cn_')) });
+  if (error) return say('cmsg', 'Error: ' + error.message);
+  await loadAll();
+}
+async function delCat(id) {
+  const c = cats.find(x => x.id == id), l = products.filter(p => p.category_id == id);
+  if (!await ask(`¿Eliminar la categoría "${c ? c.name : ''}"${l.length ? ` y sus ${l.length} diseños` : ''}?`)) return;
+  for (const p of l) { await rmImg(p.image_path); await rmImg(p.image_path_back); }
+  const { error } = await sb.from('categories').delete().eq('id', id);
+  if (error) return say('cmsg', 'Error: ' + error.message);
+  await loadAll();
+}
+async function saveNew() {
+  if (busy) return;
+  const name = $('#nn').value.trim(), cat = $('#nc').value; lastCat = cat;
+  if (!name) return say('msg', 'Escribe un nombre.');
+  const row = { category_id: cat, name, color: $('#ncolor').value.trim(), description: $('#nd').value.trim(), price: +$('#np').value || 0, price_promo: +$('#npp').value || 0, price_dist: +$('#npd').value || 0, price_mayor: +$('#npm').value || 0, tiers: $('#nt_inh').checked ? null : JSON.stringify(readBoxes('nt_')), is_best_seller: $('#nbest').checked, is_last_units: $('#nlast').checked, is_new_arrival: $('#nnew').checked };
+  if (guidesOk) row.size_guide_id = $('#ngu').value || null;
+  SZ.forEach(z => row['stock_' + z.toLowerCase()] = Math.max(0, parseInt($('#ns' + z).value) || 0));
+  if (!(row.price > 0)) return say('msg', 'Pon el precio al detal.');
+  if (row.price_promo && row.price_promo >= row.price) return say('msg', 'El precio de promoción debe ser menor al precio detal (o déjalo en 0).');
+  busy = true; say('msg', 'Guardando…');
+  try {
+    const f = $('#nf').files[0]; if (f) row.image_path = await upload(f);
+    const fb = backOk && $('#nfb') ? $('#nfb').files[0] : null; if (fb) row.image_path_back = await upload(fb);
+    const { error } = await sb.from('products').insert(row); if (error) throw error;
+    busy = false; await loadAll(); say('msg', '¡Guardado!');
+  } catch (e) { busy = false; say('msg', 'Error: ' + (e.message || e)); }
+}
+async function setPrice(id, field, v) {
+  const { error } = await sb.from('products').update({ [field]: +v || 0 }).eq('id', id);
+  if (error) alert('No se pudo guardar el precio: ' + error.message); else { const p = products.find(x => x.id == id); if (p) p[field] = +v || 0; }
+}
+async function addCustomRule() {
+  const name = $('#newRuleName').value.trim(), min = parseInt($('#newRuleMin').value, 10), pct = parseInt($('#newRulePct').value, 10);
+  if (!name) return say('newRuleMsg', 'Escribe un nombre para la regla.');
+  if (!Number.isInteger(min) || min < 2) return say('newRuleMsg', 'La cantidad mínima debe ser 2 o más.');
+  if (!Number.isInteger(pct) || pct < 1 || pct > 90) return say('newRuleMsg', 'El descuento debe estar entre 1% y 90%.');
+  const key = 'custom_' + Date.now().toString(36), next = [...tiers, { key, name, kind: 'pct', min, pct }];
+  const { error } = await sb.from('settings').upsert({ key: 'rules', value: JSON.stringify(next) });
+  if (error) return say('newRuleMsg', 'No se pudo crear: ' + error.message);
+  await loadAll(); say('newRuleMsg', 'Regla creada. Ahora puedes asignarla al producto o categoría.');
+}
+
+async function saveRules() {
+  const t = tiers.map(x => x.kind == 'pct'
+    ? { key: x.key, name: x.name || 'Descuento', kind: 'pct', min: Math.max(2, parseInt($('#tm_' + x.key).value) || 2), pct: Math.min(90, Math.max(0, +$('#tp_' + x.key).value || 0)) }
+    : { key: x.key, total: Math.max(1, parseInt($('#tt_' + x.key).value) || 1), sizes: Math.min(SZ.length, Math.max(1, parseInt($('#ts_' + x.key).value) || 1)), flex: Math.min(SZ.length, Math.max(1, parseInt($('#tf_' + x.key).value) || 1)) });
+  const mins = t.filter(x => x.min).map(x => x.min);
+  if (new Set(mins).size < mins.length) return say('tmsg', 'Dos descuentos no pueden empezar en la misma cantidad.');
+  let e1 = (await sb.from('settings').upsert({ key: 'rules', value: JSON.stringify(t) })).error;
+  let e2 = (await sb.from('settings').upsert({ key: 'count_mode', value: $('#cm').value })).error;
+  if (!e1 && !e2) await loadAll();
+  say('tmsg', e1 || e2 ? 'Error: ' + (e1 || e2).message : 'Guardado ✓');
+}
+const genCode = () => { const ch = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let s = ''; const r = crypto.getRandomValues(new Uint32Array(8)); r.forEach(n => s += ch[n % ch.length]); $('#wck').value = s; };
+async function saveCode() {
+  const code = $('#wck').value.trim().toUpperCase(), name = $('#wcc').value.trim();
+  if (code.length < 6) return say('wcmsg', 'El código debe tener al menos 6 caracteres (usa Generar).');
+  const { error } = await sb.from('wholesale_codes').insert({ code, client_name: name, active: true });
+  if (error) return say('wcmsg', /duplicate|unique/i.test(error.message) ? 'Ese código ya existe.' : 'Error: ' + error.message);
+  await loadAll();
+}
+async function toggleCode(id) { const k = codes.find(x => x.id == id); await sb.from('wholesale_codes').update({ active: !k.active }).eq('id', id); await loadAll(); }
+async function delCode(id) { if (!await ask('¿Eliminar este código de mayorista?')) return; await sb.from('wholesale_codes').delete().eq('id', id); await loadAll(); }
+/* Una foto puede estar compartida con una copia (Duplicar): solo se borra del almacenamiento si ningún otro producto la usa. */
+const imgInUse = (path, id) => products.some(x => x.id != id && (x.image_path === path || x.image_path_back === path));
+const rmImgFree = async (path, id) => { if (path && !imgInUse(path, id)) await rmImg(path); };
+async function newPhoto(id, f, side) {
+  if (!f) return; const p = products.find(x => x.id == id), col = side === 'back' ? 'image_path_back' : 'image_path';
+  try {
+    const path = await upload(f);
+    const { error } = await sb.from('products').update({ [col]: path }).eq('id', id); if (error) { await rmImg(path); throw error; }
+    await rmImgFree(p && p[col], id); await loadAll();
+  } catch (e) { alert('No se pudo subir la foto: ' + (e.message || e)); }
+}
+async function removeBack(id) {
+  const p = products.find(x => x.id == id); if (!p || !p.image_path_back) return;
+  if (!await ask('¿Quitar la foto trasera de este producto?')) return;
+  const { error } = await sb.from('products').update({ image_path_back: null }).eq('id', id);
+  if (error) return alert('No se pudo quitar la foto: ' + error.message);
+  await rmImgFree(p.image_path_back, id); await loadAll();
+}
+async function duplicateProduct(id) {
+  const p=products.find(x=>x.id===id); if(!p) return;
+  const copy={...p}; delete copy.id; delete copy.created_at;
+  copy.name=(p.name||'Producto')+' (copia)'; copy.stock_s=0;copy.stock_m=0;copy.stock_l=0;copy.stock_xl=0;copy.sold_out=true;
+  if(!await ask(`Crear una copia de “${p.name}” con inventario en cero?`)) return;
+  const {error}=await sb.from('products').insert(copy);
+  if(error) return alert('No se pudo duplicar el producto: '+error.message);
+  await loadAll(); go('catalogo');
+}
+async function toggleSold(id) {
+  const p = products.find(x => x.id == id);
+  await sb.from('products').update({ sold_out: !p.sold_out }).eq('id', id); await loadAll();
+}
+async function del(id) {
+  if (!await ask('¿Eliminar este diseño definitivamente?')) return;
+  const p = products.find(x => x.id == id);
+  const { error } = await sb.from('products').delete().eq('id', id);
+  if (error) return alert('No se pudo eliminar: ' + error.message);
+  products = products.filter(x => x.id != id);
+  await rmImgFree(p && p.image_path, id); await rmImgFree(p && p.image_path_back, id); await loadAll();
+}
+async function saveWa(v) {
+  const { error } = await sb.from('settings').upsert({ key: 'whatsapp', value: v.trim() || C.WHATSAPP });
+  say('wmsg', error ? 'Error: ' + error.message : 'Guardado ✓');
+}
+function exportBackup() {
+  const snapshot = LOCAL ? localExport() : { exported_at:new Date().toISOString(), note:'Copia de datos descargada desde IZAN Admin. Contiene información de clientes/pedidos; guárdala en un lugar privado.', categories:cats, products, settings, wholesale_codes:codes, orders, size_guides:guides, inventory_movements:movements };
+  const blob = new Blob([JSON.stringify(snapshot,null,2)], { type: 'application/json' });
+  const l = document.createElement('a'); l.href = URL.createObjectURL(blob); l.download = 'izan-copia-' + new Date().toISOString().slice(0, 10) + '.json'; l.click(); setTimeout(()=>URL.revokeObjectURL(l.href),1000);
+}
+async function importBackup(f) {
+  if (!f || !await ask('Esto reemplazará todo lo que hay ahora en modo local. ¿Continuar?')) return;
+  try { localImport(JSON.parse(await f.text())); await loadAll(); } catch (e) { alert('Archivo no válido.'); }
+}
+init();
+</script>
+</body>
+</html>

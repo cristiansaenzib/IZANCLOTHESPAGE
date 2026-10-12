@@ -1,0 +1,605 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>IZAN Clothes · Camisetas oversized y boxy fit | Hecho en Colombia</title>
+<meta name="description" content="Camisetas estampadas boxy fit, oversized y acid wash . Hecho en Colombia. Tienda en Bogotá, C.C. Gran San.">
+<meta property="og:title" content="IZAN Clothes · Hecho en Colombia">
+<meta property="og:description" content="Estampado espalda, boxy fit y acid wash.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='32'/%3E%3C/svg%3E">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Syncopate:wght@400;700&family=Playfair+Display:ital@1&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<script>try{var pc=localStorage.getItem('izan_palette_css');if(pc&&/^[-a-z0-9:#;,.() %]+$/i.test(pc))document.documentElement.style.cssText+=pc}catch(e){}</script>
+</head>
+<body>
+<div class="announce" id="announceBar" aria-label="Avisos"><div id="announceTrack"><span>HECHO EN COLOMBIA<i>✦</i></span></div></div>
+<header>
+  <a class="brand" href="#" onclick="return goTop(event)" aria-label="IZAN Clothes · volver al inicio"><img class="logo" src="img/logo-izan-blanco.png" alt="IZAN" width="374" height="158"></a>
+  <button class="mobile-nav-toggle" id="mobileNavToggle" type="button" aria-expanded="false" aria-controls="shopNavigation" onclick="toggleMobileNavigation()"><span class="menu-lines" aria-hidden="true"><i></i><i></i><i></i></span><span>Menú</span></button>
+  <div class="nav shop-nav" id="shopNavigation">
+    <div class="category-menu"><button class="btn ghost" type="button" onclick="toggleCategoryMenu()" aria-expanded="false">Categorías ▾</button><div class="category-dropdown" id="categoryDropdown"></div></div>
+    <button class="btn ghost nav-filter" onclick="showFeatured('best')">Best sellers</button>
+    <button class="btn ghost nav-filter" onclick="showFeatured('last')">Últimas unidades</button>
+    <button class="btn ghost nav-filter" onclick="showFeatured('new')">Lo más nuevo</button>
+    <button class="btn" onclick="cartOpen(true,'full')">Carrito (<span id="cc">0</span>)</button>
+    <button class="btn ghost quick-order-toggle" id="quickOrderBtn" type="button" onclick="cartOpen(true,'mini')" aria-label="Desplegar pedido lateral sin abrir carrito completo" title="Abrir pedido en panel lateral">Pedido rápido ▾</button>
+    <a class="btn ghost nav-admin" href="admin.html" aria-label="Administrar la tienda (acceso de administrador)" title="Acceso de administrador"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg></a>
+  </div>
+</header>
+
+<section class="campaign" id="campaign" aria-label="Campaña IZAN">
+  <h1 class="camp-sr">IZAN Clothes · Viste tu propia identidad</h1>
+  <div class="campaign-stage" id="campaignStage" aria-live="polite"></div>
+  <div class="hero-controls" id="heroControls"></div>
+</section>
+
+<section class="featured-section" id="bestSellersSection">
+  <div class="featured-heading"><div><p class="lbl" id="featuredLabel">LOS FAVORITOS</p><h2 id="featuredTitle">BEST SELLERS</h2></div><div class="carousel-controls"><button class="btn ghost" onclick="moveBest(-1)" aria-label="Anterior">←</button><button class="btn ghost" onclick="moveBest(1)" aria-label="Siguiente">→</button></div></div>
+  <div class="featured-carousel" id="bestSellersCarousel"><div class="empty serif">Cargando favoritos…</div></div>
+</section>
+
+<div class="strip"><div id="tickerText">PREMIUM 310 ✦ BOXY FIT ✦ ACID WASH ✦ 180 · 210 · 270 G/M² ✦ HECHO EN COLOMBIA ✦ SERIGRAFIA ✦ TANK TOPS ✦ ACID WASH ✦ 310 · 235 · 180 G/M² ✦ HECHO EN COLOMBIA ✦ </div></div>
+
+<main id="catalogo">
+  <p class="lbl" id="catalogLabel">CATEGORÍA</p><div class="chips" id="catChips"></div>
+  <div class="tiers" id="tiers"></div>
+  <div class="catalog-layout">
+    <aside class="filters" aria-label="Filtros de productos">
+      <h2>Filtrar</h2>
+      <label for="colorFilter">Color</label><select id="colorFilter" onchange="setColor(this.value)"><option value="all">Todos los colores</option></select>
+      <label>Talla</label><div id="sizeFilters" class="size-filters"></div>
+      <button class="chip" onclick="clearFilters()">Limpiar filtros</button>
+    </aside>
+    <div id="grid"><div class="empty serif">Cargando…</div></div>
+  </div>
+</main>
+
+<footer class="site-footer" id="siteFooter"></footer>
+
+<div id="quoteModal" class="quote-modal" role="dialog" aria-modal="true" aria-labelledby="quoteTitle" style="display:none;position:fixed;inset:0;z-index:3000;background:rgba(20,20,24,0.78);padding:18px;align-items:center;justify-content:center">
+  <div style="background:#ffffff;color:#343339;border-radius:30px;padding:26px;width:min(100%,440px);max-height:calc(100dvh - 36px);overflow-y:auto;box-shadow:0 20px 70px rgba(52,51,57,0.33)">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><h2 id="quoteTitle" style="margin:0">Cotización lista</h2><button class="btn ghost" onclick="quoteClose()" aria-label="Cerrar">✕</button></div>
+    <div id="quoteForm">
+      <form id="shippingForm" class="shipping-form" novalidate onsubmit="event.preventDefault();saveShipping()">
+        <p class="serif" style="line-height:1.5;margin:10px 0 14px">Escribe tus datos de envío. Los incluiremos en tu cotización.</p>
+        <div class="customer-contact-fields shipping-fields">
+          <input id="customerName" class="sf-wide" type="text" autocomplete="name" maxlength="120" placeholder="Nombre completo *" aria-label="Nombre completo" required>
+          <input id="customerIdNumber" type="text" inputmode="numeric" maxlength="30" placeholder="Cédula *" aria-label="Cédula" required>
+          <input id="customerPhone" type="tel" autocomplete="tel" inputmode="tel" maxlength="25" placeholder="Celular *" aria-label="Celular" required>
+          <input id="customerAddress" class="sf-wide" type="text" autocomplete="street-address" maxlength="180" placeholder="Dirección *" aria-label="Dirección" required>
+          <input id="customerCity" type="text" autocomplete="address-level2" maxlength="100" placeholder="Ciudad *" aria-label="Ciudad" required>
+          <input id="customerEmail" type="email" autocomplete="email" maxlength="150" placeholder="Correo electrónico *" aria-label="Correo electrónico" required>
+        </div>
+        <small class="sf-note">Consulta nuestra <a href="politica-tratamiento-datos.html" target="_blank" rel="noopener">política de tratamiento de datos</a>.</small>
+        <small id="customerSaveHint" class="customer-save-hint sf-hint" aria-live="polite"></small>
+        <button type="submit" class="btn acc sf-save" id="saveShippingBtn">Guardar datos</button>
+      </form>
+    </div>
+    <div id="quoteActions" hidden>
+    <p class="serif" style="line-height:1.5"><b>Datos guardados ✓</b> Generamos el PDF con el detalle de tu pedido y el total. Puedes compartirlo o descargarlo y continuar al chat de WhatsApp.</p>
+    <div style="display:grid;gap:10px;margin-top:18px">
+      <button class="btn acc" id="sharePdfBtn" onclick="shareQuotePdf()">Compartir PDF</button>
+      <button class="btn" onclick="downloadQuotePdf()">Descargar cotización PDF</button>
+      <button class="btn" onclick="openQuoteWhatsApp()">Continuar a WhatsApp</button>
+    </div>
+    <small id="quoteHint" style="display:block;margin-top:12px;line-height:1.4;color:#5a5b5d">En algunos computadores WhatsApp no permite adjuntar archivos desde una página web. Si no aparece la opción de compartir, descarga el PDF y adjúntalo manualmente en el chat.</small>
+    </div>
+  </div>
+</div>
+<div class="gmodal" id="gmodal" hidden onclick="if(event.target===this)closeGuide()">
+  <div class="gbox" role="dialog" aria-modal="true" aria-labelledby="gtitle">
+    <button type="button" class="gclose" onclick="closeGuide()" aria-label="Cerrar guía de tallas">✕</button>
+    <p class="glbl">Guía de tallas</p>
+    <h3 id="gtitle"></h3>
+    <p class="gprod serif" id="gprod"></p>
+    <div class="gscroll"><table class="gtbl" id="gtable"></table></div>
+    <p class="gnote" id="gnote"></p>
+  </div>
+</div>
+<div class="cart-backdrop" id="cartBackdrop" onclick="cartOpen(false)"></div>
+<aside class="drawer" id="drawer" aria-label="Tu pedido">
+  <div class="row" style="margin:0 0 10px"><h2>Tu pedido</h2><div class="ab"><button class="chip cart-expand" onclick="cartOpen(true,'full')">Ver carrito</button><button class="btn ghost" onclick="cartOpen(false)">Cerrar</button></div></div>
+  <div id="items" style="flex:1;overflow:auto"></div>
+  <div class="wcode" id="wcode">
+    <div id="wcin"><details id="wcd"><summary>¿Tienes código de mayorista?</summary><div class="row" style="margin-top:8px;gap:8px"><input id="wci" placeholder="Tu código" autocapitalize="characters" onkeydown="if(event.key==='Enter')wcApply()"><button class="chip" onclick="wcApply()">Aplicar</button></div></details></div>
+    <div id="wcon" class="row" hidden><span>Precio mayorista: <b id="wcn"></b></span><button class="chip" onclick="wcRemove()">Quitar</button></div>
+    <small class="note" id="wcm"></small>
+  </div>
+  <div class="tierinfo" id="tierinfo"></div>
+  <div class="cart-summary"><div class="row"><span>Unidades</span><b id="cartUnits">0</b></div><div class="row"><span>Subtotal</span><b id="subtotal"></b></div><div class="row" id="discountRow" hidden><span>Descuento</span><b id="discountTotal"></b></div><div class="row cart-grand-total"><b>Total estimado</b><span class="price" id="total"></span></div></div>
+  <button class="btn acc" id="wa" onclick="checkout()">Pedir por WhatsApp</button>
+</aside>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
+<script src="config.js"></script>
+<script src="shared.js"></script>
+<script>
+let guides = [], cats = [], products = [], tiers = parseTiers(), countMode = 'ref', catF = 'all', colorF = 'all', sizeF = 'all', featuredFilter = 'all', selS = {}, cart = [], waDest = C.WHATSAPP, savedQuoteId = null;
+let wcode = '', wname = '';   /* código de mayorista validado */
+
+const catOf = p => cats.find(c => c.id == p.category_id);
+
+async function load() {
+  renderCampaigns(DEFAULT_HERO);
+  { const ft=$('#siteFooter'); if(ft) ft.innerHTML=footerHTML(parseFooter(null)); }
+  if (!sb) { $('#grid').innerHTML = '<div class="empty serif">Falta configurar config.js con los datos de Supabase.</div>'; return; }
+  const [c, p, s] = await Promise.all([
+    sb.from('categories').select('*').order('created_at'),
+    sb.from('products').select('*').order('created_at', { ascending: false }),
+    sb.from('settings').select('*')
+  ]);
+  if (c.error || p.error) { $('#grid').innerHTML = '<div class="empty serif">No pudimos cargar el catálogo. Intenta de nuevo en un momento.</div>'; return; }
+  cats = c.data || []; products = p.data || [];
+  try { const g = await sb.from('size_guides').select('*'); guides = g.error ? [] : (g.data || []); } catch (e) { guides = []; }
+  const w = (s.data || []).find(r => r.key === 'whatsapp'); if (w && w.value) waDest = w.value;
+  const hb = (s.data || []).find(r => r.key === 'hero_banners'), ht = (s.data || []).find(r => r.key === 'home_tiles');
+  renderCampaigns(pickCampaigns(hb && hb.value, ht && ht.value));
+  const vc = (s.data || []).find(r => r.key === 'visual_content'); applyVisualContent(parseVisualContent(vc && vc.value));
+  tiers = parseTiers(s.data); countMode = parseCountMode(s.data);
+  render();
+  let saved = ''; try { saved = localStorage.getItem('izan_wcode') || ''; } catch (e) {}
+  if (saved) wcCheck(saved, true);
+}
+
+/* ===== Campañas: una sola imagen o tres imágenes simétricas (mismo tamaño) ===== */
+const DEFAULT_HERO = [{id:'default', layout:'single', eyebrow:'HECHO EN COLOMBIA · NUEVA COLECCIÓN', title:'Boxy fit. Acid wash.', subtitle:'Siluetas oversized, estampados protagonistas y actitud urbana.', image:'', cta:'Ver colección', link:'#catalogo', active:true}];
+const heroSrc = v => !v ? '' : /^(https?:|data:|\/|\.\/)/.test(v) ? v : imgUrl(v);
+const safeHref = l => /^(https?:\/\/|#|\/(?!\/))/i.test(l || '') ? l : '#catalogo';
+function parseList(raw) { try { const x = typeof raw === 'string' ? JSON.parse(raw) : raw; return Array.isArray(x) ? x : []; } catch(e) { return []; } }
+/* Compatibilidad: si aún existe la antigua configuración "home_tiles", se muestra como campaña de tres imágenes. */
+function legacyTilesCampaign(raw) {
+  const t = parseList(raw); if (t.length !== 3 || !t.some(x => x && x.image)) return null;
+  return {id:'legacy-tiles', layout:'triple', title:'Portada', active:true, tiles:t};
+}
+function pickCampaigns(heroRaw, tilesRaw) {
+  const active = parseList(heroRaw).filter(b => b && b.active !== false && (b.layout !== 'triple' || (Array.isArray(b.tiles) && b.tiles.length === 3)));
+  if (active.length) return active;
+  const legacy = legacyTilesCampaign(tilesRaw); return legacy ? [legacy] : DEFAULT_HERO;
+}
+function campaignHTML(b) {
+  if (b.layout === 'triple') {
+    return `<div class="camp-slide camp-triple" role="group" aria-label="${esc(b.title || 'Campaña')}">` + b.tiles.map((t, i) => {
+      t = t || {}; const img = heroSrc(t.image);
+      const cat = t.category_id ? `onclick="event.preventDefault();chooseCategory('${String(t.category_id).replace(/[^a-zA-Z0-9_-]/g,'')}')"` : '';
+      return `<article class="camp-tile">${img ? `<img class="camp-bg" src="${esc(img)}" alt="${esc(t.title || b.title || 'Colección IZAN')}" loading="eager">` : ''}<div class="camp-shade"></div><div class="camp-copy"><span class="camp-num">0${i+1} / 03</span>${t.title ? `<h2>${esc(t.title)}</h2>` : ''}${t.description ? `<p>${esc(t.description)}</p>` : ''}<a class="camp-link" href="${esc(safeHref(t.link))}" ${cat}>${esc(t.cta || 'EXPLORAR')} <span aria-hidden="true">↗</span></a></div></article>`;
+    }).join('') + '</div>';
+  }
+  const desktop = heroSrc(b.image || b.mobile_image), mobile = heroSrc(b.mobile_image || b.image);
+  const pic = desktop ? `<picture class="camp-bg">${mobile && mobile !== desktop ? `<source media="(max-width:700px)" srcset="${esc(mobile)}">` : ''}<img src="${esc(desktop)}" alt="" loading="eager"></picture>` : '';
+  return `<div class="camp-slide camp-single">${pic}<div class="camp-shade"></div><div class="camp-copy"><small>${esc(b.eyebrow || 'IZAN CLOTHES')}</small><h2>${esc(b.title || 'Nueva colección').replace(/\n/g,'<br>')}</h2>${b.subtitle ? `<p>${esc(b.subtitle)}</p>` : ''}<a class="btn acc" href="${esc(safeHref(b.link))}">${esc(b.cta || 'Ver colección')}</a></div></div>`;
+}
+function renderCampaigns(list) {
+  const stage = $('#campaignStage'), ctrls = $('#heroControls'); if (!stage || !ctrls) return;
+  let current = 0;
+  const show = i => {
+    current = (i + list.length) % list.length;
+    stage.innerHTML = campaignHTML(list[current]);
+    ctrls.innerHTML = list.length > 1 ? list.map((x, j) => `<button class="hero-dot ${j === current ? 'on' : ''}" aria-label="Ver campaña ${j+1}" onclick="window.izanHeroShow(${j})">${String(j+1).padStart(2,'0')}</button>`).join('') : '';
+  };
+  const start = () => { if (window.izanHeroTimer) clearInterval(window.izanHeroTimer); if (list.length > 1) window.izanHeroTimer = setInterval(() => show(current + 1), 6500); };
+  window.izanHeroShow = j => { show(j); start(); };
+  show(0); start();
+}
+/* ===== Contenido visual editable desde Administración ===== */
+const DEFAULT_VISUAL = { announcement:'HECHO EN COLOMBIA\nTIENDA EN BOGOTÁ · C.C. PUNTO ONCE\nPIDE TU COTIZACIÓN POR WHATSAPP\nPRECIOS POR MAYOR CON CÓDIGO\nBOXY FIT ✦ OVERSIZED ✦ ACID WASH', featured_label:'LOS FAVORITOS', featured_title:'BEST SELLERS', ticker:'PREMIUM 310 ✦ BOXY FIT ✦ ACID WASH ✦ 180 · 210 · 270 G/M² ✦ HECHO EN COLOMBIA ✦ SERIGRAFÍA ✦ TANK TOPS ✦ ACID WASH', catalog_label:'CATEGORÍA', bg_palette:'marfil' };
+function parseVisualContent(raw) { try { const x=typeof raw==='string'?JSON.parse(raw):raw; return x && typeof x==='object' ? {...DEFAULT_VISUAL,...x} : {...DEFAULT_VISUAL}; } catch(e) { return {...DEFAULT_VISUAL}; } }
+function applyVisualContent(v) {
+  applyPalette(v.bg_palette);
+  const ft=$('#siteFooter'); if(ft) ft.innerHTML=footerHTML(parseFooter(v));
+  const track=$('#announceTrack'); if(track){ const items=String(v.announcement||'').split(/\n+/).map(x=>x.trim()).filter(Boolean); const repeated=[...items,...items,...items,...items]; track.innerHTML=repeated.map(x=>`<span>${esc(x)}<i>✦</i></span>`).join(''); }
+  if($('#featuredLabel')) $('#featuredLabel').textContent=v.featured_label||'';
+  if($('#featuredTitle')) $('#featuredTitle').textContent=v.featured_title||'';
+  if($('#tickerText')) $('#tickerText').textContent=(v.ticker||'')+' ✦ '+(v.ticker||'');
+  if($('#catalogLabel')) $('#catalogLabel').textContent=v.catalog_label||'';
+}
+
+/* ===== Código de mayorista ===== */
+async function wcCheck(code, silent) {
+  code = (code || '').trim(); if (!code) return;
+  say('wcm', silent ? '' : 'Verificando…');
+  try {
+    const { data, error } = await sb.rpc('check_wholesale_code', { p_code: code });
+    if (error) throw error;
+    if (data) { wcode = code.toUpperCase(); wname = String(data); try { localStorage.setItem('izan_wcode', wcode); } catch (e) {} say('wcm', ''); }
+    else { wcode = ''; wname = ''; try { localStorage.removeItem('izan_wcode'); } catch (e) {} say('wcm', silent ? '' : 'Código no válido o desactivado.'); }
+  } catch (e) { say('wcm', silent ? '' : 'No pudimos verificar el código. Intenta de nuevo.'); }
+  render();
+}
+const wcApply = () => wcCheck($('#wci').value, false);
+function wcRemove() { wcode = ''; wname = ''; try { localStorage.removeItem('izan_wcode'); } catch (e) {} $('#wci').value = ''; render(); }
+const say = (id, t) => { const m = $('#' + id); if (m) m.textContent = t; };
+const wcUnit = p => { const m = tiers.find(t => t.key === 'may'); return m && tierUsable(p, m, tierKeys(p, catOf(p), tiers)) ? tierUnit(p, m) : null; };
+
+function volume(p) { return ''; }
+/* ===== Guía de tallas: botón sobre la foto (aparece al pasar el mouse) + ventana superpuesta ===== */
+const guideOf = p => p && p.size_guide_id ? guides.find(g => g.id == p.size_guide_id) : null;
+function guideBtn(p) {
+  const g = guideOf(p); if (!g) return '';
+  return `<button type="button" class="guide-btn" onclick="openGuide('${g.id}','${p.id}')" aria-haspopup="dialog"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="8" width="20" height="8" rx="1.5"/><path d="M6 8v3M10 8v4M14 8v3M18 8v4"/></svg>Guía de tallas</button>`;
+}
+function openGuide(gid, pid) {
+  const raw = guides.find(g => g.id == gid); if (!raw) return;
+  const g = parseGuide(raw), p = products.find(x => x.id == pid);
+  const rows = GSZ.filter(z => (g.rows[z] || []).some(v => String(v).trim()));
+  $('#gtitle').textContent = g.name;
+  $('#gprod').textContent = p ? p.name : '';
+  $('#gprod').hidden = !p;
+  $('#gtable').innerHTML = rows.length
+    ? `<thead><tr><th>Talla</th>${g.cols.map(c => `<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>${rows.map(z => `<tr><th>${z}</th>${g.cols.map((c, i) => `<td>${esc((g.rows[z] || [])[i] || '—')}</td>`).join('')}</tr>`).join('')}</tbody>`
+    : '<tbody><tr><td>Esta guía aún no tiene medidas.</td></tr></tbody>';
+  $('#gnote').textContent = g.note; $('#gnote').hidden = !g.note;
+  $('#gmodal').hidden = false; document.body.classList.add('guide-open');
+  $('#gmodal .gclose').focus();
+}
+function closeGuide() { $('#gmodal').hidden = true; document.body.classList.remove('guide-open'); }
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#gmodal').hidden) closeGuide(); });
+function card(p) {
+  const av = sizes(p), cs = av.includes(selS[p.id]) ? selS[p.id] : av[0], out = p.sold_out || !av.length, wu = wcode ? wcUnit(p) : null;
+  const categoryName = cats.find(c => String(c.id) === String(p.category_id))?.name || 'Sin categoría';
+  const isFlag = v => v === true || v === 1 || v === '1' || String(v).toLowerCase() === 'true';
+  const featuredTags = [isFlag(p.is_best_seller) ? 'Best seller' : '', (SZ.reduce((n,z)=>n+stock(p,z),0) < 4) ? 'Últimas unidades' : '', isFlag(p.is_new_arrival) ? 'Lo más nuevo' : ''].filter(Boolean);
+  return `<article class="card ${out ? 'so' : ''}"><div class="im${p.image_path_back ? ' has-back' : ''}"><img class="img-front" src="${imgUrl(p.image_path)}" alt="${esc(p.name)}" loading="lazy">${p.image_path_back ? `<img class="img-back" src="${imgUrl(p.image_path_back)}" alt="" aria-hidden="true" loading="lazy" onerror="this.parentNode.classList.remove('has-back');this.remove()">` : ''}${guideBtn(p)}</div><div class="b"><div class="product-labels"><span class="category-label">${esc(categoryName)}</span>${out ? '<span class="mini-tag soldout">Agotado</span>' : ''}${onPromo(p) && !out ? `<span class="mini-tag promo">Promo −${promoPct(p)}%</span>` : ''}${featuredTags.map(t=>`<span class="mini-tag">${esc(t)}</span>`).join('')}</div><h3>${esc(p.name)}</h3><p>${esc(p.description)}</p>
+  <div class="gr sz">${SZ.map(z => `<button class="${z == cs && !out ? 'on' : ''}" ${stock(p, z) ? '' : 'disabled'} title="${stock(p, z) ? stock(p, z) + ' disponibles' : 'Agotada'}" onclick="pickS('${p.id}','${z}')">${z}</button>`).join('')}</div>
+  <div class="row"><span class="price">${wu ? `<s class="old">${fmt(eff(p))}</s> ${fmt(wu)}` : onPromo(p) ? `<s class="old">${fmt(price(p))}</s> <span class="promo-now">${fmt(eff(p))}</span>` : fmt(price(p))}</span><button class="btn acc" ${out ? 'disabled' : ''} onclick="add('${p.id}','${cs}')">${out ? 'Agotado' : 'Añadir'}</button></div>${wu ? '<small class="note">Precio mayorista</small>' : onPromo(p) ? '<small class="note">Precio de promoción</small>' : volume(p)}</div></article>`;
+}
+function goTop(e) {
+  if (e) e.preventDefault();
+  if (typeof toggleMobileNavigation === 'function') toggleMobileNavigation(false);
+  if (typeof cartOpen === 'function') cartOpen(false);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  try { history.replaceState(null, '', location.pathname + location.search); } catch (err) {}
+  return false;
+}
+function toggleMobileNavigation(force) {
+  const nav = document.getElementById('shopNavigation');
+  const button = document.getElementById('mobileNavToggle');
+  if (!nav || !button) return;
+  const open = typeof force === 'boolean' ? force : !nav.classList.contains('mobile-nav-open');
+  nav.classList.toggle('mobile-nav-open', open);
+  button.setAttribute('aria-expanded', String(open));
+  button.classList.toggle('is-open', open);
+}
+
+document.addEventListener('click', (event) => {
+  if (window.matchMedia('(max-width: 700px)').matches) {
+    const nav = document.getElementById('shopNavigation');
+    if (nav && nav.classList.contains('mobile-nav-open') && nav.contains(event.target) && !event.target.closest('.category-menu')) {
+      toggleMobileNavigation(false);
+    }
+  }
+});
+window.addEventListener('resize', () => {
+  if (window.innerWidth > 700) toggleMobileNavigation(false);
+});
+
+function toggleCategoryMenu() {
+  const menu = $('#categoryDropdown');
+  const button = document.querySelector('.category-menu > button');
+  const open = !menu.classList.contains('open');
+  menu.classList.toggle('open', open);
+  if (button) button.setAttribute('aria-expanded', String(open));
+}
+function chooseCategory(id) {
+  catF = id;
+  featuredFilter = 'all';
+  const menu = $('#categoryDropdown');
+  if (menu) menu.classList.remove('open');
+  const button = document.querySelector('.category-menu > button');
+  if (button) button.setAttribute('aria-expanded', 'false');
+  render();
+  document.getElementById('catalogo')?.scrollIntoView({behavior:'smooth', block:'start'});
+}
+function showFeatured(which) {
+  catF = 'all'; colorF = 'all'; sizeF = 'all';
+  if (which === 'best') {
+    featuredFilter = 'all';
+    render();
+    document.getElementById('bestSellersSection')?.scrollIntoView({behavior:'smooth', block:'start'});
+    return;
+  }
+  featuredFilter = ['last','new'].includes(which) ? which : 'all';
+  render();
+  document.getElementById('catalogo')?.scrollIntoView({behavior:'smooth', block:'start'});
+}
+function renderBestSellers() {
+  const host = $('#bestSellersCarousel');
+  if (!host) return;
+  const list = products.filter(p => p.is_best_seller === true || p.is_best_seller === 1 || p.is_best_seller === 'true');
+  host.innerHTML = list.length
+    ? list.map(p => `<div class="featured-card">${card(p)}</div>`).join('')
+    : '<div class="empty serif featured-empty">Aún no hay diseños marcados como Best Sellers. Puedes seleccionarlos desde Administrar.</div>';
+}
+function moveBest(direction) {
+  const host = $('#bestSellersCarousel');
+  if (host) host.scrollBy({left: direction * Math.max(240, host.clientWidth * .75), behavior:'smooth'});
+}
+
+function render() {
+  $('#categoryDropdown').innerHTML = `<button onclick="chooseCategory('all')">Todas las categorías</button>` + cats.map(c=>`<button onclick="chooseCategory('${c.id}')">${esc(c.name)}</button>`).join('');
+  renderBestSellers();
+  $('#catChips').innerHTML = [{ id: 'all', name: 'Todas' }, ...cats].map(c => `<button class="chip ${catF == c.id ? 'on' : ''}" onclick="setC('${c.id}')">${esc(c.name)}</button>`).join('');
+  $('#tiers').innerHTML = `<button class="chip wholesale-entry" onclick="wcOpen()">${wcode ? 'Código mayorista activo · Ver pedido' : '¿Eres mayorista? Ingresa tu código'}</button>`;
+  const colors = [...new Set(products.map(p => String(p.color || '').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es'));
+  const cf = $('#colorFilter'); if (cf) { colorF = colors.includes(colorF) ? colorF : 'all'; cf.innerHTML = '<option value="all">Todos los colores</option>' + colors.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join(''); cf.value = colorF; }
+  $('#sizeFilters').innerHTML = ['XS','S','M','L','XL','XXL'].map(z => `<button class="chip ${sizeF===z?'on':''}" onclick="setSize('${z}')">${z}</button>`).join('');
+  // Aplicar filtros ANTES de construir las tarjetas: las referencias que no coinciden desaparecen.
+  const norm = value => String(value ?? '').trim().toLocaleLowerCase('es');
+  const inventoryTotal = p => SZ.reduce((total, z) => total + stock(p, z), 0);
+  const filteredProducts = products.filter(p => {
+    const flag = value => value === true || value === 1 || value === '1' || String(value).toLowerCase() === 'true';
+    if (featuredFilter === 'best' && !flag(p.is_best_seller)) return false;
+    if (featuredFilter === 'last' && !(inventoryTotal(p) < 4)) return false;
+    if (featuredFilter === 'new' && !flag(p.is_new_arrival)) return false;
+    const matchesCategory = catF === 'all' || String(p.category_id) === String(catF);
+    const matchesColor = colorF === 'all' || norm(p.color) === norm(colorF);
+    const matchesSize = sizeF === 'all' || stock(p, sizeF) > 0;
+    return matchesCategory && matchesColor && matchesSize;
+  });
+  // Un solo mosaico continuo: cada tarjeta indica su categoría sin separar el catálogo por referencias.
+  $('#grid').innerHTML = filteredProducts.length
+    ? filteredProducts.map(card).join('')
+    : `<div class="empty serif" style="font-size:20px">No hay diseños que coincidan con los filtros seleccionados.<br><button class="chip" style="margin-top:16px" onclick="clearFilters()">Ver todos los diseños</button></div>`;
+  renderCart();
+}
+function wcOpen() { cartOpen(true); $('#wcd').open = true; setTimeout(() => $('#wci').focus(), 50); }
+const setC = id => { catF = id; featuredFilter = 'all'; render(); };
+const setColor = value => { colorF = value; render(); };
+const setSize = value => { sizeF = sizeF === value ? 'all' : value; render(); };
+const clearFilters = () => { colorF = 'all'; sizeF = 'all'; catF = 'all'; render(); };
+const pickS = (id, z) => { selS[id] = z; render(); };
+
+function add(id, z) {
+  const p = products.find(x => x.id == id); if (!p || p.sold_out || !z || !stock(p, z)) return;
+  const i = cart.find(c => c.id == id && c.s == z);
+  if (i && i.q >= stock(p, z)) { alert(`Solo hay ${stock(p, z)} unidades disponibles en talla ${z}.`); return cartOpen(true, 'mini'); }
+  i ? i.q++ : cart.push({ id, s: z, q: 1 }); render(); cartOpen(true, 'mini');
+}
+/* Unidades que cuentan para los descuentos %: las de esa referencia (todas las tallas) o el total del pedido */
+function countFor(id) { return cart.reduce((a, c) => a + ((countMode == 'order' || c.id == id) && products.some(x => x.id == c.id) ? c.q : 0), 0); }
+/* Unidades por talla de TODO el pedido (mezclando diseños y categorías) */
+function sizeCounts() { const sz = {}; SZ.forEach(z => sz[z] = 0); cart.forEach(c => { if (products.some(x => x.id == c.id)) sz[c.s] += c.q; }); return sz; }
+const ctxNow = () => ({ sz: sizeCounts(), code: !!wcode });
+function cartCalc() {
+  let n = 0, sub = 0, tot = 0; const lines = [], ctx = ctxNow();
+  cart.forEach(c => {
+    const p = products.find(x => x.id == c.id); if (!p) return;
+    const r = applied(p, catOf(p), tiers, countFor(c.id), ctx), base = eff(p);
+    n += c.q; sub += base * c.q; tot += r.unit * c.q; lines.push({ c, p, base, ...r });
+  });
+  return { n, sub, tot, lines, ctx };
+}
+function renderCart() {
+  const { n, sub, tot, lines, ctx } = cartCalc();
+  $('#wcin').hidden = !!wcode; $('#wcon').hidden = !wcode; $('#wcn').textContent = wname;
+  $('#items').innerHTML = cart.length ? cartGroups(lines).map(G => {
+    const id = String(G.p.id).replace(/'/g, ''), unitTxt = `${fmt(G.unit)} c/u${G.tier ? ` · ${esc(tierLabel(G.tier))}` : ''}`;
+    const steps = SZ.map(z => {
+      const q = G.lines.filter(l => l.c.s == z).reduce((a, l) => a + l.c.q, 0), st = stock(G.p, z), canAdd = !G.p.sold_out && q < st;
+      return `<div class="zr ${q ? 'on' : ''} ${!st && !q ? 'off' : ''}"><span class="zl">${z}</span><div class="zb"><button type="button" aria-label="Restar talla ${z}" ${q ? '' : 'disabled'} onclick="qtySize('${id}','${z}',-1)">−</button><button type="button" aria-label="Sumar talla ${z}" ${canAdd ? '' : 'disabled'} title="${st ? st + ' disponibles' : 'Agotada'}" onclick="qtySize('${id}','${z}',1)">+</button></div><b class="zq" aria-label="Cantidad talla ${z}">${q}</b></div>`;
+    }).join('');
+    return `<div class="cg"><div class="cg-img"><img src="${imgUrl(G.p.image_path)}" alt=""></div><div class="cg-body"><div class="cg-head"><b class="an">${esc(G.p.name)}</b><button type="button" class="chip cg-del" aria-label="Quitar este diseño" onclick="removeDesign('${id}')">Quitar</button></div><span class="note cg-unit">${unitTxt}</span><div class="cg-rows">${steps}</div><div class="cg-total"><span>Total</span><b>${G.q}</b></div></div></div>`;
+  }).join('') : '<p class="note serif">Tu carrito está vacío.</p>';
+  const seen = new Set(), hints = [];
+  if (!wcode) lines.forEach(L => {
+    if (seen.has(L.p.id)) return; seen.add(L.p.id);
+    const o = nextOffer(L.p, catOf(L.p), tiers, countFor(L.p.id), ctx); if (!o) return;
+    hints.push(o.tier.kind == 'pct'
+      ? `Agrega ${o.need} ${o.need == 1 ? 'unidad' : 'unidades'} más de <b>${esc(L.p.name)}</b> y pagas ${fmt(o.unit)} c/u (${esc(tierLabel(o.tier))}).`
+      : `Precio ${esc(o.tier.name)} para <b>${esc(L.p.name)}</b> (${fmt(o.unit)} c/u): te faltan ${o.need} ${o.need == 1 ? 'unidad' : 'unidades'} para completar ${tierReq(tiers, o.tier)} en tu pedido.`);
+  });
+  const resumen = SZ.filter(z => ctx.sz[z]).map(z => `${z}: ${ctx.sz[z]}`).join(' · ');
+  $('#tierinfo').innerHTML = n ? (resumen ? `<div class="note">Tallas del pedido → ${resumen}</div>` : '') + (sub > tot ? `<div class="row"><span>Descuento aplicado</span><b>− ${fmt(sub - tot)}</b></div>` : '') + hints.map(x => `<div class="note serif">${x}</div>`).join('') : '';
+  $('#total').textContent = fmt(tot); $('#subtotal').textContent = fmt(sub); $('#cartUnits').textContent = n; $('#discountRow').hidden = !(sub > tot); $('#discountTotal').textContent = '− ' + fmt(sub - tot); $('#cc').textContent = n;
+  scheduleLeadSave();
+}
+function scheduleLeadSave() { /* Los datos de envío se guardan al confirmar la cotización. */ }
+/* Un diseño = una tarjeta con todas sus tallas (resume pedidos con muchas referencias) */
+function cartGroups(lines) {
+  const g = new Map();
+  lines.forEach(L => { if (!g.has(L.p.id)) g.set(L.p.id, { p: L.p, unit: L.unit, tier: L.tier, q: 0, lines: [] }); const G = g.get(L.p.id); G.q += L.c.q; G.lines.push(L); });
+  return [...g.values()];
+}
+function qtySize(id, z, d) {
+  const p = products.find(x => x.id == id); if (!p) return;
+  const i = cart.findIndex(c => c.id == id && c.s == z);
+  if (d > 0) {
+    const cur = i >= 0 ? cart[i].q : 0;
+    if (p.sold_out || cur >= stock(p, z)) { alert(`Solo hay ${stock(p, z)} unidades disponibles en talla ${z}.`); return; }
+    i >= 0 ? cart[i].q++ : cart.push({ id: p.id, s: z, q: 1 });
+  } else if (i >= 0) { cart[i].q--; if (cart[i].q < 1) cart.splice(i, 1); }
+  renderCart();
+}
+function removeDesign(id) { cart = cart.filter(c => c.id != id); renderCart(); }
+/* mode 'mini' = panel lateral derecho al añadir un diseño · 'full' = pantalla completa con el total (botón Carrito) */
+const cartOpen = (o, mode = 'full') => {
+  const d = $('#drawer'), mini = mode === 'mini';
+  if (o) {
+    if (d.classList.contains('mini') !== mini) { d.style.setProperty('transition', 'none', 'important'); d.classList.toggle('mini', mini); void d.offsetWidth; d.style.removeProperty('transition'); }
+    renderCart();
+  }
+  d.classList.toggle('open', o);
+  document.body.classList.toggle('cart-page-open', o && !mini);
+  document.body.classList.toggle('cart-mini-open', o && mini);
+};
+document.addEventListener('keydown', e => { if (e.key === 'Escape') cartOpen(false); });
+let quoteBlob = null, quoteFile = null, quoteMessage = '';
+async function imageAsDataUrl(url) {
+  if (!url) return null;
+  return new Promise(resolve => {
+    const img = new Image(); img.crossOrigin = 'anonymous';
+    img.onload = () => { try { const canvas = document.createElement('canvas'); canvas.width = img.naturalWidth || 1; canvas.height = img.naturalHeight || 1; canvas.getContext('2d').drawImage(img,0,0); resolve({ data: canvas.toDataURL('image/jpeg',0.9), width: canvas.width, height: canvas.height }); } catch(e) { resolve(null); } };
+    img.onerror = () => resolve(null); img.src = url;
+  });
+}
+async function makeQuotePdf() {
+  if (!window.jspdf || !window.jspdf.jsPDF) throw new Error('No se pudo cargar el generador PDF. Revisa tu conexión e inténtalo de nuevo.');
+  const { jsPDF } = window.jspdf, { n, sub, tot, lines } = cartCalc();
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const margin = 14, pageW = 210, contentW = pageW - margin * 2;
+  let y = 17;
+  const ensure = h => { if (y + h > 276) { doc.addPage(); y = 17; } };
+  // Encabezado limpio, inspirado en el resumen del carrito
+  doc.setFillColor(52, 51, 57); doc.rect(0, 0, pageW, 34, 'F');
+  doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(21);
+  doc.text('IZAN CLOTHES', margin, 15);
+  doc.setFont('helvetica','normal'); doc.setFontSize(9);
+  doc.text('RESUMEN DE COTIZACIÓN', margin, 23);
+  doc.text(`Fecha: ${new Date().toLocaleDateString('es-CO')}`, pageW-margin, 23, {align:'right'});
+  y = 43; doc.setTextColor(52,51,57);
+  doc.setFont('helvetica','normal'); doc.setFontSize(9);
+  doc.text('Este es el resumen de las prendas seleccionadas y sus valores estimados.', margin, y); y += 9;
+  const shipping = getShippingData();
+  const shippingRows = [
+    ['Nombre completo', shipping.name], ['Cédula', shipping.idNumber], ['Celular', shipping.phone],
+    ['Dirección', shipping.address], ['Ciudad', shipping.city], ['Correo electrónico', shipping.email]
+  ];
+  const shippingLines = shippingRows.map(([label, value]) => `${label}: ${value}`);
+  const shippingHeight = 10 + shippingLines.length * 5;
+  ensure(shippingHeight);
+  doc.setFillColor(245,245,246); doc.roundedRect(margin,y-3,contentW,shippingHeight,2,2,'F');
+  doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(52,51,57);
+  doc.text('DATOS DE ENVÍO',margin+4,y+2);
+  doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(70,70,72);
+  shippingLines.forEach((line,index)=>doc.text(doc.splitTextToSize(line,contentW-8),margin+4,y+7+index*5));
+  y += shippingHeight + 4;
+  // Agrupar por referencia, como en el carrito visual
+  const groups = new Map();
+  lines.forEach(L => {
+    if (!groups.has(L.p.id)) groups.set(L.p.id, {p:L.p, lines:[], qty:0, subtotal:0});
+    const g = groups.get(L.p.id); g.lines.push(L); g.qty += L.c.q; g.subtotal += L.unit * L.c.q;
+  });
+  for (const g of groups.values()) {
+    const sizeRows = g.lines.map(L => `${L.c.s}: ${L.c.q} und. × ${fmt(L.unit)} = ${fmt(L.unit * L.c.q)}`);
+    // Miniatura proporcional: se conserva la relación de aspecto original para evitar deformar la prenda.
+    const photo = await imageAsDataUrl(imgUrl(g.p.image_path));
+    const imageBoxW = 31, imageBoxH = 38, imageX = margin + 3, imageY = y - 1;
+    const textX = margin + 39, textW = contentW - 45;
+    const titleLines = doc.splitTextToSize(String(g.p.name || 'Producto'), textW);
+    const textH = 9 + titleLines.length * 4.5 + sizeRows.length * 5 + 5;
+    const h = Math.max(imageBoxH + 4, textH + 5);
+    ensure(h);
+    // Recalcular la posición si ensure agregó una página.
+    const cardY = y - 4;
+    doc.setFillColor(245,245,246); doc.roundedRect(margin, cardY, contentW, h, 2, 2, 'F');
+    if (photo) {
+      const ratio = Math.min(imageBoxW / photo.width, imageBoxH / photo.height);
+      const drawW = photo.width * ratio, drawH = photo.height * ratio;
+      const drawX = imageX + (imageBoxW - drawW) / 2, drawY = cardY + (h - drawH) / 2;
+      try { doc.addImage(photo.data, 'JPEG', drawX, drawY, drawW, drawH, undefined, 'MEDIUM'); } catch(e) { /* Si el servidor bloquea la imagen, la cotización sigue generándose. */ }
+    }
+    doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(52,51,57);
+    doc.text(titleLines, textX, y+2);
+    let yy = y + titleLines.length*4.5 + 2;
+    doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(90,91,93);
+    sizeRows.forEach(t => { const wrapped = doc.splitTextToSize(t, textW); doc.text(wrapped, textX, yy); yy += Math.max(5, wrapped.length * 4); });
+    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(52,51,57);
+    doc.text(`${g.qty} unidades`, textX, yy+1);
+    doc.text(fmt(g.subtotal), pageW-margin-4, yy+1, {align:'right'});
+    y += h + 3;
+  }
+  ensure(43);
+  y += 2; doc.setDrawColor(190); doc.line(margin, y, pageW-margin, y); y += 8;
+  doc.setFont('helvetica','normal'); doc.setFontSize(10);
+  doc.text('Total de unidades', margin, y); doc.text(String(n), pageW-margin, y, {align:'right'}); y += 7;
+  doc.text('Subtotal', margin, y); doc.text(fmt(sub), pageW-margin, y, {align:'right'}); y += 7;
+  if (sub > tot) { doc.text('Descuento aplicado', margin, y); doc.text(`− ${fmt(sub-tot)}`, pageW-margin, y, {align:'right'}); y += 7; }
+  doc.setFillColor(52,51,57); doc.roundedRect(margin, y-5, contentW, 15, 2, 2, 'F');
+  doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(12);
+  doc.text('TOTAL ESTIMADO', margin+4, y+4); doc.text(fmt(tot), pageW-margin-4, y+4, {align:'right'}); y += 18;
+  doc.setTextColor(90,91,93); doc.setFont('helvetica','normal'); doc.setFontSize(8.5);
+  if (wcode) { ensure(9); doc.text(`Código mayorista: ${wcode}${wname ? ` (${wname})` : ''}`, margin, y); y += 6; }
+  const foot = doc.splitTextToSize('Cotización sujeta a confirmación de inventario y cierre de venta por WhatsApp.', contentW);
+  ensure(foot.length*4+4); doc.text(foot, margin, y+2);
+  quoteBlob = doc.output('blob');
+  quoteFile = new File([quoteBlob], `Cotizacion-IZAN-${new Date().toISOString().slice(0,10)}.pdf`, { type: 'application/pdf' });
+  const txt = lines.map(L => `• ${L.p.name} | Talla ${L.c.s}: ${L.c.q} und. × ${fmt(L.unit)} = ${fmt(L.unit * L.c.q)}`);
+  quoteMessage = `Hola IZAN, quiero cerrar esta cotización:\n${txt.join('\n')}\nUnidades: ${n}${wcode ? `\nCódigo mayorista: ${wcode} (${wname})` : ''}\nTotal estimado: ${fmt(tot)}\n\nDATOS DE ENVÍO\nNombre completo: ${shipping.name}\nCédula: ${shipping.idNumber}\nCelular: ${shipping.phone}\nDirección: ${shipping.address}\nCiudad: ${shipping.city}\nCorreo electrónico: ${shipping.email}\nAdjunto la cotización en PDF.`;
+}
+function getShippingData() {
+  const value = id => (document.getElementById(id)?.value || '').trim();
+  return { name:value('customerName'), idNumber:value('customerIdNumber'), phone:value('customerPhone'), address:value('customerAddress'), city:value('customerCity'), email:value('customerEmail') };
+}
+function showQuoteStep(step) {
+  const form = step === 'form';
+  $('#quoteForm').hidden = !form; $('#quoteActions').hidden = form;
+  $('#quoteTitle').textContent = form ? 'Datos de envío' : 'Cotización lista';
+}
+/* Paso 1: al pulsar "Pedir por WhatsApp" se piden los datos de envío */
+function checkout() {
+  const { lines } = cartCalc();
+  if (!lines.some(L => !L.p.sold_out && stock(L.p, L.c.s))) return;
+  say('customerSaveHint', '');
+  showQuoteStep('form');
+  $('#quoteModal').style.display = 'flex';
+  setTimeout(() => { const f = $('#customerName'); if (f && !f.value) f.focus(); }, 60);
+}
+/* Paso 2: al guardar se valida, se genera la cotización y aparecen los botones para seguir */
+async function saveShipping() {
+  const { lines } = cartCalc();
+  const shipping = getShippingData(), hint = $('#quoteHint'), btn = $('#saveShippingBtn');
+  const fields = [['Nombre completo', shipping.name, '#customerName'], ['Cédula', shipping.idNumber, '#customerIdNumber'], ['Celular', shipping.phone, '#customerPhone'], ['Dirección', shipping.address, '#customerAddress'], ['Ciudad', shipping.city, '#customerCity'], ['Correo electrónico', shipping.email, '#customerEmail']];
+  const missing = fields.find(([, v]) => !v);
+  if (missing) { say('customerSaveHint', `Completa el campo obligatorio: ${missing[0]}.`); document.querySelector(missing[2])?.focus(); return; }
+  const emailInput = $('#customerEmail');
+  if (!emailInput.checkValidity()) { say('customerSaveHint', 'Ingresa un correo electrónico válido.'); emailInput.focus(); return; }
+  if (!lines.some(L => !L.p.sold_out && stock(L.p, L.c.s))) { say('customerSaveHint', 'Tu pedido no tiene productos disponibles.'); return; }
+  btn.disabled = true; say('customerSaveHint', 'Guardando…');
+  try {
+    await makeQuotePdf();
+  } catch (e) {
+    btn.disabled = false; say('customerSaveHint', e.message || 'No fue posible generar el PDF. Intenta nuevamente.'); return;
+  }
+  btn.disabled = false; say('customerSaveHint', '');
+  showQuoteStep('actions');
+  hint.textContent = 'Tu cotización está lista. Puedes compartir el PDF, descargarlo o continuar a WhatsApp.';
+  try {
+    const { n, tot } = cartCalc();
+    const items = lines.map(L => ({ product_id: L.p.id, product_name: L.p.name, image_url: imgUrl(L.p.image_path), size: L.c.s, quantity: L.c.q, unit_price: L.unit, subtotal: L.unit * L.c.q }));
+    const { error } = await sb.from('orders').insert({ status: 'pending', total: tot, units: n, items, wholesale_code: wcode || null, wholesale_name: wname || null, customer_name: shipping.name, customer_id_number: shipping.idNumber, customer_phone: shipping.phone, customer_address: shipping.address, customer_city: shipping.city, customer_email: shipping.email });
+    if (error) throw error;
+    savedQuoteId = null;
+    hint.textContent = 'Cotización generada y registrada en Pedidos. Ahora puedes compartir el PDF o continuar a WhatsApp.';
+  } catch (e) {
+    hint.textContent = 'La cotización está lista, pero no se pudo guardar en Administración. Puedes compartir o descargar el PDF y continuar a WhatsApp.';
+  }
+}
+function quoteClose() { $('#quoteModal').style.display = 'none'; }
+function downloadQuotePdf() {
+  if (!quoteBlob) return;
+  const url = URL.createObjectURL(quoteBlob), a = document.createElement('a');
+  a.href = url; a.download = quoteFile ? quoteFile.name : 'Cotizacion-IZAN.pdf'; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
+}
+async function shareQuotePdf() {
+  if (!quoteFile) return;
+  try {
+    if (navigator.canShare && navigator.canShare({ files: [quoteFile] }) && navigator.share) {
+      await navigator.share({ files: [quoteFile], title: 'Cotización IZAN Clothes', text: quoteMessage });
+    } else {
+      downloadQuotePdf();
+      $('#quoteHint').textContent = 'PDF descargado. En este navegador no está disponible compartir archivos directamente: abre WhatsApp y adjunta el PDF descargado.';
+    }
+  } catch (e) {
+    if (e.name !== 'AbortError') $('#quoteHint').textContent = 'No se pudo abrir el menú de compartir. Descarga el PDF y continúa a WhatsApp para adjuntarlo.';
+  }
+}
+function openQuoteWhatsApp() {
+  const w = (waDest || '').trim();
+  const url = /^https?:/.test(w) ? w : `https://wa.me/${w.replace(/\D/g, '')}?text=${encodeURIComponent(quoteMessage)}`;
+  window.open(url, '_blank', 'noopener');
+  $('#quoteHint').textContent = 'Se abrió WhatsApp con el mensaje de la cotización. Adjunta el PDF descargado para enviar el documento al cliente/asesor.';
+}
+render(); load();
+
+/* Color del menú flotante: blanco cuando pasa sobre la campaña, oscuro sobre el fondo claro. */
+(function(){
+  const h=document.querySelector('header'); if(!h) return;
+  function upd(){ const c=document.getElementById('campaign'); if(!c) return; const hr=h.getBoundingClientRect(), mid=hr.top+hr.height/2, cr=c.getBoundingClientRect();
+    h.classList.toggle('on-light', !(cr.top<mid && cr.bottom>mid)); }
+  addEventListener('scroll',upd,{passive:true}); addEventListener('resize',upd); addEventListener('load',upd); upd();
+})();
+</script>
+</body>
+</html>
