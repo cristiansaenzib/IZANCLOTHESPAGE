@@ -1018,3 +1018,42 @@ header .nav .nav-admin svg{flex:none;display:block}
 .price s.old{font-size:.75em;opacity:.55;margin-right:4px;text-decoration:line-through}
 .price .promo-now{font-weight:700}
 .mini-tag.promo{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+
+/* FIX RESPONSIVE MÓVIL: evitar que las tarjetas se monten sobre los filtros */
+@media (max-width: 650px) {
+  #catalogo .catalog-layout {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 18px !important;
+    width: 100%;
+  }
+  #catalogo .filters {
+    position: relative !important;
+    inset: auto !important;
+    float: none !important;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) !important;
+    width: 100%;
+    max-width: 100%;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    box-sizing: border-box;
+    z-index: 1;
+    overflow: hidden;
+  }
+  #catalogo #grid {
+    position: relative !important;
+    inset: auto !important;
+    float: none !important;
+    width: 100%;
+    max-width: 100%;
+    margin: 0 !important;
+    box-sizing: border-box;
+    z-index: 0;
+    clear: both;
+  }
+  #catalogo .filters::after { pointer-events: none; }
+}
+
