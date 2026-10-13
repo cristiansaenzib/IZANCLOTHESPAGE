@@ -98,12 +98,20 @@ async function init() {
     if ((data.session.user.email || '').toLowerCase() === ADMIN_EMAIL) await showPanel();
     else { await sb.auth.signOut(); showLogin(); say('lerr', 'Esta cuenta no tiene permisos de administrador.'); }
   } else showLogin();
-  sb.auth.onAuthStateChange(async (_e, session) => {
-    if (session && (session.user.email || '').toLowerCase() === ADMIN_EMAIL) await showPanel();
-    else {
-      if (session) await sb.auth.signOut();
-      showLogin();
-    }
+  /* IMPORTANTE: este callback NO puede ser async ni llamar a sb.* directamente.
+     supabase-js mantiene un bloqueo interno mientras corre el callback; si dentro se llama a
+     getSession()/from()/storage, el bloqueo se queda esperando a sí mismo y TODAS las peticiones
+     posteriores (guardar productos, subir fotos) quedan colgadas. Por eso se difiere con setTimeout
+     y se ignoran los eventos que no cambian de usuario (TOKEN_REFRESHED, volver a la pestaña, etc.). */
+  sb.auth.onAuthStateChange((evt, session) => {
+    setTimeout(async () => {
+      const ok = session && (session.user.email || '').toLowerCase() === ADMIN_EMAIL;
+      if (ok) { if (!logged) await showPanel(); }
+      else {
+        if (session) await sb.auth.signOut();
+        if (logged !== false) showLogin();
+      }
+    }, 0);
   });
 }
 function showLogin() { logged = false; $('#login').hidden = false; $('#panel').hidden = true; $('#out').hidden = true; }
@@ -914,7 +922,8 @@ async function shrink(file, max = 1000) {
 async function upload(file, max) {
   const blob = await shrink(file, max), ext = blob.type === 'image/webp' ? 'webp' : 'jpg';
   const path = crypto.randomUUID() + '.' + ext;
-  const { error } = await sb.storage.from('products').upload(path, blob, { contentType: blob.type, cacheControl: '31536000' });
+  const up = sb.storage.from('products').upload(path, blob, { contentType: blob.type, cacheControl: '31536000' });
+  const { error } = await Promise.race([up, new Promise((_, rej) => setTimeout(() => rej(new Error('La subida de la foto tardó demasiado. Revisa tu conexión e inténtalo de nuevo.')), 45000))]);
   if (error) throw error; return path;
 }
 /* Recarga solo los productos (loadAll descarga también pedidos, movimientos, códigos, guías… y es lento). */
@@ -949,7 +958,9 @@ async function saveNew() {
     const f = $('#nf').files[0], fb = backOk && $('#nfb') ? $('#nfb').files[0] : null;
     const [p1, p2] = await Promise.all([f ? upload(f) : null, fb ? upload(fb) : null]);
     if (p1) row.image_path = p1; if (p2) row.image_path_back = p2;
-    const { data, error } = await sb.from('products').insert(row).select(); if (error) { await rmImg(p1); await rmImg(p2); throw error; }
+    const ins = sb.from('products').insert(row).select();
+    const { data, error } = await Promise.race([ins, new Promise((_, rej) => setTimeout(() => rej(new Error('El guardado tardó demasiado. Recarga la página e inténtalo de nuevo.')), 30000))]);
+    if (error) { await rmImg(p1); await rmImg(p2); throw error; }
     if (data && data[0]) products.unshift(data[0]); else await reloadProducts();
     busy = false; renderPanel(); say('msg', '¡Guardado!');
   } catch (e) { busy = false; say('msg', 'Error: ' + (e.message || e)); }
