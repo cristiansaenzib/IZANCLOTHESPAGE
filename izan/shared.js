@@ -115,8 +115,11 @@ function parseTiers(rows) {
       else { t.total = Math.max(1, parseInt(x.total) || t.total); t.sizes = clampSz(x.sizes, t.sizes); t.flex = clampSz(x.flex, t.flex); fixMin(t); }
     });
   } catch (e) {}
-  return out;
+  const gone = parseDeletedRules(rows);
+  return out.filter(t => !(t.kind === 'pct' && gone.includes(t.key)));
 }
+/* Reglas por defecto (d2, d3, d4) que el administrador eliminó: se guardan en settings.rules_deleted. */
+const parseDeletedRules = rows => { try { const r = (rows || []).find(x => x.key === 'rules_deleted'), a = JSON.parse(r && r.value); return Array.isArray(a) ? a.map(String) : []; } catch (e) { return []; } };
 const parseCountMode = rows => { const r = (rows || []).find(x => x.key === 'count_mode'); return r && r.value === 'order' ? 'order' : 'ref'; };
 const parseKeys = v => { if (v == null || v === '') return null; try { const a = Array.isArray(v) ? v : JSON.parse(v); return Array.isArray(a) ? a : null; } catch (e) { return null; } };
 /* Niveles que usa un producto: los suyos; si no tiene, los de su categoría; si tampoco, todos. */
