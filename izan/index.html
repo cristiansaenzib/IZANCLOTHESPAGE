@@ -135,7 +135,7 @@ async function load() {
   try { const g = await sb.from('size_guides').select('*'); guides = g.error ? [] : (g.data || []); } catch (e) { guides = []; }
   const w = (s.data || []).find(r => r.key === 'whatsapp'); if (w && w.value) waDest = w.value;
   const hb = (s.data || []).find(r => r.key === 'hero_banners'), ht = (s.data || []).find(r => r.key === 'home_tiles');
-  renderCampaigns(pickCampaigns(hb && hb.value, ht && ht.value));
+  heroAll = pickCampaigns(hb && hb.value, ht && ht.value); showHero();
   const vc = (s.data || []).find(r => r.key === 'visual_content'); applyVisualContent(parseVisualContent(vc && vc.value));
   tiers = parseTiers(s.data); countMode = parseCountMode(s.data);
   render();
@@ -153,6 +153,17 @@ function legacyTilesCampaign(raw) {
   const t = parseList(raw); if (t.length !== 3 || !t.some(x => x && x.image)) return null;
   return {id:'legacy-tiles', layout:'triple', title:'Portada', active:true, tiles:t};
 }
+/* Cada campaña se muestra según su dispositivo. Sin dato guardado: las de tres imágenes solo en computador, el resto en todos. */
+const mqMobile = window.matchMedia('(max-width:700px)');
+let heroAll = DEFAULT_HERO;
+const deviceOf = b => ['all', 'desktop', 'mobile'].includes(b && b.device) ? b.device : (b && b.layout === 'triple' ? 'desktop' : 'all');
+function forDevice(list) {
+  const want = mqMobile.matches ? 'mobile' : 'desktop';
+  const ok = list.filter(b => { const d = deviceOf(b); return d === 'all' || d === want; });
+  return ok.length ? ok : list;   /* si ninguna aplica, se muestran todas antes que dejar la portada vacía */
+}
+function showHero() { renderCampaigns(forDevice(heroAll)); }
+if (mqMobile.addEventListener) mqMobile.addEventListener('change', showHero); else if (mqMobile.addListener) mqMobile.addListener(showHero);
 function pickCampaigns(heroRaw, tilesRaw) {
   const active = parseList(heroRaw).filter(b => b && b.active !== false && (b.layout !== 'triple' || (Array.isArray(b.tiles) && b.tiles.length === 3)));
   if (active.length) return active;
@@ -592,6 +603,37 @@ function openQuoteWhatsApp() {
   $('#quoteHint').textContent = 'Se abrió WhatsApp con el mensaje de la cotización. Adjunta el PDF descargado para enviar el documento al cliente/asesor.';
 }
 render(); load();
+
+/* Pantallas táctiles (celular/tablet): no existe "pasar el mouse". La foto trasera se muestra sola en el producto
+   que queda más cerca del centro de la pantalla mientras haces scroll (en la grilla se activa toda la fila central;
+   en el carrusel de favoritos, la tarjeta central). El cambio usa el mismo desvanecido que el hover del computador. */
+(function(){
+  if (!window.matchMedia || !window.matchMedia('(hover: none)').matches) return;
+  let on = [], queued = false;
+  function update(){
+    queued = false;
+    const vw = innerWidth, vh = innerHeight, cx = vw / 2, cy = vh / 2, cand = [];
+    document.querySelectorAll('.card .im.has-back').forEach(im => {
+      const r = im.getBoundingClientRect(), mx = r.left + r.width / 2, my = r.top + r.height / 2;
+      if (!r.width || mx < 0 || mx > vw || my < 0 || my > vh) return;      /* solo tarjetas cuyo centro está en pantalla */
+      cand.push({ im, mx, my, d: Math.hypot(mx - cx, my - cy) });
+    });
+    let best = null; cand.forEach(c => { if (!best || c.d < best.d) best = c; });
+    /* Estabilidad: la tarjeta activa se mantiene salvo que otra esté claramente más cerca del centro. */
+    const keep = best && cand.find(c => on.includes(c.im) && c.d - best.d < 24);
+    if (keep) best = keep;
+    const next = !best ? [] : cand.filter(c => c === best || (c.im.closest('#grid') && best.im.closest('#grid') && Math.abs(c.my - best.my) < 12)).map(c => c.im);
+    on.forEach(im => { if (!next.includes(im)) { const k = im.closest('.card'); if (k) k.classList.remove('peek'); } });
+    next.forEach(im => { const k = im.closest('.card'); if (k) k.classList.add('peek'); });
+    on = next;
+  }
+  const queue = () => { if (!queued) { queued = true; requestAnimationFrame(update); } };
+  addEventListener('scroll', queue, { passive: true, capture: true });      /* capture: también el scroll horizontal del carrusel */
+  addEventListener('resize', queue); addEventListener('orientationchange', queue); addEventListener('load', queue);
+  const mo = new MutationObserver(queue);
+  ['grid', 'bestSellersCarousel'].forEach(id => { const el = document.getElementById(id); if (el) mo.observe(el, { childList: true }); });
+  queue();
+})();
 
 /* Color del menú flotante: blanco cuando pasa sobre la campaña, oscuro sobre el fondo claro. */
 (function(){

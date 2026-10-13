@@ -740,7 +740,7 @@ function renderHeroAdminList() {
       ? `<div class="hero-thumb hero-thumb-3">${[0,1,2].map(k => { const u = heroSrc(b.tiles[k] && b.tiles[k].image); return `<i style="${u ? `background-image:url('${esc(u)}')` : ''}"></i>`; }).join('')}`
       : `<div class="hero-thumb" style="background-image:url('${esc(heroSrc(b.image))}')">`;
     const off = b.active === false;
-    return `<article class="hero-card ${off ? 'off' : ''}">${thumb}<span class="pill ${off ? '' : 'ok'}">${off ? 'Oculta' : 'Activa'}</span><span class="hero-n">${String(i + 1).padStart(2, '0')}</span></div><div class="hero-body"><b>${esc(b.title || 'Campaña sin título')}</b><p class="note">${triple ? 'Formato: tres imágenes' : 'Formato: una imagen'}${!triple && b.subtitle ? ' · ' + esc(b.subtitle) : ''}</p><div class="row-actions"><button class="chip" onclick="editHeroBanner(${i})">✎ Editar</button><button class="chip" onclick="toggleHeroBanner(${i})">${off ? 'Activar' : 'Ocultar'}</button><button class="chip danger" onclick="deleteHeroBanner(${i})">Eliminar</button></div></div></article>`;
+    return `<article class="hero-card ${off ? 'off' : ''}">${thumb}<span class="pill ${off ? '' : 'ok'}">${off ? 'Oculta' : 'Activa'}</span><span class="hero-n">${String(i + 1).padStart(2, '0')}</span></div><div class="hero-body"><b>${esc(b.title || 'Campaña sin título')}</b><p class="note">${triple ? 'Formato: tres imágenes' : 'Formato: una imagen'} · Se muestra en: <b>${({desktop:'solo computador',mobile:'solo celular',all:'todos los dispositivos'})[b.device || (triple ? 'desktop' : 'all')]}</b>${!triple && b.subtitle ? ' · ' + esc(b.subtitle) : ''}</p><div class="row-actions"><button class="chip" onclick="editHeroBanner(${i})">✎ Editar</button><button class="chip" onclick="toggleHeroBanner(${i})">${off ? 'Activar' : 'Ocultar'}</button><button class="chip danger" onclick="deleteHeroBanner(${i})">Eliminar</button></div></div></article>`;
   }).join('') : '<div class="empty-box">Aún no hay campañas personalizadas. Crea una de una imagen o de tres imágenes.</div>';
 }
 let heroBusy = false;
@@ -773,6 +773,7 @@ async function saveCampaign(old, i) {
 }
 function heroForm(b={}) {
   const triple = b.layout === 'triple';
+  const dev = ['all', 'desktop', 'mobile'].includes(b.device) ? b.device : (triple ? 'desktop' : 'all');
   const tiles = Array.isArray(b.tiles) && b.tiles.length === 3 ? b.tiles : [{}, {}, {}];
   const catOpts = sel => `<option value="">Todas las categorías</option>` + cats.map(c => `<option value="${esc(c.id)}" ${String(sel||'')===String(c.id)?'selected':''}>${esc(c.name)}</option>`).join('');
   const tileBlock = (t, i) => `<div class="camp-tile-adm"><h4>Imagen ${i+1}</h4><div class="camp-prev" id="hbtprev${i}" style="${t.image?`background-image:url('${esc(heroSrc(t.image))}')`:''}"></div><label>Fotografía (vertical 4:5, ideal 1000 × 1250 px)</label><input id="hbtimg${i}" type="file" accept="image/*" onchange="previewCampTile(${i})"><small class="note">${t.image?'Ya hay una imagen guardada. Selecciona otra solo si quieres reemplazarla.':'Sube la foto de esta posición.'}</small><label>Título</label><input id="hbttitle${i}" maxlength="70" value="${esc(t.title||'')}"><label>Descripción</label><textarea id="hbtdesc${i}" rows="2" maxlength="180">${esc(t.description||'')}</textarea><label>Texto del botón</label><input id="hbtcta${i}" maxlength="32" value="${esc(t.cta||'EXPLORAR')}"><label>Destino del botón</label><input id="hbtlink${i}" value="${esc(t.link||'#catalogo')}" placeholder="#catalogo o https://..."><label>Categoría que se abre al pulsar (opcional)</label><select id="hbtcat${i}">${catOpts(t.category_id)}</select></div>`;
@@ -782,25 +783,38 @@ function heroForm(b={}) {
       <label class="camp-opt"><input type="radio" name="hblayout" value="single" ${triple?'':'checked'} onchange="campLayoutToggle()"><b>Una imagen</b><small>Una foto grande con título, descripción y botón.</small></label>
       <label class="camp-opt"><input type="radio" name="hblayout" value="triple" ${triple?'checked':''} onchange="campLayoutToggle()"><b>Tres imágenes</b><small>Tres fotos simétricas, del mismo tamaño, que juntas ocupan lo mismo que una campaña.</small></label>
     </div>
+    <label for="hbdevice">¿En qué dispositivos se muestra esta campaña?</label>
+    <select id="hbdevice" onchange="campDeviceToggle()"><option value="all" ${dev==='all'?'selected':''}>Computador y celular</option><option value="desktop" ${dev==='desktop'?'selected':''}>Solo computador</option><option value="mobile" ${dev==='mobile'?'selected':''} ${triple?'disabled':''}>Solo celular (una imagen)</option></select>
+    <small class="note">Las campañas de tres imágenes solo se muestran en computador. Para celular crea una campaña de una imagen y elige "Solo celular".</small>
     <div id="campSingle" style="${triple?'display:none':''}">
       <label>Texto pequeño superior</label><input id="hbeyebrow" value="${esc(b.eyebrow||'IZAN CLOTHES · NUEVA COLECCIÓN')}">
       <label>Título principal</label><textarea id="hbtitle" rows="2" placeholder="Ej. Nueva temporada.\nNuevo nivel.">${esc(triple?'':(b.title||''))}</textarea>
       <label>Descripción</label><textarea id="hbsubtitle" rows="2">${esc(b.subtitle||'')}</textarea>
-      <label>Imagen de portada para computador (horizontal, ideal 1800 × 900 px)</label><input id="hbfile" type="file" accept="image/*"><small class="note">${b.image?'Ya hay una imagen para computador. Selecciona otra solo si quieres reemplazarla.':''}</small>
-      <label>Imagen de portada para celular (vertical, ideal 900 × 1200 px)</label><input id="hbmobilefile" type="file" accept="image/*"><small class="note">${b.mobile_image?'Ya hay una imagen para celular. Selecciona otra solo si quieres reemplazarla.':'Si la dejas vacía, se usará la imagen de computador.'}</small>
+      <div id="hbfileWrap" style="${dev==='mobile'?'display:none':''}"><label>Imagen de portada para computador (horizontal, ideal 1800 × 900 px)</label><input id="hbfile" type="file" accept="image/*"><small class="note">${b.image?'Ya hay una imagen para computador. Selecciona otra solo si quieres reemplazarla.':''}</small></div>
+      <div id="hbmobWrap" style="${dev==='desktop'?'display:none':''}"><label>Imagen de portada para celular (vertical, ideal 900 × 1200 px)${dev==='mobile'?' · obligatoria':''}</label><input id="hbmobilefile" type="file" accept="image/*"><small class="note">${b.mobile_image?'Ya hay una imagen para celular. Selecciona otra solo si quieres reemplazarla.':'Si la dejas vacía, se usará la imagen de computador.'}</small></div>
       <label>Texto del botón</label><input id="hbcta" value="${esc(b.cta||'Ver colección')}">
       <label>Destino del botón</label><input id="hblink" value="${esc(b.link||'#catalogo')}" placeholder="#catalogo o URL">
     </div>
     <div id="campTriple" style="${triple?'':'display:none'}">
       <label>Nombre de la campaña (solo lo ves tú)</label><input id="hbname" maxlength="70" value="${esc(triple?(b.title||''):'')}" placeholder="Ej. Colección octubre">
       <div class="camp-tiles-grid">${tiles.map(tileBlock).join('')}</div>
-      <small class="note">Las tres imágenes se muestran con el mismo ancho y alto. En celular se apilan una debajo de otra, también del mismo tamaño; centra el producto en la foto para que no se recorte.</small>
+      <small class="note">Las tres imágenes se muestran con el mismo ancho y alto. Esta campaña se muestra solo en computador; en celular usa una campaña de una imagen.</small>
     </div>
     <label class="tk"><input type="checkbox" id="hbactive" ${b.active===false?'':'checked'}> Mostrar en la portada</label></div>`;
+}
+function campDeviceToggle() {
+  const d = $('#hbdevice').value;
+  const w1 = $('#hbfileWrap'), w2 = $('#hbmobWrap');
+  if (w1) w1.style.display = d === 'mobile' ? 'none' : '';
+  if (w2) w2.style.display = d === 'desktop' ? 'none' : '';
 }
 function campLayoutToggle() {
   const t = document.querySelector('input[name=hblayout]:checked').value === 'triple';
   $('#campSingle').style.display = t ? 'none' : ''; $('#campTriple').style.display = t ? '' : 'none'; $('#campForm').classList.toggle('wide', t);
+  /* Tres imágenes: solo computador (en celular no se adapta). */
+  const sel = $('#hbdevice'), mob = sel.querySelector('option[value=mobile]');
+  mob.disabled = t; if (t && sel.value !== 'desktop') sel.value = 'desktop';
+  campDeviceToggle();
 }
 function previewCampTile(i) {
   const f = $('#hbtimg'+i), el = $('#hbtprev'+i); if (!f || !f.files || !f.files[0] || !el) return;
@@ -811,6 +825,8 @@ async function readCampaignForm(old = {}) {
   const layout = document.querySelector('input[name=hblayout]:checked').value, active = $('#hbactive').checked;
   const okLink = l => /^(https:\/\/|#|\/[^/])/i.test(l);
   const id = old.id || crypto.randomUUID();
+  let device = $('#hbdevice').value; if (!['all', 'desktop', 'mobile'].includes(device)) device = 'all';
+  if (layout === 'triple') device = 'desktop';   /* tres imágenes: solo computador */
   if (layout === 'triple') {
     const oldTiles = Array.isArray(old.tiles) ? old.tiles : [], draft = [];
     for (let i = 0; i < 3; i++) {
@@ -822,11 +838,12 @@ async function readCampaignForm(old = {}) {
     const tiles = [];
     await Promise.all(draft.map(async d => { if (d.file) d.image = await upload(d.file, 1400); }));
     for (const d of draft) { const { file, ...t } = d; tiles.push(t); }
-    return { ...old, id, layout: 'triple', title: $('#hbname').value.trim() || 'Campaña de tres imágenes', active, tiles };
+    return { ...old, id, layout: 'triple', device, title: $('#hbname').value.trim() || 'Campaña de tres imágenes', active, tiles };
   }
   const title = $('#hbtitle').value.trim(); if (!title) { alert('Escribe un título para la campaña.'); return null; }
   const link = $('#hblink').value.trim() || '#catalogo'; if (!okLink(link)) { alert('El destino del botón debe ser un enlace https:// o una sección como #catalogo.'); return null; }
-  const b = { ...old, id, layout: 'single', eyebrow: $('#hbeyebrow').value.trim(), title, subtitle: $('#hbsubtitle').value.trim(), cta: $('#hbcta').value.trim(), link, active, image: old.image || '' };
+  if (device === 'mobile' && !$('#hbmobilefile').files[0] && !old.mobile_image) { alert('Para una campaña solo celular sube la imagen vertical para celular.'); return null; }
+  const b = { ...old, id, layout: 'single', device, eyebrow: $('#hbeyebrow').value.trim(), title, subtitle: $('#hbsubtitle').value.trim(), cta: $('#hbcta').value.trim(), link, active, image: old.image || '' };
   const f = $('#hbfile').files[0], mf = $('#hbmobilefile').files[0];
   const [pi, pm] = await Promise.all([f ? upload(f, 2000) : null, mf ? upload(mf, 1400) : null]); if (pi) b.image = pi; if (pm) b.mobile_image = pm;
   return b;

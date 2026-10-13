@@ -999,7 +999,7 @@ footer.site-footer{padding:clamp(40px,5vw,72px) clamp(20px,5vw,70px) calc(26px +
 
 /* ===== FOTO FRONTAL / TRASERA ===== */
 /* Si el producto tiene foto trasera, al pasar el mouse sobre la tarjeta la foto cambia sola (con desvanecido).
-   En pantallas táctiles no hay "pasar el mouse": allí se ve siempre la frontal. */
+   En pantallas táctiles no hay "pasar el mouse": allí cambia la tarjeta más centrada al hacer scroll. */
 .card .im.has-back img.img-front{transition:opacity .35s ease,transform .4s}
 .card .im.has-back img.img-back{position:absolute;inset:0;width:100%;height:100%;opacity:0;pointer-events:none;transition:opacity .35s ease,transform .4s}
 @media (hover:hover){
@@ -1007,6 +1007,10 @@ footer.site-footer{padding:clamp(40px,5vw,72px) clamp(20px,5vw,70px) calc(26px +
   .card:hover .im.has-back img.img-back{opacity:1}
   .card.so:hover .im.has-back img.img-back{opacity:.55}
 }
+/* Pantallas táctiles: la tarjeta más centrada (clase .peek, la pone index.html al hacer scroll) hace el mismo cambio. */
+.card.peek .im.has-back img.img-front{opacity:0}
+.card.peek .im.has-back img.img-back{opacity:1}
+.card.so.peek .im.has-back img.img-back{opacity:.55}
 
 
 /* ===== Botón "Administrar" con ícono de usuario (menú superior) ===== */
