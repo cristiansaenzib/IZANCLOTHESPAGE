@@ -251,7 +251,7 @@ function card(p) {
   const categoryName = cats.find(c => String(c.id) === String(p.category_id))?.name || 'Sin categoría';
   const isFlag = v => v === true || v === 1 || v === '1' || String(v).toLowerCase() === 'true';
   const featuredTags = [isFlag(p.is_best_seller) ? 'Best seller' : '', (SZ.reduce((n,z)=>n+stock(p,z),0) < 4) ? 'Últimas unidades' : '', isFlag(p.is_new_arrival) ? 'Lo más nuevo' : ''].filter(Boolean);
-  return `<article class="card ${out ? 'so' : ''}"><div class="im${p.image_path_back ? ' has-back' : ''}"><img class="img-front" src="${imgUrl(p.image_path)}" alt="${esc(p.name)}" loading="lazy">${p.image_path_back ? `<img class="img-back" src="${imgUrl(p.image_path_back)}" alt="" aria-hidden="true" loading="lazy" onerror="this.parentNode.classList.remove('has-back');this.remove()">` : ''}${guideBtn(p)}</div><div class="b"><div class="product-labels"><span class="category-label">${esc(categoryName)}</span>${out ? '<span class="mini-tag soldout">Agotado</span>' : ''}${onPromo(p) && !out ? `<span class="mini-tag promo">Promo −${promoPct(p)}%</span>` : ''}${featuredTags.map(t=>`<span class="mini-tag">${esc(t)}</span>`).join('')}</div><h3>${esc(p.name)}</h3><p>${esc(p.description)}</p>
+  return `<article class="card ${out ? 'so' : ''}" data-id="${esc(p.id)}"><div class="im${p.image_path_back ? ' has-back' : ''}"><img class="img-front" src="${imgUrl(p.image_path)}" alt="${esc(p.name)}" loading="lazy">${p.image_path_back ? `<img class="img-back" src="${imgUrl(p.image_path_back)}" alt="" aria-hidden="true" loading="lazy" onerror="this.parentNode.classList.remove('has-back');this.remove()">` : ''}${guideBtn(p)}</div><div class="b"><div class="product-labels"><span class="category-label">${esc(categoryName)}</span>${out ? '<span class="mini-tag soldout">Agotado</span>' : ''}${onPromo(p) && !out ? `<span class="mini-tag promo">Promo −${promoPct(p)}%</span>` : ''}${featuredTags.map(t=>`<span class="mini-tag">${esc(t)}</span>`).join('')}</div><h3>${esc(p.name)}</h3><p>${esc(p.description)}</p>
   <div class="gr sz">${SZ.map(z => `<button class="${z == cs && !out ? 'on' : ''}" ${stock(p, z) ? '' : 'disabled'} title="${stock(p, z) ? stock(p, z) + ' disponibles' : 'Agotada'}" onclick="pickS('${p.id}','${z}')">${z}</button>`).join('')}</div>
   <div class="row"><span class="price">${wu ? `<s class="old">${fmt(eff(p))}</s> ${fmt(wu)}` : onPromo(p) ? `<s class="old">${fmt(price(p))}</s> <span class="promo-now">${fmt(eff(p))}</span>` : fmt(price(p))}</span><button class="btn acc" ${out ? 'disabled' : ''} onclick="add('${p.id}','${cs}')">${out ? 'Agotado' : 'Añadir'}</button></div>${wu ? '<small class="note">Precio mayorista</small>' : onPromo(p) ? '<small class="note">Precio de promoción</small>' : volume(p)}</div></article>`;
 }
@@ -610,8 +610,27 @@ render(); load();
 (function(){
   if (!window.matchMedia || !window.matchMedia('(hover: none)').matches) return;
   let on = [], queued = false;
+  /* Toque en un producto: ese producto es el ÚNICO que alterna frontal/trasera, cada 1,5 s.
+     Tocarlo otra vez lo detiene y se vuelve al cambio por scroll. Tocar otro producto le pasa el control. */
+  const FLIP_MS = 1500; let tap = null, timer = null;   /* tap = { id, box } */
+  const tapCard = () => tap ? document.querySelector('#' + tap.box + ' .card[data-id="' + String(tap.id).replace(/["\\]/g, '') + '"]') : null;
+  function tapStop() { clearInterval(timer); timer = null; const c = tapCard(); if (c) c.classList.remove('peek'); tap = null; queue(); }
+  function tapApply() { const c = tapCard(); document.querySelectorAll('.card.peek').forEach(k => { if (k !== c) k.classList.remove('peek'); }); if (c) c.classList.toggle('peek', tap.back); }
+  function tapStart(card) {
+    clearInterval(timer); on.forEach(im => { const k = im.closest('.card'); if (k) k.classList.remove('peek'); }); on = [];
+    tap = { id: card.dataset.id, box: card.closest('#grid') ? 'grid' : 'bestSellersCarousel', back: true }; tapApply();
+    timer = setInterval(() => { tap.back = !tap.back; tapApply(); }, FLIP_MS);
+  }
+  document.addEventListener('click', e => {
+    const card = e.target.closest && e.target.closest('.card');
+    if (!card || !card.querySelector('.im.has-back') || !card.dataset.id) return;
+    if (e.target.closest('button, a, select, input, label, textarea')) return;      /* talla, Añadir, guía de tallas… */
+    const box = card.closest('#grid') ? 'grid' : card.closest('#bestSellersCarousel') ? 'bestSellersCarousel' : null; if (!box) return;
+    if (tap && tap.id === card.dataset.id && tap.box === box) tapStop(); else tapStart(card);
+  });
   function update(){
     queued = false;
+    if (tap) { tapApply(); return; }   /* mientras hay un producto tocado, el scroll no cambia fotos */
     const vw = innerWidth, vh = innerHeight, cx = vw / 2, cy = vh / 2, cand = [];
     document.querySelectorAll('.card .im.has-back').forEach(im => {
       const r = im.getBoundingClientRect(), mx = r.left + r.width / 2, my = r.top + r.height / 2;
