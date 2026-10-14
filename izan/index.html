@@ -116,7 +116,7 @@
 <script src="config.js"></script>
 <script src="shared.js"></script>
 <script>
-let guides = [], cats = [], products = [], tiers = parseTiers(), countMode = 'ref', catF = 'all', colorF = 'all', sizeF = 'all', featuredFilter = 'all', selS = {}, cart = [], waDest = C.WHATSAPP, savedQuoteId = null;
+let guides = [], cats = [], products = [], tiers = parseTiers(), countMode = 'ref', catF = 'all', colorF = 'all', sizeF = 'all', featuredFilter = 'all', catalogExpanded = false, selS = {}, cart = [], waDest = C.WHATSAPP, savedQuoteId = null;
 let wcode = '', wname = '';   /* código de mayorista validado */
 
 const catOf = p => cats.find(c => c.id == p.category_id);
@@ -294,7 +294,7 @@ function toggleCategoryMenu() {
   if (button) button.setAttribute('aria-expanded', String(open));
 }
 function chooseCategory(id) {
-  catF = id;
+  catF = id; catalogExpanded = false;
   featuredFilter = 'all';
   const menu = $('#categoryDropdown');
   if (menu) menu.classList.remove('open');
@@ -304,7 +304,7 @@ function chooseCategory(id) {
   document.getElementById('catalogo')?.scrollIntoView({behavior:'smooth', block:'start'});
 }
 function showFeatured(which) {
-  catF = 'all'; colorF = 'all'; sizeF = 'all';
+  catalogExpanded = false; catF = 'all'; colorF = 'all'; sizeF = 'all';
   if (which === 'best') {
     featuredFilter = 'all';
     render();
@@ -350,16 +350,40 @@ function render() {
     return matchesCategory && matchesColor && matchesSize;
   });
   // Un solo mosaico continuo: cada tarjeta indica su categoría sin separar el catálogo por referencias.
+  const limit = catalogLimit();
+  const visibleProducts = catalogExpanded ? filteredProducts : filteredProducts.slice(0, limit);
+  const hiddenCount = filteredProducts.length - visibleProducts.length;
   $('#grid').innerHTML = filteredProducts.length
-    ? filteredProducts.map(card).join('')
+    ? visibleProducts.map(card).join('') + (hiddenCount > 0 ? `<div class="load-more"><button class="btn ghost" onclick="showMoreProducts()">Ver más (${hiddenCount})</button></div>` : '')
     : `<div class="empty serif" style="font-size:20px">No hay diseños que coincidan con los filtros seleccionados.<br><button class="chip" style="margin-top:16px" onclick="clearFilters()">Ver todos los diseños</button></div>`;
   renderCart();
 }
+/* Catálogo paginado: 6 filas en escritorio, 15 filas en móvil. Las columnas se leen del CSS real
+   (la cuadrícula es auto-fill), así que el número de productos se ajusta solo a cada pantalla. */
+const CATALOG_ROWS_DESKTOP = 6, CATALOG_ROWS_MOBILE = 15;
+function catalogLimit() {
+  const grid = $('#grid');
+  const cols = grid ? getComputedStyle(grid).gridTemplateColumns.split(' ').filter(Boolean).length : 0;
+  const rows = window.matchMedia('(max-width:700px)').matches ? CATALOG_ROWS_MOBILE : CATALOG_ROWS_DESKTOP;
+  return Math.max(1, cols) * rows;
+}
+function showMoreProducts() { catalogExpanded = true; render(); }
+(function () {
+  let last = null, t;
+  addEventListener('resize', () => {
+    clearTimeout(t);
+    t = setTimeout(() => {
+      const now = catalogLimit();
+      if (last !== null && now !== last && !catalogExpanded && products.length) render();
+      last = now;
+    }, 200);
+  });
+})();
 function wcOpen() { cartOpen(true); $('#wcd').open = true; setTimeout(() => $('#wci').focus(), 50); }
-const setC = id => { catF = id; featuredFilter = 'all'; render(); };
-const setColor = value => { colorF = value; render(); };
-const setSize = value => { sizeF = sizeF === value ? 'all' : value; render(); };
-const clearFilters = () => { colorF = 'all'; sizeF = 'all'; catF = 'all'; render(); };
+const setC = id => { catalogExpanded = false; catF = id; featuredFilter = 'all'; render(); };
+const setColor = value => { catalogExpanded = false; colorF = value; render(); };
+const setSize = value => { catalogExpanded = false; sizeF = sizeF === value ? 'all' : value; render(); };
+const clearFilters = () => { catalogExpanded = false; colorF = 'all'; sizeF = 'all'; catF = 'all'; render(); };
 const pickS = (id, z) => { selS[id] = z; render(); };
 
 function add(id, z) {
