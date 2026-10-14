@@ -260,3 +260,24 @@
 .pr-photos>img.front{display:block;width:100%;height:100%;object-fit:cover;border-radius:16px;background:var(--stu)}
 .pr-photos>img.back{position:absolute;right:-8px;bottom:-8px;width:38px;height:48px;object-fit:cover;border-radius:10px;border:2px solid #fff;background:var(--stu);box-shadow:0 6px 14px -6px rgba(52,51,57,.6)}
 @media (max-width:1100px){.pr-photos{width:72px;height:90px}}
+
+
+/* ===== Editor visual de campaña ===== */
+.cd-box{margin-top:16px;padding:14px;border:1px solid var(--line);background:var(--card)}
+.cd-tabs{display:flex;gap:8px;margin:12px 0 6px}
+.cd-stage{position:relative;width:100%;overflow:hidden;background:linear-gradient(125deg,#343339,#5a5b5d 55%,#b4b7bc);margin:8px auto;border:1px solid var(--line)}
+.cd-stage.d{aspect-ratio:16/7}
+.cd-stage.m{aspect-ratio:3/4;max-width:340px}
+.cd-stage>.camp-free{position:absolute!important;inset:0;height:100%;animation:none!important}
+.cd-stage .cf-el{cursor:grab;touch-action:none;-webkit-user-select:none;user-select:none}
+.cd-stage .cf-el:active{cursor:grabbing}
+.cd-stage .cf-el.sel{outline:2px dashed #4da3ff;outline-offset:4px}
+.cd-stage .cf-btn{pointer-events:auto}
+.cd-els{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.cd-ctrl{border-top:1px solid var(--line);padding-top:10px}
+.cd-ctrl h4{margin:0 0 8px;font-size:18px}
+.cd-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 16px;margin-top:8px}
+.cd-grid input[type=range]{width:100%;padding:0}
+.cd-grid input[type=color]{width:100%;height:38px;padding:2px}
+.cd-shade{margin:12px 0}.cd-shade input{width:100%;padding:0}
+@media(max-width:600px){.cd-grid{grid-template-columns:1fr}}

@@ -8,7 +8,7 @@
 <meta property="og:title" content="IZAN Clothes · Hecho en Colombia">
 <meta property="og:description" content="Estampado espalda, boxy fit y acid wash.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='32'/%3E%3C/svg%3E">
-<link href="https://fonts.googleapis.com/css2?family=Anton&family=Syncopate:wght@400;700&family=Playfair+Display:ital@1&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=Oswald:wght@400;600&family=Montserrat:wght@500;700;800&family=Space+Grotesk:wght@500;700&family=Syncopate:wght@400;700&family=Playfair+Display:ital@1&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
 <script>try{var pc=localStorage.getItem('izan_palette_css');if(pc&&/^[-a-z0-9:#;,.() %]+$/i.test(pc))document.documentElement.style.cssText+=pc}catch(e){}</script>
 </head>
@@ -177,6 +177,7 @@ function campaignHTML(b) {
       return `<article class="camp-tile">${img ? `<img class="camp-bg" src="${esc(img)}" alt="${esc(t.title || b.title || 'Colección IZAN')}" loading="eager">` : ''}<div class="camp-shade"></div><div class="camp-copy"><span class="camp-num">0${i+1} / 03</span>${t.title ? `<h2>${esc(t.title)}</h2>` : ''}${t.description ? `<p>${esc(t.description)}</p>` : ''}<a class="camp-link" href="${esc(safeHref(t.link))}" ${cat}>${esc(t.cta || 'EXPLORAR')} <span aria-hidden="true">↗</span></a></div></article>`;
     }).join('') + '</div>';
   }
+  if (b.design) { const free = campFreeHTML(b, mqMobile.matches ? 'm' : 'd'); if (free) return free; }   /* diseño libre (editado en Administrar) */
   const desktop = heroSrc(b.image || b.mobile_image), mobile = heroSrc(b.mobile_image || b.image);
   const pic = desktop ? `<picture class="camp-bg">${mobile && mobile !== desktop ? `<source media="(max-width:700px)" srcset="${esc(mobile)}">` : ''}<img src="${esc(desktop)}" alt="" loading="eager"></picture>` : '';
   return `<div class="camp-slide camp-single">${pic}<div class="camp-shade"></div><div class="camp-copy"><small>${esc(b.eyebrow || 'IZAN CLOTHES')}</small><h2>${esc(b.title || 'Nueva colección').replace(/\n/g,'<br>')}</h2>${b.subtitle ? `<p>${esc(b.subtitle)}</p>` : ''}<a class="btn acc" href="${esc(safeHref(b.link))}">${esc(b.cta || 'Ver colección')}</a></div></div>`;

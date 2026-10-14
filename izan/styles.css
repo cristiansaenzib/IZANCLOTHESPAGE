@@ -1179,3 +1179,18 @@ button,.btn,.chip{-webkit-appearance:none;appearance:none;box-sizing:border-box}
 .announce #announceTrack>span,.announce>div>span{flex:0 0 auto}
 @keyframes mq3{from{transform:translate3d(0,0,0)}to{transform:translate3d(-50%,0,0)}}
 @media (prefers-reduced-motion:reduce){.announce #announceTrack,.announce>div{animation:none!important}}
+
+
+/* =====================================================================
+   CAMPAÑA CON DISEÑO LIBRE (textos y botón movibles, editados en Administrar)
+   Las medidas usan "cqw" (% del ancho de la campaña) para que todo escale igual en cualquier pantalla.
+   ===================================================================== */
+.camp-free{display:block!important;position:relative;container-type:inline-size;isolation:isolate;overflow:hidden}
+.camp-free .cf-layer{position:absolute;inset:0;z-index:1;--u:1vw}
+@supports (width:1cqw){.camp-free .cf-layer{--u:1cqw}}
+.camp-free .cf-el{position:absolute;margin:0!important;padding:0;max-width:100%;line-height:1.1;overflow-wrap:anywhere;box-sizing:border-box}
+.camp-free h2.cf-el{font-weight:400;line-height:.95;letter-spacing:-.01em;text-transform:none}
+.camp-free p.cf-el{line-height:1.35;max-width:100%}
+.camp-free .cf-eyebrow{display:inline-block;padding:.55em .85em;border:1px solid rgba(255,255,255,.4);background:rgba(255,255,255,.14);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);letter-spacing:.22em;text-transform:uppercase;line-height:1.2;max-width:92%}
+.camp-free .cf-btn{display:inline-block;padding:.95em 1.7em;border:1px solid;text-decoration:none;text-transform:uppercase;letter-spacing:.12em;font-weight:700;white-space:nowrap;line-height:1.2;text-align:center;-webkit-appearance:none;appearance:none}
+@media (hover:hover){.camp-free .cf-btn:hover{filter:brightness(.88)}}

@@ -279,3 +279,70 @@ function footerHTML(f, o = {}) {
   </div>
   <div class="foot-bottom"><span>${esc(legal)}</span><span class="foot-links">${policy}${adm}</span></div>`;
 }
+
+
+/* ===== CAMPAÑA DE UNA IMAGEN · DISEÑO LIBRE (textos y botón movibles) =====
+   Cada elemento guarda su posición (x, y en % del recuadro), tamaño (s, en % del ancho), color, tipografía,
+   alineación y ancho. Hay un diseño para computador (d) y otro para celular (m). Se editan en Administrar. */
+const CAMP_FONTS = {
+  anton:      { n: 'Anton · titulares gruesos',   css: "Anton,Impact,'Arial Narrow',sans-serif" },
+  bebas:      { n: 'Bebas Neue · condensada',     css: "'Bebas Neue',Impact,'Arial Narrow',sans-serif" },
+  oswald:     { n: 'Oswald · condensada limpia',  css: "Oswald,'Arial Narrow',sans-serif" },
+  syncopate:  { n: 'Syncopate · ancha y técnica', css: "Syncopate,Arial,sans-serif" },
+  montserrat: { n: 'Montserrat · moderna',        css: "Montserrat,Arial,sans-serif" },
+  space:      { n: 'Space Grotesk · geométrica',  css: "'Space Grotesk',Arial,sans-serif" },
+  inter:      { n: 'Inter · neutra',              css: "Inter,system-ui,Arial,sans-serif" },
+  playfair:   { n: 'Playfair · elegante cursiva', css: "'Playfair Display',Georgia,serif" },
+  georgia:    { n: 'Georgia · clásica',           css: "Georgia,'Times New Roman',serif" }
+};
+const CAMP_EL = ['eyebrow', 'title', 'subtitle', 'button'];
+const CAMP_EL_NAME = { eyebrow: 'Etiqueta superior', title: 'Título', subtitle: 'Descripción', button: 'Botón' };
+const CAMP_DEF = {
+  d: { eyebrow: { on: 1, x: 5, y: 48, s: .8,  c: '#ffffff', f: 'syncopate', a: 'left', w: 0 },
+       title:   { on: 1, x: 5, y: 62, s: 6.5, c: '#ffffff', f: 'anton',     a: 'left', w: 60 },
+       subtitle:{ on: 1, x: 5, y: 78, s: 1.5, c: '#ffffff', f: 'inter',     a: 'left', w: 40 },
+       button:  { on: 1, x: 5, y: 90, s: .9,  c: '#171717', f: 'syncopate', a: 'left', w: 0, bg: '#ffffff' } },
+  m: { eyebrow: { on: 1, x: 6, y: 52, s: 2.6, c: '#ffffff', f: 'syncopate', a: 'left', w: 0 },
+       title:   { on: 1, x: 6, y: 64, s: 13,  c: '#ffffff', f: 'anton',     a: 'left', w: 88 },
+       subtitle:{ on: 1, x: 6, y: 77, s: 4,   c: '#ffffff', f: 'inter',     a: 'left', w: 80 },
+       button:  { on: 1, x: 6, y: 90, s: 2.8, c: '#171717', f: 'syncopate', a: 'left', w: 0, bg: '#ffffff' } }
+};
+const campNum = (v, lo, hi, d) => { v = parseFloat(v); return isFinite(v) ? Math.min(hi, Math.max(lo, v)) : d; };
+const campColor = (v, d) => /^#[0-9a-f]{6}$/i.test(v || '') ? v : d;
+const campLink = l => /^(https?:\/\/|#|\/(?!\/))/i.test(l || '') ? l : '#catalogo';
+/* Valida y completa el diseño guardado: nunca confía en lo que venga de la base de datos. */
+function campDesign(raw) {
+  if (!raw || typeof raw !== 'object' || !raw.on) return null;
+  const out = { on: 1, shade: campNum(raw.shade, 0, 85, 25) };
+  ['d', 'm'].forEach(k => {
+    out[k] = {};
+    CAMP_EL.forEach(el => {
+      const def = CAMP_DEF[k][el], s = (raw[k] && raw[k][el]) || {};
+      const c = { on: (s.on === 0 || s.on === false) ? 0 : 1, x: campNum(s.x, 0, 100, def.x), y: campNum(s.y, 0, 100, def.y),
+        s: campNum(s.s, .3, 40, def.s), c: campColor(s.c, def.c), f: CAMP_FONTS[s.f] ? s.f : def.f,
+        a: ['left', 'center', 'right'].includes(s.a) ? s.a : def.a, w: campNum(s.w, 0, 100, def.w) };
+      if (el === 'button') c.bg = campColor(s.bg, def.bg);
+      out[k][el] = c;
+    });
+  });
+  return out;
+}
+function campElStyle(c) {
+  return `left:${c.x}%;top:${c.y}%;transform:translate(-${c.x}%,-${c.y}%);font-size:calc(${c.s} * var(--u));color:${c.c};font-family:${CAMP_FONTS[c.f].css};text-align:${c.a};${c.w ? `width:${c.w}%;` : ''}`;
+}
+/* HTML de la campaña con diseño libre. dev = 'd' (computador) o 'm' (celular). o.preview = vista previa del administrador. */
+function campFreeHTML(b, dev, o = {}) {
+  const D = campDesign(b.design); if (!D) return null;
+  const cfg = D[dev === 'm' ? 'm' : 'd'];
+  const desk = o.imgD || heroSrc(b.image || b.mobile_image), mob = o.imgM || heroSrc(b.mobile_image || b.image);
+  let pic = '';
+  if (o.preview) { const u = dev === 'm' ? (mob || desk) : desk; pic = u ? `<img class="camp-bg" src="${esc(u)}" alt="">` : ''; }
+  else if (desk) pic = `<picture class="camp-bg">${mob && mob !== desk ? `<source media="(max-width:700px)" srcset="${esc(mob)}">` : ''}<img src="${esc(desk)}" alt="" loading="eager"></picture>`;
+  const href = o.preview ? '#' : esc(campLink(b.link)), stop = o.preview ? ' onclick="return false"' : '';
+  const els = [];
+  if (cfg.eyebrow.on && (b.eyebrow || o.preview)) els.push(`<small class="cf-el cf-eyebrow" data-el="eyebrow" style="${campElStyle(cfg.eyebrow)}">${esc(b.eyebrow || 'Etiqueta')}</small>`);
+  if (cfg.title.on) els.push(`<h2 class="cf-el" data-el="title" style="${campElStyle(cfg.title)}">${esc(b.title || 'Título de la campaña').replace(/\n/g, '<br>')}</h2>`);
+  if (cfg.subtitle.on && (b.subtitle || o.preview)) els.push(`<p class="cf-el" data-el="subtitle" style="${campElStyle(cfg.subtitle)}">${esc(b.subtitle || 'Descripción de la campaña')}</p>`);
+  if (cfg.button.on) els.push(`<a class="cf-el cf-btn" data-el="button" href="${href}"${stop} style="${campElStyle(cfg.button)}background:${cfg.button.bg};border-color:${cfg.button.bg}">${esc(b.cta || 'Ver colección')}</a>`);
+  return `<div class="camp-slide camp-single camp-free">${pic}<div class="camp-shade" style="background:rgba(0,0,0,${(D.shade / 100).toFixed(2)})"></div><div class="cf-layer">${els.join('')}</div></div>`;
+}
