@@ -252,7 +252,7 @@ function card(p) {
   const isFlag = v => v === true || v === 1 || v === '1' || String(v).toLowerCase() === 'true';
   const featuredTags = [isFlag(p.is_best_seller) ? 'Best seller' : '', (SZ.reduce((n,z)=>n+stock(p,z),0) < 4) ? 'Últimas unidades' : '', isFlag(p.is_new_arrival) ? 'Lo más nuevo' : ''].filter(Boolean);
   return `<article class="card ${out ? 'so' : ''}" data-id="${esc(p.id)}"><div class="im${p.image_path_back ? ' has-back' : ''}"><img class="img-front" src="${imgUrl(p.image_path)}" alt="${esc(p.name)}" loading="lazy">${p.image_path_back ? `<img class="img-back" src="${imgUrl(p.image_path_back)}" alt="" aria-hidden="true" loading="lazy" onerror="this.parentNode.classList.remove('has-back');this.remove()">` : ''}${guideBtn(p)}</div><div class="b"><div class="product-labels"><span class="category-label">${esc(categoryName)}</span>${out ? '<span class="mini-tag soldout">Agotado</span>' : ''}${onPromo(p) && !out ? `<span class="mini-tag promo">Promo −${promoPct(p)}%</span>` : ''}${featuredTags.map(t=>`<span class="mini-tag">${esc(t)}</span>`).join('')}</div><h3>${esc(p.name)}</h3><p>${esc(p.description)}</p>
-  <div class="gr sz">${SZ.map(z => `<button class="${z == cs && !out ? 'on' : ''}" ${stock(p, z) ? '' : 'disabled'} title="${stock(p, z) ? stock(p, z) + ' disponibles' : 'Agotada'}" onclick="pickS('${p.id}','${z}')">${z}</button>`).join('')}</div>
+  <div class="gr sz">${av.map(z => `<button class="${z == cs && !out ? 'on' : ''}" ${stock(p, z) ? '' : 'disabled'} title="${stock(p, z) ? stock(p, z) + ' disponibles' : 'Agotada'}" onclick="pickS('${p.id}','${z}')">${z}</button>`).join('')}</div>
   <div class="row"><span class="price">${wu ? `<s class="old">${fmt(eff(p))}</s> ${fmt(wu)}` : onPromo(p) ? `<s class="old">${fmt(price(p))}</s> <span class="promo-now">${fmt(eff(p))}</span>` : fmt(price(p))}</span><button class="btn acc" ${out ? 'disabled' : ''} onclick="add('${p.id}','${cs}')">${out ? 'Agotado' : 'Añadir'}</button></div>${wu ? '<small class="note">Precio mayorista</small>' : onPromo(p) ? '<small class="note">Precio de promoción</small>' : volume(p)}</div></article>`;
 }
 function goTop(e) {
@@ -334,7 +334,7 @@ function render() {
   $('#tiers').innerHTML = `<button class="chip wholesale-entry" onclick="wcOpen()">${wcode ? 'Código mayorista activo · Ver pedido' : '¿Eres mayorista? Ingresa tu código'}</button>`;
   const colors = [...new Set(products.map(p => String(p.color || '').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es'));
   const cf = $('#colorFilter'); if (cf) { colorF = colors.includes(colorF) ? colorF : 'all'; cf.innerHTML = '<option value="all">Todos los colores</option>' + colors.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join(''); cf.value = colorF; }
-  $('#sizeFilters').innerHTML = ['XS','S','M','L','XL','XXL'].map(z => `<button class="chip ${sizeF===z?'on':''}" onclick="setSize('${z}')">${z}</button>`).join('');
+  $('#sizeFilters').innerHTML = ['S','M','L','XL','XXL'].map(z => `<button class="chip ${sizeF===z?'on':''}" onclick="setSize('${z}')">${z}</button>`).join('');
   // Aplicar filtros ANTES de construir las tarjetas: las referencias que no coinciden desaparecen.
   const norm = value => String(value ?? '').trim().toLocaleLowerCase('es');
   const inventoryTotal = p => SZ.reduce((total, z) => total + stock(p, z), 0);

@@ -335,6 +335,8 @@ function vCategorias() {
   return `<section class="panel">
     <div class="panel-h"><h3>Nueva categoría</h3></div>
     <div class="fg" style="grid-template-columns:1fr"><div><label for="cn">Nombre</label><input id="cn" placeholder="Ej. Camisetas oversized"></div></div>
+    <label>Tallas que maneja esta categoría</label>
+    <div class="edit-stock">${SZ.map(z => `<label><input type="checkbox" name="cn_sizes" value="${z}" ${z !== "XXL" ? "checked" : ""}> ${z}</label>`).join("")}</div>
     <label>Descuentos que usa esta categoría</label>
     <div class="tierbox">${tierBoxes('cn_', allKeys())}</div>
     <p><button class="btn acc" onclick="saveCat()">+ Crear categoría</button> <span class="note" id="cmsg"></span></p>
@@ -932,7 +934,9 @@ const rmImg = async path => { if (path) try { await sb.storage.from('products').
 
 async function saveCat() {
   const n = $('#cn').value.trim(); if (!n) return;
-  const { error } = await sb.from('categories').insert({ name: n, tiers: JSON.stringify(readBoxes('cn_')) });
+  const selectedSizes = [...document.querySelectorAll('input[name="cn_sizes"]:checked')].map(x => x.value);
+  if (!selectedSizes.length) return say('cmsg', 'Selecciona al menos una talla.');
+  const { error } = await sb.from('categories').insert({ name: n, sizes: JSON.stringify(selectedSizes), tiers: JSON.stringify(readBoxes('cn_')) });
   if (error) return say('cmsg', 'Error: ' + error.message);
   await loadAll();
 }

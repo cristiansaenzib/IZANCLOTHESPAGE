@@ -1,5 +1,5 @@
 const C = window.CONFIG;
-const SZ = ['S', 'M', 'L', 'XL'];
+const SZ = ['S', 'M', 'L', 'XL', 'XXL'];
 const $ = s => document.querySelector(s);
 const fmt = n => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n || 0);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -12,7 +12,7 @@ function makeLocalClient() {
   const read = t => { try { return JSON.parse(localStorage.getItem(K + t)) || []; } catch (e) { return []; } };
   const write = (t, v) => localStorage.setItem(K + t, JSON.stringify(v));
   const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2));
-  const defs = t => t === 'products' ? { description: '', image_path: null, image_path_back: null, price: 0, price_promo: 0, price_dist: 0, price_mayor: 0, tiers: null, stock_s: 0, stock_m: 0, stock_l: 0, stock_xl: 0, sold_out: false } : {};
+  const defs = t => t === 'products' ? { description: '', image_path: null, image_path_back: null, price: 0, price_promo: 0, price_dist: 0, price_mayor: 0, tiers: null, stock_s: 0, stock_m: 0, stock_l: 0, stock_xl: 0, stock_xxl: 0, sold_out: false } : {};
   const toDataURL = b => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(b); });
 
   function from(table) {
@@ -201,7 +201,7 @@ const tierReq = (tiers, t) => {
   return `${t.total} unidades surtidas: ${pats.join(' o ')} · desde ${t.total + 1} unidades basta con ${t.flex} tallas`;
 };
 const stock = (p, z) => Math.max(0, parseInt(p['stock_' + z.toLowerCase()]) || 0);
-const sizes = p => SZ.filter(z => stock(p, z) > 0);
+const sizes = p => { const c = (typeof cats !== 'undefined' ? cats : []).find(x => String(x.id) === String(p.category_id)); let allowed = []; try { allowed = Array.isArray(c?.sizes) ? c.sizes : JSON.parse(c?.sizes || '[]'); } catch(e) {} if (!allowed.length) allowed = ['S','M','L','XL']; return SZ.filter(z => allowed.includes(z) && stock(p, z) > 0); };
 
 /* ===== GUÍAS DE TALLAS ===== */
 const GSZ = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
