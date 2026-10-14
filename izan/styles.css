@@ -1148,3 +1148,34 @@ button,.btn,.chip{-webkit-appearance:none;appearance:none;box-sizing:border-box}
   .gr button:hover{border-color:var(--line)}
   .gr button.on:hover{border-color:var(--ink)}
 }
+
+/* =====================================================================
+   AJUSTES iOS · RONDA 3  (causas confirmadas con las capturas)
+   ===================================================================== */
+
+/* 1) BOTÓN "AÑADIR" CORTADO.
+      Había una regla para pantallas de hasta 390px (iPhone 12/13/14) pensada para cuando el catálogo
+      tenía UNA columna: ponía precio y botón en la misma línea sin saltar. Hoy hay DOS columnas, así que
+      el botón se salía de la tarjeta. En Android (412px) esa regla no aplica, por eso se veía bien.
+      Se fuerza el mismo comportamiento que en Android para todo celular. */
+@media (max-width:700px){
+  .card .row{flex-wrap:wrap!important;align-items:flex-end}
+  .card .row .btn{width:100%!important;flex:1 1 100%!important}
+  .card .row .price{max-width:100%}
+}
+
+/* 2) IMAGEN DE CAMPAÑA "MÁS ESTIRADA".
+      La altura dependía de la altura de la pantalla (svh), que en iPhone es mayor que en Android;
+      con el mismo ancho, la caja quedaba más alta y la foto se recortaba y ampliaba más.
+      En celular la altura pasa a depender del ANCHO (proporción 3:4), igual en todos los equipos. */
+@media (max-width:760px){
+  .campaign{--campaign-h:clamp(480px,133.33vw,680px)}
+}
+
+/* 3) BARRA NEGRA SUPERIOR SIN TEXTO EN iOS.
+      Se reconstruye la animación con transform 3D y ancho propio, que Safari pinta de forma más fiable. */
+.announce{-webkit-transform:translateZ(0);transform:translateZ(0)}
+.announce #announceTrack,.announce>div{display:flex;width:max-content;min-width:100%;will-change:transform;-webkit-backface-visibility:hidden;backface-visibility:hidden;animation:mq3 38s linear infinite}
+.announce #announceTrack>span,.announce>div>span{flex:0 0 auto}
+@keyframes mq3{from{transform:translate3d(0,0,0)}to{transform:translate3d(-50%,0,0)}}
+@media (prefers-reduced-motion:reduce){.announce #announceTrack,.announce>div{animation:none!important}}
