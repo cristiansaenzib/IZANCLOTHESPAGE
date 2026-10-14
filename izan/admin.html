@@ -731,9 +731,14 @@ async function deleteOrder(id) {
 
 function editCat(id) {
   const c = cats.find(x => x.id == id); if (!c) return;
-  modal(`<div class="edit-modal"><h3 style="margin-top:0">Editar categoría</h3><label>Nombre</label><input id="ecn" value="${esc(c.name)}"><label>Descuentos que usa la categoría</label><div class="tierbox">${tierBoxes('ec_', effectiveCat(id))}</div><p class="note">Los productos que usan "los de la categoría" se actualizan solos.</p></div>`, 'Guardar cambios', async () => {
+  let currentSizes = [];
+  try { currentSizes = Array.isArray(c.sizes) ? c.sizes : JSON.parse(c.sizes || '[]'); } catch (e) { currentSizes = []; }
+  if (!currentSizes.length) currentSizes = ['S', 'M', 'L', 'XL'];
+  modal(`<div class="edit-modal"><h3 style="margin-top:0">Editar categoría</h3><label>Nombre</label><input id="ecn" value="${esc(c.name)}"><label>Tallas que maneja esta categoría</label><div class="edit-stock">${SZ.map(z => `<label><input type="checkbox" name="ec_sizes" value="${z}" ${currentSizes.includes(z) ? 'checked' : ''}> ${z}</label>`).join('')}</div><p class="note">Marca las tallas disponibles para esta categoría. Los productos de esta categoría mostrarán únicamente las tallas configuradas aquí.</p><label>Descuentos que usa la categoría</label><div class="tierbox">${tierBoxes('ec_', effectiveCat(id))}</div><p class="note">Los productos que usan "los de la categoría" se actualizan solos.</p></div>`, 'Guardar cambios', async () => {
     const name = $('#ecn').value.trim(); if (!name) { alert('El nombre es obligatorio.'); return false; }
-    const { error } = await sb.from('categories').update({ name, tiers: JSON.stringify(readBoxes('ec_')) }).eq('id', id);
+    const selectedSizes = [...document.querySelectorAll('input[name="ec_sizes"]:checked')].map(x => x.value);
+    if (!selectedSizes.length) { alert('Selecciona al menos una talla para la categoría.'); return false; }
+    const { error } = await sb.from('categories').update({ name, sizes: JSON.stringify(selectedSizes), tiers: JSON.stringify(readBoxes('ec_')) }).eq('id', id);
     if (error) { alert('No se pudo guardar: ' + error.message); return false; }
     await loadAll();
   });
