@@ -1061,3 +1061,55 @@ header .nav .nav-admin svg{flex:none;display:block}
   #catalogo .filters::after { pointer-events: none; }
 }
 
+
+/* =====================================================================
+   AJUSTES PARA iOS / SAFARI  (bloque añadido al final: no cambia Android ni escritorio)
+   ===================================================================== */
+
+/* 1) Safari agranda el texto al girar el celular y retrasa/ocasiona zoom al tocar botones */
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+a,button,.btn,.chip,.card,.hero-dot,input,select,textarea{-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+
+/* 2) Safari hace ZOOM automático al tocar un campo con letra menor a 16px
+      (formulario de datos de envío, código de mayorista, filtro de color).
+      Solo en pantallas táctiles de iPhone/iPad. */
+@supports (-webkit-touch-callout:none){
+  input,select,textarea,
+  .customer-contact-fields input,
+  .drawer .customer-contact-fields input,
+  .drawer .customer-contact-fields.shipping-fields input,
+  #quoteModal .shipping-fields input,
+  .wcode input{font-size:16px!important}
+}
+
+/* 3) Doble margen de zona segura: la raíz ya reserva el borde inferior y el footer también.
+      Se deja solo el del footer para que no aparezca una franja blanca bajo el pie. */
+:root{padding-bottom:0!important}
+
+/* 4) Desenfoques: Safari (hasta iOS 17) solo entiende la versión con prefijo -webkit- */
+.quote-modal{-webkit-backdrop-filter:blur(3px)}
+.cart-backdrop{-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)}
+
+/* 5) "Hover pegado": en iOS el efecto :hover queda activo después de tocar una tarjeta */
+@media (hover:none){
+  .card:hover{transform:none!important;box-shadow:none!important}
+  .card:hover img{transform:none!important}
+}
+
+/* 6) Alturas de pantalla: iOS anterior a 15.4 no entiende dvh/svh y dejaba el carrito
+      y los modales con altura inválida. Se da una alternativa con vh. */
+@supports not (height:100dvh){
+  .drawer,.drawer.mini{height:100vh;max-height:100vh}
+  .quote-modal>div,.gbox{max-height:calc(100vh - 36px)}
+}
+@supports not (height:100svh){
+  .campaign{--campaign-h:clamp(480px,calc(100vh - 120px),780px)}
+  @media (max-width:700px){.campaign{--campaign-h:clamp(520px,calc(100vh - 90px),680px)}}
+}
+
+/* 7) Carrito: el teclado de iOS tapaba los campos de abajo; se deja margen al hacer scroll hacia ellos */
+.drawer{scroll-padding-bottom:140px}
+.drawer input{scroll-margin-bottom:140px}
+
+/* 8) Carrusel de favoritos: inercia suave de iOS */
+.featured-carousel{-webkit-overflow-scrolling:touch}
