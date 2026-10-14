@@ -247,12 +247,12 @@ function openGuide(gid, pid) {
 function closeGuide() { $('#gmodal').hidden = true; document.body.classList.remove('guide-open'); }
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#gmodal').hidden) closeGuide(); });
 function card(p) {
-  const av = sizes(p), cs = av.includes(selS[p.id]) ? selS[p.id] : av[0], out = p.sold_out || !av.length, wu = wcode ? wcUnit(p) : null;
+  const av = sizes(p), inStock = av.filter(z => stock(p, z) > 0), cs = inStock.includes(selS[p.id]) ? selS[p.id] : (inStock[0] || av[0]), out = p.sold_out || !inStock.length, wu = wcode ? wcUnit(p) : null;
   const categoryName = cats.find(c => String(c.id) === String(p.category_id))?.name || 'Sin categoría';
   const isFlag = v => v === true || v === 1 || v === '1' || String(v).toLowerCase() === 'true';
   const featuredTags = [isFlag(p.is_best_seller) ? 'Best seller' : '', (SZ.reduce((n,z)=>n+stock(p,z),0) < 4) ? 'Últimas unidades' : '', isFlag(p.is_new_arrival) ? 'Lo más nuevo' : ''].filter(Boolean);
   return `<article class="card ${out ? 'so' : ''}" data-id="${esc(p.id)}"><div class="im${p.image_path_back ? ' has-back' : ''}"><img class="img-front" src="${imgUrl(p.image_path)}" alt="${esc(p.name)}" loading="lazy">${p.image_path_back ? `<img class="img-back" src="${imgUrl(p.image_path_back)}" alt="" aria-hidden="true" loading="lazy" onerror="this.parentNode.classList.remove('has-back');this.remove()">` : ''}${guideBtn(p)}</div><div class="b"><div class="product-labels"><span class="category-label">${esc(categoryName)}</span>${out ? '<span class="mini-tag soldout">Agotado</span>' : ''}${onPromo(p) && !out ? `<span class="mini-tag promo">Promo −${promoPct(p)}%</span>` : ''}${featuredTags.map(t=>`<span class="mini-tag">${esc(t)}</span>`).join('')}</div><h3>${esc(p.name)}</h3><p>${esc(p.description)}</p>
-  <div class="gr sz">${av.map(z => `<button class="${z == cs && !out ? 'on' : ''}" ${stock(p, z) ? '' : 'disabled'} title="${stock(p, z) ? stock(p, z) + ' disponibles' : 'Agotada'}" onclick="pickS('${p.id}','${z}')">${z}</button>`).join('')}</div>
+  <div class="gr sz">${av.map(z => `<button class="${z == cs && stock(p, z) > 0 && !out ? 'on' : ''}" ${stock(p, z) > 0 && !p.sold_out ? '' : 'disabled'} title="${stock(p, z) > 0 && !p.sold_out ? stock(p, z) + ' disponibles' : 'Agotada'}" onclick="pickS('${p.id}','${z}')">${z}</button>`).join('')}</div>
   <div class="row"><span class="price">${wu ? `<s class="old">${fmt(eff(p))}</s> ${fmt(wu)}` : onPromo(p) ? `<s class="old">${fmt(price(p))}</s> <span class="promo-now">${fmt(eff(p))}</span>` : fmt(price(p))}</span><button class="btn acc" ${out ? 'disabled' : ''} onclick="add('${p.id}','${cs}')">${out ? 'Agotado' : 'Añadir'}</button></div>${wu ? '<small class="note">Precio mayorista</small>' : onPromo(p) ? '<small class="note">Precio de promoción</small>' : volume(p)}</div></article>`;
 }
 function goTop(e) {

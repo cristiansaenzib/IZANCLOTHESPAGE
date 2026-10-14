@@ -201,7 +201,7 @@ const tierReq = (tiers, t) => {
   return `${t.total} unidades surtidas: ${pats.join(' o ')} · desde ${t.total + 1} unidades basta con ${t.flex} tallas`;
 };
 const stock = (p, z) => Math.max(0, parseInt(p['stock_' + z.toLowerCase()]) || 0);
-const sizes = p => { const c = (typeof cats !== 'undefined' ? cats : []).find(x => String(x.id) === String(p.category_id)); let allowed = []; try { allowed = Array.isArray(c?.sizes) ? c.sizes : JSON.parse(c?.sizes || '[]'); } catch(e) {} if (!allowed.length) allowed = ['S','M','L','XL']; return SZ.filter(z => allowed.includes(z) && stock(p, z) > 0); };
+const sizes = p => { const c = (typeof cats !== 'undefined' ? cats : []).find(x => String(x.id) === String(p.category_id)); let allowed = []; try { allowed = Array.isArray(c?.sizes) ? c.sizes : JSON.parse(c?.sizes || '[]'); } catch(e) {} if (!allowed.length) allowed = ['S','M','L','XL']; return SZ.filter(z => allowed.includes(z)); };
 
 /* ===== GUÍAS DE TALLAS ===== */
 const GSZ = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
