@@ -239,7 +239,7 @@ function volume(p) { return ''; }
 const guideOf = p => p && p.size_guide_id ? guides.find(g => g.id == p.size_guide_id) : null;
 function guideBtn(p) {
   const g = guideOf(p); if (!g) return '';
-  return `<button type="button" class="guide-btn" onclick="openGuide('${g.id}','${p.id}')" aria-haspopup="dialog"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="8" width="20" height="8" rx="1.5"/><path d="M6 8v3M10 8v4M14 8v3M18 8v4"/></svg>Guía de tallas</button>`;
+  return `<button type="button" class="guide-btn" onclick="openGuide('${g.id}','${p.id}')" aria-haspopup="dialog"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="8" width="20" height="8" rx="1.5"/><path d="M6 8v3M10 8v4M14 8v3M18 8v4"/></svg>Guía de tallas</button>`;
 }
 function openGuide(gid, pid) {
   const raw = guides.find(g => g.id == gid); if (!raw) return;
@@ -270,7 +270,7 @@ function bulkRule(t) {
 }
 function bulkBtn(p) {
   if (!bulkTiers(p).length) return '';
-  return `<button type="button" class="guide-btn" onclick="openBulk('${p.id}')" aria-haspopup="dialog"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.6 13.4l-7.2 7.2a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.2"/></svg>Precio mayor</button>`;
+  return `<button type="button" class="guide-btn" onclick="openBulk('${p.id}')" aria-haspopup="dialog"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.6 13.4l-7.2 7.2a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.2"/></svg>Precio mayor</button>`;
 }
 function openBulk(pid) {
   const p = products.find(x => x.id == pid); if (!p) return;

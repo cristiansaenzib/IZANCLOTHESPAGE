@@ -698,12 +698,13 @@ html,body{overflow-x:clip}
 
 /* ===== GUÍA DE TALLAS (tienda) ===== */
 .card .im{position:relative}
-.im-actions{position:absolute;left:50%;bottom:12px;z-index:3;transform:translate(-50%,8px);opacity:0;pointer-events:none;display:flex;gap:6px;justify-content:center;width:max-content;max-width:calc(100% - 16px);transition:opacity .2s,transform .2s}
+.im-actions{position:absolute;left:50%;bottom:12px;z-index:3;transform:translate(-50%,8px);opacity:0;pointer-events:none;display:flex;flex-wrap:wrap;gap:5px;justify-content:center;width:calc(100% - 20px);box-sizing:border-box;transition:opacity .2s,transform .2s}
 .im-actions:empty{display:none}
-.guide-btn{display:inline-flex;align-items:center;gap:7px;white-space:nowrap;padding:9px 15px;border-radius:999px;background:rgba(255,255,255,.95);color:var(--ink);border:1px solid var(--ink);font:700 10px Syncopate,sans-serif;letter-spacing:.12em;text-transform:uppercase;box-shadow:0 8px 22px -8px rgba(52,51,57,.5);transition:background .2s,color .2s;cursor:pointer}
+.guide-btn{flex:1 1 auto;min-width:0;max-width:100%;box-sizing:border-box;justify-content:center;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;padding:7px 9px;border-radius:999px;background:rgba(255,255,255,.95);color:var(--ink);border:1px solid var(--ink);font:700 8.5px Syncopate,sans-serif;letter-spacing:.07em;text-transform:uppercase;box-shadow:0 8px 22px -8px rgba(52,51,57,.5);transition:background .2s,color .2s;cursor:pointer}
 .card:hover .im-actions,.card:focus-within .im-actions,.im-actions:focus-within{opacity:1;pointer-events:auto;transform:translate(-50%,0)}
 .guide-btn:hover{background:var(--ink);color:#fff}
-@media (hover:none){.im-actions{opacity:1;pointer-events:auto;transform:translate(-50%,0);bottom:8px}.guide-btn{padding:8px 10px;font-size:8px;letter-spacing:.08em;gap:5px}}
+@media (hover:none){.im-actions{opacity:1;pointer-events:auto;transform:translate(-50%,0);bottom:6px;width:calc(100% - 12px);gap:4px}.guide-btn{padding:6px 7px;font-size:7.5px;letter-spacing:.04em;gap:4px}}
+.guide-btn svg{width:12px;height:12px;flex:none}
 .gmodal{position:fixed;inset:0;z-index:1100;display:grid;place-items:center;padding:18px;background:rgba(52,51,57,.62);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
 .gmodal[hidden]{display:none}
 body.guide-open{overflow:hidden}
