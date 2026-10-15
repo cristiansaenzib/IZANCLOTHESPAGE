@@ -190,10 +190,15 @@ const isSold = o => o.status === 'sold';
 const shortId = o => String(o.id).slice(0, 8).toUpperCase();
 
 /* ================= SHELL ================= */
+let catState = { q: '', c: 'all' }, lastRendered = null;
 function renderPanel() {
   const cur = VIEWS.find(v => v.id === view) || VIEWS[0], pend = orders.filter(o => !isSold(o)).length;
   const body = { resumen: vResumen, pedidos: vPedidos, campanas: vCampanas, visual: vVisual, pie: vPie, categorias: vCategorias, guias: vGuias, nuevo: vNuevo, catalogo: vCatalogo, reglas: vReglas, codigos: vCodigos, ajustes: vAjustes, herramientas: vHerramientas }[cur.id]();
   document.title = cur.name + ' · Administrar · IZAN Clothes';
+  /* Si se vuelve a dibujar la MISMA sección (tras guardar un cambio), se conserva la posición de la página. */
+  const keepY = lastRendered === cur.id ? window.scrollY : null, pnl = $('#panel');
+  if (keepY !== null && pnl) pnl.style.minHeight = pnl.offsetHeight + 'px';
+  lastRendered = cur.id;
   let lastGroup = '';
   const nav = VIEWS.map(v => {
     const head = v.group !== lastGroup ? `<p class="adm-group">${v.group}</p>` : ''; lastGroup = v.group;
@@ -206,6 +211,8 @@ function renderPanel() {
       ${body}
     </section></div>`;
   renderHeroAdminList();
+  if (cur.id === 'catalogo') filterCatalog();
+  if (keepY !== null) { window.scrollTo(0, keepY); if (pnl) pnl.style.minHeight = ''; }
   const nv = $('.adm-side'), on = $('.adm-link.on');
   if (nv && on && nv.scrollWidth > nv.clientWidth) nv.scrollLeft = Math.max(0, on.offsetLeft - 16);
 }
@@ -464,7 +471,7 @@ function vNuevo() {
 
 function productRow(p) {
   const own = parseKeys(p.tiers), keys = tierKeys(p, cats.find(c => c.id == p.category_id), tiers), catName = (cats.find(c => c.id == p.category_id) || {}).name || 'Sin categoría';
-  return `<div class="product-row" data-name="${esc(String(p.name).toLowerCase())}" data-cat="${esc(p.category_id)}">
+  return `<div class="product-row" id="prod-${p.id}" data-id="${p.id}" data-name="${esc(String(p.name).toLowerCase())}" data-cat="${esc(p.category_id)}">
     <div class="pr-photos"><img class="front" src="${imgUrl(p.image_path)}" alt="${esc(p.name)}">${backOk && p.image_path_back ? `<img class="back" src="${imgUrl(p.image_path_back)}" alt="Parte trasera de ${esc(p.name)}" title="Foto trasera">` : ''}</div>
     <div class="product-info">
       <div class="pi-head"><b>${esc(p.name)}</b>${p.sold_out ? '<span class="pill out">Agotado</span>' : ''}${p.color ? `<span class="pill">${esc(p.color)}</span>` : ''}</div>
@@ -488,14 +495,16 @@ function productRow(p) {
   </div>`;
 }
 function filterCatalog() {
-  const q = ($('#catq').value || '').trim().toLowerCase(), c = $('#catf').value;
+  const qi = $('#catq'), ci = $('#catf'); if (!qi || !ci) return;
+  catState.q = qi.value || ''; catState.c = ci.value;
+  const q = catState.q.trim().toLowerCase(), c = catState.c;
   document.querySelectorAll('.product-row').forEach(r => { r.hidden = !((!q || r.dataset.name.includes(q)) && (c === 'all' || r.dataset.cat === c)); });
   document.querySelectorAll('.cat-block').forEach(b => { b.hidden = (q || c !== 'all') && !b.querySelector('.product-row:not([hidden])'); });
 }
 function vCatalogo() {
   if (!cats.length) return `<section class="panel"><div class="empty-box">Todavía no hay categorías ni productos.<br><button class="btn acc" style="margin-top:14px" onclick="go('categorias')">Crear una categoría</button></div></section>`;
   return `<section class="panel">
-    <div class="toolbar"><input id="catq" type="search" placeholder="Buscar producto por nombre…" oninput="filterCatalog()" aria-label="Buscar producto"><select id="catf" onchange="filterCatalog()" aria-label="Filtrar por categoría"><option value="all">Todas las categorías</option>${cats.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select><button class="btn acc" onclick="go('nuevo')">+ Nuevo producto</button></div>
+    <div class="toolbar"><input id="catq" type="search" value="${esc(catState.q)}" placeholder="Buscar producto por nombre…" oninput="filterCatalog()" aria-label="Buscar producto"><select id="catf" onchange="filterCatalog()" aria-label="Filtrar por categoría"><option value="all">Todas las categorías</option>${cats.map(c => `<option value="${c.id}" ${String(catState.c) === String(c.id) ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select><button class="btn acc" onclick="go('nuevo')">+ Nuevo producto</button></div>
     <p class="note">Las cuatro cajas de cada producto son: precio detal, promoción (0 = sin promoción), distribuidor y mayorista. Edita nombre, color, descripción, categoría, descuentos o fotografía con ✎ Editar.</p>
     ${cats.map(c => { const l = products.filter(p => p.category_id == c.id);
       return `<div class="cat-block"><div class="ch"><b>${esc(c.name)}</b><span class="pill">${l.length}</span><span class="grow"></span><button class="chip" onclick="editCat('${c.id}')">✎ Editar categoría</button></div>${l.map(productRow).join('') || '<p class="note">Sin productos.</p>'}</div>`; }).join('')}
@@ -970,6 +979,14 @@ async function importLegacyTiles() {
   if (await persistHero()) { await sb.from('settings').upsert({ key: 'home_tiles', value: '[]' }); settings.home_tiles = []; renderPanel(); }
 }
 
+/* Después de guardar: deja la referencia a la vista (aunque haya cambiado de categoría o de nombre) y la resalta. */
+function focusProduct(id) {
+  if (view !== 'catalogo') return;
+  let r = document.getElementById('prod-' + id); if (!r) return;
+  if (r.hidden) { catState = { q: '', c: 'all' }; const qi = $('#catq'), ci = $('#catf'); if (qi) qi.value = ''; if (ci) ci.value = 'all'; filterCatalog(); r = document.getElementById('prod-' + id); }
+  r.scrollIntoView({ block: 'center' });
+  r.classList.remove('just-saved'); void r.offsetWidth; r.classList.add('just-saved');
+}
 function editProduct(id) {
   const p = products.find(x => x.id == id); if (!p) return;
   const catOptions = cats.map(c => `<option value="${c.id}" ${c.id == p.category_id ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
@@ -1001,7 +1018,7 @@ function editProduct(id) {
     if (update.price_promo && update.price_promo >= update.price) { alert('El precio de promoción debe ser menor al precio detal (o déjalo en 0).'); return false; }
     const { error } = await sb.from('products').update(update).eq('id', id);
     if (error) { alert('No se pudo guardar: ' + error.message); return false; }
-    await loadAll();
+    await loadAll(); focusProduct(id);
   });
 }
 
@@ -1129,7 +1146,7 @@ async function newPhoto(id, f, side) {
   try {
     const path = await upload(f);
     const { error } = await sb.from('products').update({ [col]: path }).eq('id', id); if (error) { await rmImg(path); throw error; }
-    await rmImgFree(p && p[col], id); await reloadProducts(); renderPanel();
+    await rmImgFree(p && p[col], id); await reloadProducts(); renderPanel(); focusProduct(id);
   } catch (e) { alert('No se pudo subir la foto: ' + (e.message || e)); }
 }
 async function removeBack(id) {
@@ -1137,7 +1154,7 @@ async function removeBack(id) {
   if (!await ask('¿Quitar la foto trasera de este producto?')) return;
   const { error } = await sb.from('products').update({ image_path_back: null }).eq('id', id);
   if (error) return alert('No se pudo quitar la foto: ' + error.message);
-  await rmImgFree(p.image_path_back, id); await reloadProducts(); renderPanel();
+  await rmImgFree(p.image_path_back, id); await reloadProducts(); renderPanel(); focusProduct(id);
 }
 async function duplicateProduct(id) {
   const p=products.find(x=>x.id===id); if(!p) return;
@@ -1146,11 +1163,11 @@ async function duplicateProduct(id) {
   if(!await ask(`Crear una copia de “${p.name}” con inventario en cero?`)) return;
   const {error}=await sb.from('products').insert(copy);
   if(error) return alert('No se pudo duplicar el producto: '+error.message);
-  await loadAll(); go('catalogo');
+  await loadAll();
 }
 async function toggleSold(id) {
   const p = products.find(x => x.id == id);
-  await sb.from('products').update({ sold_out: !p.sold_out }).eq('id', id); await reloadProducts(); renderPanel();
+  await sb.from('products').update({ sold_out: !p.sold_out }).eq('id', id); await reloadProducts(); renderPanel(); focusProduct(id);
 }
 async function del(id) {
   if (!await ask('¿Eliminar este diseño definitivamente?')) return;

@@ -281,3 +281,7 @@
 .cd-grid input[type=color]{width:100%;height:38px;padding:2px}
 .cd-shade{margin:12px 0}.cd-shade input{width:100%;padding:0}
 @media(max-width:600px){.cd-grid{grid-template-columns:1fr}}
+
+/* Resalta la referencia recién guardada en el catálogo */
+@keyframes justSaved{0%{box-shadow:0 0 0 3px var(--ink,#343339);background:#f3f0e8}100%{box-shadow:0 0 0 0 transparent;background:var(--card)}}
+.product-row.just-saved{animation:justSaved 1.8s ease-out}
