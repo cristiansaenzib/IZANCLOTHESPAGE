@@ -97,6 +97,16 @@
     <p class="gnote" id="gnote"></p>
   </div>
 </div>
+<div class="gmodal" id="pmodal" hidden onclick="if(event.target===this)closeBulk()">
+  <div class="gbox" role="dialog" aria-modal="true" aria-labelledby="ptitle">
+    <button type="button" class="gclose" onclick="closeBulk()" aria-label="Cerrar precios por mayor">✕</button>
+    <p class="glbl">Precio mayor</p>
+    <h3 id="ptitle"></h3>
+    <p class="gprod serif" id="pbase"></p>
+    <div class="ptiers" id="ptiers"></div>
+    <p class="gnote">Las cantidades y tallas se suman con <b>todo tu pedido</b>, no solo con esta referencia. Con código de mayorista aplica el precio mayor sin condición de tallas.</p>
+  </div>
+</div>
 <div class="cart-backdrop" id="cartBackdrop" onclick="cartOpen(false)"></div>
 <aside class="drawer" id="drawer" aria-label="Tu pedido">
   <div class="row" style="margin:0 0 10px"><h2>Tu pedido</h2><div class="ab"><button class="chip cart-expand" onclick="cartOpen(true,'full')">Ver carrito</button><button class="btn ghost" onclick="cartOpen(false)">Cerrar</button></div></div>
@@ -247,12 +257,41 @@ function openGuide(gid, pid) {
 }
 function closeGuide() { $('#gmodal').hidden = true; document.body.classList.remove('guide-open'); }
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#gmodal').hidden) closeGuide(); });
+/* ===== Precio mayor: botón sobre la foto + ventana con precios Distribuidor / Mayorista ===== */
+function bulkTiers(p) {
+  const keys = tierKeys(p, catOf(p), tiers);
+  return ['dist', 'may'].map(k => tiers.find(t => t.key === k)).filter(t => t && tierUsable(p, t, keys));
+}
+function bulkRule(t) {
+  const may = tiers.find(x => x.key === 'may'), upper = Math.max(t.total, (may ? may.total : 12) - 1);
+  return t.key === 'dist'
+    ? [`<b>${t.total} a ${upper} unidades</b> en total`, '<b>Mínimo 3 tallas</b> diferentes']
+    : [`<b>${t.total} unidades o más</b> en total`, '<b>3 o 4 tallas</b> diferentes', 'o solo <b>2 tallas</b> con mínimo <b>3 unidades</b> de cada una'];
+}
+function bulkBtn(p) {
+  if (!bulkTiers(p).length) return '';
+  return `<button type="button" class="guide-btn" onclick="openBulk('${p.id}')" aria-haspopup="dialog"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.6 13.4l-7.2 7.2a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.2"/></svg>Precio mayor</button>`;
+}
+function openBulk(pid) {
+  const p = products.find(x => x.id == pid); if (!p) return;
+  const base = eff(p);
+  $('#ptitle').textContent = p.name;
+  $('#pbase').textContent = 'Precio detal: ' + fmt(base);
+  $('#ptiers').innerHTML = bulkTiers(p).map(t => {
+    const u = tierUnit(p, t), off = Math.round((1 - u / base) * 100);
+    return `<div class="ptier"><div class="ptier-h"><span class="ptier-n">${esc(t.name)}</span><span class="ptier-p">${fmt(u)}<small> c/u</small></span></div>${off > 0 ? `<span class="ptier-off">Ahorras ${off}%</span>` : ''}<ul>${bulkRule(t).map(r => `<li>${r}</li>`).join('')}</ul></div>`;
+  }).join('');
+  $('#pmodal').hidden = false; document.body.classList.add('guide-open');
+  $('#pmodal .gclose').focus();
+}
+function closeBulk() { $('#pmodal').hidden = true; if ($('#gmodal').hidden) document.body.classList.remove('guide-open'); }
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#pmodal').hidden) closeBulk(); });
 function card(p) {
   const av = sizes(p), inStock = av.filter(z => stock(p, z) > 0), cs = inStock.includes(selS[p.id]) ? selS[p.id] : (inStock[0] || av[0]), out = p.sold_out || !inStock.length, wu = wcode ? wcUnit(p) : null;
   const categoryName = cats.find(c => String(c.id) === String(p.category_id))?.name || 'Sin categoría';
   const isFlag = v => v === true || v === 1 || v === '1' || String(v).toLowerCase() === 'true';
   const featuredTags = [isFlag(p.is_best_seller) ? 'Best seller' : '', (SZ.reduce((n,z)=>n+stock(p,z),0) < 4) ? 'Últimas unidades' : '', isFlag(p.is_new_arrival) ? 'Lo más nuevo' : ''].filter(Boolean);
-  return `<article class="card ${out ? 'so' : ''}" data-id="${esc(p.id)}"><div class="im${p.image_path_back ? ' has-back' : ''}"><img class="img-front" src="${imgUrl(p.image_path)}" alt="${esc(p.name)}" loading="lazy">${p.image_path_back ? `<img class="img-back" src="${imgUrl(p.image_path_back)}" alt="" aria-hidden="true" loading="lazy" onerror="this.parentNode.classList.remove('has-back');this.remove()">` : ''}${guideBtn(p)}</div><div class="b"><div class="product-labels"><span class="category-label">${esc(categoryName)}</span>${out ? '<span class="mini-tag soldout">Agotado</span>' : ''}${onPromo(p) && !out ? `<span class="mini-tag promo">Promo −${promoPct(p)}%</span>` : ''}${featuredTags.map(t=>`<span class="mini-tag">${esc(t)}</span>`).join('')}</div><h3>${esc(p.name)}</h3><p>${esc(p.description)}</p>
+  return `<article class="card ${out ? 'so' : ''}" data-id="${esc(p.id)}"><div class="im${p.image_path_back ? ' has-back' : ''}"><img class="img-front" src="${imgUrl(p.image_path)}" alt="${esc(p.name)}" loading="lazy">${p.image_path_back ? `<img class="img-back" src="${imgUrl(p.image_path_back)}" alt="" aria-hidden="true" loading="lazy" onerror="this.parentNode.classList.remove('has-back');this.remove()">` : ''}<div class="im-actions">${guideBtn(p)}${bulkBtn(p)}</div></div><div class="b"><div class="product-labels"><span class="category-label">${esc(categoryName)}</span>${out ? '<span class="mini-tag soldout">Agotado</span>' : ''}${onPromo(p) && !out ? `<span class="mini-tag promo">Promo −${promoPct(p)}%</span>` : ''}${featuredTags.map(t=>`<span class="mini-tag">${esc(t)}</span>`).join('')}</div><h3>${esc(p.name)}</h3><p>${esc(p.description)}</p>
   <div class="gr sz">${av.map(z => `<button class="${z == cs && stock(p, z) > 0 && !out ? 'on' : ''}" ${stock(p, z) > 0 && !p.sold_out ? '' : 'disabled'} title="${stock(p, z) > 0 && !p.sold_out ? stock(p, z) + ' disponibles' : 'Agotada'}" onclick="pickS('${p.id}','${z}')">${z}</button>`).join('')}</div>
   <div class="row"><span class="price">${wu ? `<s class="old">${fmt(eff(p))}</s> ${fmt(wu)}` : onPromo(p) ? `<s class="old">${fmt(price(p))}</s> <span class="promo-now">${fmt(eff(p))}</span>` : fmt(price(p))}</span><button class="btn acc" ${out ? 'disabled' : ''} onclick="add('${p.id}','${cs}')">${out ? 'Agotado' : 'Añadir'}</button></div>${wu ? '<small class="note">Precio mayorista</small>' : onPromo(p) ? '<small class="note">Precio de promoción</small>' : volume(p)}</div></article>`;
 }

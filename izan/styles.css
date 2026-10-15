@@ -698,10 +698,12 @@ html,body{overflow-x:clip}
 
 /* ===== GUÍA DE TALLAS (tienda) ===== */
 .card .im{position:relative}
-.guide-btn{position:absolute;left:50%;bottom:12px;z-index:3;transform:translate(-50%,8px);opacity:0;pointer-events:none;display:inline-flex;align-items:center;gap:7px;white-space:nowrap;padding:9px 15px;border-radius:999px;background:rgba(255,255,255,.95);color:var(--ink);border:1px solid var(--ink);font:700 10px Syncopate,sans-serif;letter-spacing:.12em;text-transform:uppercase;box-shadow:0 8px 22px -8px rgba(52,51,57,.5);transition:opacity .2s,transform .2s,background .2s,color .2s}
-.card:hover .guide-btn,.card:focus-within .guide-btn,.guide-btn:focus-visible{opacity:1;pointer-events:auto;transform:translate(-50%,0)}
+.im-actions{position:absolute;left:50%;bottom:12px;z-index:3;transform:translate(-50%,8px);opacity:0;pointer-events:none;display:flex;gap:6px;justify-content:center;width:max-content;max-width:calc(100% - 16px);transition:opacity .2s,transform .2s}
+.im-actions:empty{display:none}
+.guide-btn{display:inline-flex;align-items:center;gap:7px;white-space:nowrap;padding:9px 15px;border-radius:999px;background:rgba(255,255,255,.95);color:var(--ink);border:1px solid var(--ink);font:700 10px Syncopate,sans-serif;letter-spacing:.12em;text-transform:uppercase;box-shadow:0 8px 22px -8px rgba(52,51,57,.5);transition:background .2s,color .2s;cursor:pointer}
+.card:hover .im-actions,.card:focus-within .im-actions,.im-actions:focus-within{opacity:1;pointer-events:auto;transform:translate(-50%,0)}
 .guide-btn:hover{background:var(--ink);color:#fff}
-@media (hover:none){.guide-btn{opacity:1;pointer-events:auto;transform:translate(-50%,0);bottom:8px;padding:8px 12px;font-size:9px}}
+@media (hover:none){.im-actions{opacity:1;pointer-events:auto;transform:translate(-50%,0);bottom:8px}.guide-btn{padding:8px 10px;font-size:8px;letter-spacing:.08em;gap:5px}}
 .gmodal{position:fixed;inset:0;z-index:1100;display:grid;place-items:center;padding:18px;background:rgba(52,51,57,.62);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
 .gmodal[hidden]{display:none}
 body.guide-open{overflow:hidden}
@@ -1198,3 +1200,15 @@ button,.btn,.chip{-webkit-appearance:none;appearance:none;box-sizing:border-box}
 /* Botón "Ver más" del catálogo */
 #catalogo #grid>.load-more{grid-column:1/-1;display:flex;justify-content:center;padding:18px 0 6px}
 #catalogo #grid>.load-more .btn{padding:15px 34px}
+
+/* ===== Ventana "Precio mayor" ===== */
+.ptiers{display:grid;gap:12px;margin-top:14px}
+.ptier{border:1px solid var(--line);border-radius:14px;padding:14px 16px;background:color-mix(in srgb,var(--line) 14%,var(--card))}
+.ptier-h{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.ptier-n{font:700 11px Syncopate,sans-serif;letter-spacing:.12em;text-transform:uppercase}
+.ptier-p{font:400 28px Anton,sans-serif;line-height:1}
+.ptier-p small{font:400 12px/1 sans-serif;color:var(--mute)}
+.ptier-off{display:inline-block;margin-top:6px;padding:3px 9px;border-radius:999px;background:var(--ink);color:#fff;font:700 9px Syncopate,sans-serif;letter-spacing:.1em;text-transform:uppercase}
+.ptier ul{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:5px;font-size:14px;line-height:1.35}
+.ptier li{padding-left:18px;position:relative}
+.ptier li::before{content:"✓";position:absolute;left:0;font-weight:700}
