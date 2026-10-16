@@ -566,7 +566,7 @@ function vHerramientas() {
     <p><button class="btn acc" onclick="adjustStock()" ${products.length?'':'disabled'}>Guardar movimiento</button> <span class="note" id="mvmsg"></span></p>
   </section>
   <section class="panel"><div class="panel-h"><div><h3>Importar y exportar productos</h3><p class="note">Descarga un CSV editable en Excel. Para actualizar en bloque, conserva la columna <b>id</b> y no la modifiques. La importación solo actualiza referencias existentes; no crea ni elimina productos.</p></div></div>
-    <div class="row-actions"><button class="btn acc" onclick="exportProductsCsv()">↓ Descargar inventario CSV</button><label class="chip">↑ Importar CSV actualizado<input type="file" accept=".csv,text/csv" hidden onchange="importProductsCsv(this.files[0])"></label><button class="chip" onclick="exportOrdersCsv()">↓ Exportar cotizaciones CSV</button><button class="chip" onclick="exportBackup()">↓ Copia JSON de respaldo</button></div><p class="note" id="csvmsg"></p>
+    <div class="row-actions"><button class="btn acc" onclick="exportProductsCsv()">↓ Descargar inventario CSV editable</button><button class="chip" onclick="exportInventoryDetailCsv()">↓ Descargar inventario detallado (Excel)</button><label class="chip">↑ Importar CSV actualizado<input type="file" accept=".csv,text/csv" hidden onchange="importProductsCsv(this.files[0])"></label><button class="chip" onclick="exportOrdersCsv()">↓ Exportar cotizaciones CSV</button><button class="chip" onclick="exportBackup()">↓ Copia JSON de respaldo</button></div><p class="note" id="csvmsg"></p>
   </section>
   <section class="panel"><div class="panel-h"><div><h3>Historial de inventario</h3><p class="note">Últimos movimientos registrados por el administrador. Las ventas anteriores a activar este historial no aparecerán retroactivamente.</p></div></div>
     ${movementsErr && !LOCAL ? '<p class="note">Historial no disponible hasta ejecutar la migración SQL indicada arriba.</p>' : recent ? `<div style="overflow-x:auto"><table class="data-table"><thead><tr><th>Fecha</th><th>Producto</th><th>Talla</th><th>Variación</th><th>Motivo</th></tr></thead><tbody>${recent}</tbody></table></div>` : '<div class="empty-box">Todavía no hay movimientos registrados.</div>'}
@@ -593,6 +593,15 @@ function downloadText(name,text,mime='text/csv;charset=utf-8;') { const blob=new
 function exportProductsCsv() {
   const cols=['id','category_id','name','description','price','price_promo','price_dist','price_mayor','stock_s','stock_m','stock_l','stock_xl','sold_out','color'];
   downloadText('izan-inventario-'+new Date().toISOString().slice(0,10)+'.csv',[cols.join(','),...products.map(p=>cols.map(k=>csvCell(p[k])).join(','))].join('\r\n'));
+}
+function exportInventoryDetailCsv() {
+  const cols = ['Nombre de producto', 'Talla S', 'Talla M', 'Talla L', 'Talla XL', 'Total unidades'];
+  const rows = products.map(p => {
+    const sizes = ['s', 'm', 'l', 'xl'].map(z => Math.max(0, Number(p['stock_' + z]) || 0));
+    return [p.name || '', ...sizes, sizes.reduce((sum, n) => sum + n, 0)];
+  });
+  const csv = [cols, ...rows].map(row => row.map(csvCell).join(',')).join('\r\n');
+  downloadText('izan-inventario-detallado-' + new Date().toISOString().slice(0, 10) + '.csv', csv);
 }
 function parseCsv(text) {
   const rows=[]; let row=[],cell='',quoted=false;
