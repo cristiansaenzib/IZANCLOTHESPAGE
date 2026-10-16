@@ -214,9 +214,17 @@ function parseGuide(g) {
 
 /* ===== Paletas de fondo minimalistas (se eligen en Administrar → Contenido visual) ===== */
 const BG_PALETTES = {
-  marfil: { name: 'Marfil', desc: 'Blanco cálido, limpio y luminoso.', bg: '#f7f7f4', card: '#ffffff', ink: '#171717', mute: '#696969', line: '#deded9', chip: '#e9e9e4' },
-  arena:  { name: 'Arena',  desc: 'Beige suave, cálido y elegante.',   bg: '#efebe4', card: '#faf8f4', ink: '#1f1c18', mute: '#6f675c', line: '#d9d2c6', chip: '#e4ded3' },
-  niebla: { name: 'Niebla', desc: 'Gris azulado, sobrio y moderno.',   bg: '#eceeef', card: '#fafbfb', ink: '#17191b', mute: '#61676c', line: '#d3d7da', chip: '#dfe3e5' }
+  marfil:    { name: 'Marfil', desc: 'Blanco cálido, limpio y luminoso.', bg: '#f7f7f4', card: '#ffffff', ink: '#171717', mute: '#696969', line: '#deded9', chip: '#e9e9e4' },
+  arena:     { name: 'Arena', desc: 'Beige suave, cálido y elegante.', bg: '#efebe4', card: '#faf8f4', ink: '#1f1c18', mute: '#6f675c', line: '#d9d2c6', chip: '#e4ded3' },
+  niebla:    { name: 'Niebla', desc: 'Gris azulado, sobrio y moderno.', bg: '#eceeef', card: '#fafbfb', ink: '#17191b', mute: '#61676c', line: '#d3d7da', chip: '#dfe3e5' },
+  carbon:    { name: 'Carbón', desc: 'Oscuro editorial con contraste claro.', bg: '#171717', card: '#242424', ink: '#f7f7f4', mute: '#b9b9b5', line: '#414141', chip: '#303030' },
+  bosque:    { name: 'Bosque', desc: 'Verde profundo, natural y premium.', bg: '#e9eee8', card: '#f8faf7', ink: '#183126', mute: '#5d7065', line: '#cbd7cd', chip: '#dbe5dc' },
+  oceano:    { name: 'Océano', desc: 'Azul frío, urbano y contemporáneo.', bg: '#e8eef3', card: '#f8fbfd', ink: '#172b3b', mute: '#5b6c7a', line: '#cbd7e0', chip: '#dbe5ed' },
+  vino:      { name: 'Vino', desc: 'Borgoña sobrio con tonos cálidos.', bg: '#f1e8e9', card: '#fcf8f8', ink: '#421d29', mute: '#795b63', line: '#ddcbd0', chip: '#e8dadd' },
+  terracota: { name: 'Terracota', desc: 'Tierra tostada y carácter artesanal.', bg: '#f2e9e1', card: '#fcf8f3', ink: '#542f24', mute: '#80685d', line: '#dfcfc2', chip: '#eadbd0' },
+  lavanda:   { name: 'Lavanda', desc: 'Lila grisáceo, discreto y moderno.', bg: '#efedf4', card: '#fbfaff', ink: '#30263f', mute: '#70677d', line: '#d8d2e2', chip: '#e4dfed' },
+  rosa:      { name: 'Rosa polvo', desc: 'Rosa neutro, suave y minimalista.', bg: '#f3e9e8', card: '#fffafa', ink: '#432b2b', mute: '#806b6b', line: '#e2d0cf', chip: '#ecdddc' },
+  oliva:     { name: 'Oliva', desc: 'Verde oliva apagado y estilo utilitario.', bg: '#eeeee4', card: '#fafaf4', ink: '#303321', mute: '#70715b', line: '#d5d6c4', chip: '#e2e3d3' }
 };
 const DEFAULT_PALETTE = 'marfil';
 function applyPalette(key) {

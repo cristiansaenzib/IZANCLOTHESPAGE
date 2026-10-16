@@ -269,7 +269,7 @@ function paletteCards(sel) {
 function vVisual() {
   const v = { ...DEFAULT_VISUAL, ...(settings.visual_content || {}) };
   const pal = BG_PALETTES[v.bg_palette] ? v.bg_palette : DEFAULT_PALETTE;
-  return `<section class="panel"><div class="panel-h"><div><h3>Color de fondo de la tienda</h3><p class="note">Elige una de las tres paletas minimalistas. Cambia el fondo, las líneas y los tonos de texto de toda la tienda.</p></div></div>
+  return `<section class="panel"><div class="panel-h"><div><h3>Color de fondo de la tienda</h3><p class="note">Elige entre 11 paletas. Cambia el fondo, las tarjetas, las líneas y los tonos de texto de toda la tienda; puedes volver a Marfil cuando quieras.</p></div></div>
     ${paletteCards(pal)}
   </section>
   <section class="panel"><div class="panel-h"><div><h3>Textos de la página inicial</h3><p class="note">Edita los avisos y textos de la parte superior e intermedia. El pie de página tiene su propio apartado: <b>Pie de página</b>.</p></div></div>
