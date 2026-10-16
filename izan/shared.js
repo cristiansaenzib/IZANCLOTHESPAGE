@@ -212,6 +212,10 @@ function parseGuide(g) {
   return { id: g.id, name: g.name || '', note: g.note || '', cols: Array.isArray(cols) ? cols : [], rows: rows && typeof rows === 'object' ? rows : {} };
 }
 
+/* ===== GRAMAJES (g/m²) ===== */
+const weightLabel = w => w ? `${parseInt(w.grams) || 0} g/m²${w.name ? ' · ' + w.name : ''}` : '';
+const weightSort = (a, b) => (parseInt(a.grams) || 0) - (parseInt(b.grams) || 0);
+
 /* ===== Paletas de fondo minimalistas (se eligen en Administrar → Contenido visual) ===== */
 const BG_PALETTES = {
   marfil:    { name: 'Marfil', desc: 'Blanco cálido, limpio y luminoso.', bg: '#f7f7f4', card: '#ffffff', ink: '#171717', mute: '#696969', line: '#deded9', chip: '#e9e9e4' },

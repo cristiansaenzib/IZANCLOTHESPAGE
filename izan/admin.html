@@ -34,7 +34,7 @@
 <script src="config.js"></script>
 <script src="shared.js"></script>
 <script>
-let backOk = false, guides = [], guidesOk = false, guidesErr = null, gDraft = null, movements = [], movementsErr = null;
+let backOk = false, guides = [], guidesOk = false, guidesErr = null, gDraft = null, weights = [], weightsOk = false, weightsErr = null, wDraft = null, movements = [], movementsErr = null;
 let cats = [], products = [], codes = [], orders = [], ordersErr = null, codesErr = null, tiers = parseTiers(), countMode = 'ref', settings = { whatsapp: C.WHATSAPP, hero_banners: [], home_tiles: [], visual_content: {} }, lastCat = '', logged = null, busy = false;
 const MODAL_OK = 'Sí, eliminar';
 
@@ -141,6 +141,7 @@ async function loadAll() {
   codes = k.data || []; codesErr = k.error; orders = o.data || []; ordersErr = o.error; movements = mv.data || []; movementsErr = mv.error;
   cats = c.data || []; products = p.data || [];
   const g = await sb.from('size_guides').select('*').order('created_at'); guides = g.data || []; guidesOk = !g.error; guidesErr = g.error;
+  const fw = await sb.from('fabric_weights').select('*').order('created_at'); weights = (fw.data || []).sort(weightSort); weightsOk = !fw.error; weightsErr = fw.error;
   backOk = LOCAL || (products.length ? ('image_path_back' in products[0]) : !(await sb.from('products').select('image_path_back')).error);
   const w = (s.data || []).find(r => r.key === 'whatsapp'); settings.whatsapp = (w && w.value) || C.WHATSAPP;
   const hb = (s.data || []).find(r => r.key === 'hero_banners'); settings.hero_banners = parseHeroAdmin(hb && hb.value);
@@ -160,6 +161,7 @@ const ICON = {
   grid: '<rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/>',
   percent: '<path d="M19 5L5 19"/><circle cx="7" cy="7" r="2.5"/><circle cx="17" cy="17" r="2.5"/>',
   key: '<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M16 7l3 3"/>',
+  layers: '<path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/>',
   ruler: '<rect x="2" y="8" width="20" height="8" rx="1.5"/><path d="M6 8v3M10 8v4M14 8v3M18 8v4"/>',
   cog: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/>'
 };
@@ -172,6 +174,7 @@ const VIEWS = [
   { id: 'catalogo', group: 'Productos e inventario', ico: 'grid', name: 'Catálogo', desc: 'Edita precios, fotos, inventario y estado de cada producto cargado.' },
   { id: 'nuevo', group: 'Productos e inventario', ico: 'plus', name: 'Nuevo producto', desc: 'Crea una referencia nueva con fotos, precios e inventario por talla.' },
   { id: 'categorias', group: 'Productos e inventario', ico: 'tag', name: 'Categorías', desc: 'Organiza el catálogo y define qué descuentos usa cada categoría.' },
+  { id: 'gramajes', group: 'Productos e inventario', ico: 'layers', name: 'Gramajes', desc: 'Crea los gramajes de tela (g/m²) y elige cuál lleva cada producto para poder filtrarlos en la tienda.' },
   { id: 'reglas', group: 'Precios y mayoristas', ico: 'percent', name: 'Reglas de precios', desc: 'Descuentos por cantidad y condiciones de distribuidor y mayorista.' },
   { id: 'codigos', group: 'Precios y mayoristas', ico: 'key', name: 'Códigos mayorista', desc: 'Un código por cliente para que vea todo a precio mayorista.' },
   { id: 'campanas', group: 'Diseño de la tienda', ico: 'image', name: 'Campañas', desc: 'Crea campañas de portada con una sola imagen o con tres imágenes simétricas, y elige cuáles se muestran.' },
@@ -193,7 +196,7 @@ const shortId = o => String(o.id).slice(0, 8).toUpperCase();
 let catState = { q: '', c: 'all' }, lastRendered = null;
 function renderPanel() {
   const cur = VIEWS.find(v => v.id === view) || VIEWS[0], pend = orders.filter(o => !isSold(o)).length;
-  const body = { resumen: vResumen, pedidos: vPedidos, campanas: vCampanas, visual: vVisual, pie: vPie, categorias: vCategorias, guias: vGuias, nuevo: vNuevo, catalogo: vCatalogo, reglas: vReglas, codigos: vCodigos, ajustes: vAjustes, herramientas: vHerramientas }[cur.id]();
+  const body = { resumen: vResumen, pedidos: vPedidos, campanas: vCampanas, visual: vVisual, pie: vPie, categorias: vCategorias, guias: vGuias, gramajes: vGramajes, nuevo: vNuevo, catalogo: vCatalogo, reglas: vReglas, codigos: vCodigos, ajustes: vAjustes, herramientas: vHerramientas }[cur.id]();
   document.title = cur.name + ' · Administrar · IZAN Clothes';
   /* Si se vuelve a dibujar la MISMA sección (tras guardar un cambio), se conserva la posición de la página. */
   const keepY = lastRendered === cur.id ? window.scrollY : null, pnl = $('#panel');
@@ -438,6 +441,60 @@ async function gDel(id) {
   await loadAll();
 }
 
+const wBlank = () => ({ id: null, grams: '', name: '', note: '' });
+const weightOptions = sel => '<option value="">Sin gramaje</option>' + weights.map(w => `<option value="${w.id}" ${w.id == sel ? 'selected' : ''}>${esc(weightLabel(w))}</option>`).join('');
+const weightField = (id, sel) => weightsOk
+  ? `<div><label for="${id}">Gramaje</label><select id="${id}">${weightOptions(sel)}</select>${weights.length ? '' : '<small class="note">Aún no hay gramajes. Créalos en Productos → Gramajes.</small>'}</div>`
+  : '';
+
+function vGramajes() {
+  if (!weightsOk) return `<section class="panel"><div class="empty-box">Para usar los gramajes falta ejecutar <b>una sola vez</b> el archivo <b>migracion_gramajes.sql</b> en Supabase → SQL Editor.${weightsErr ? `<br><small>${esc(weightsErr.message)}</small>` : ''}</div></section>`;
+  if (!wDraft) wDraft = wBlank();
+  const d = wDraft;
+  return `<section class="panel">
+    <div class="panel-h"><h3>${d.id ? 'Editar gramaje' : 'Nuevo gramaje'}</h3>${d.id ? '<button class="chip" onclick="wCancel()">Cancelar edición</button>' : ''}</div>
+    <div class="fg">
+      <div><label for="wgrams">Gramaje (g/m²)</label><input id="wgrams" type="number" min="1" step="1" value="${esc(d.grams)}" placeholder="Ej. 220"></div>
+      <div><label for="wname">Nombre (opcional)</label><input id="wname" value="${esc(d.name)}" placeholder="Ej. Heavyweight, Premium"></div>
+      <div><label for="wnote">Nota (opcional)</label><input id="wnote" value="${esc(d.note)}" placeholder="Ej. Algodón peinado, tacto suave"></div>
+    </div>
+    <p class="note">En la tienda se muestra como “220 g/m²” (y el nombre si lo escribes). Los clientes podrán filtrar por los gramajes que estén asignados a algún producto.</p>
+    <p><button class="btn acc" onclick="wSave()">${d.id ? 'Guardar cambios' : '+ Crear gramaje'}</button> <span class="note" id="wmsg"></span></p>
+  </section>
+  <section class="panel">
+    <div class="panel-h"><h3>Gramajes creados</h3><span class="pill">${weights.length}</span></div>
+    ${weights.length ? `<div class="cat-list">${weights.map((w, i) => { const n = products.filter(p => p.fabric_weight_id == w.id).length;
+      return `<article class="cat-card c${i % 4}"><div><b>${esc(weightLabel(w))}</b>${w.note ? `<small>${esc(w.note)}</small>` : ''}<small>Usado en ${n} ${n == 1 ? 'producto' : 'productos'}</small></div><div class="row-actions"><button class="chip" onclick="wEdit('${w.id}')">✎ Editar</button><button class="chip danger" onclick="wDel('${w.id}')">Eliminar</button></div></article>`; }).join('')}</div>` : '<div class="empty-box">Todavía no hay gramajes. Crea el primero arriba (ej. 180, 220, 270, 310).</div>'}
+  </section>`;
+}
+function wSync() { if (!wDraft || !$('#wgrams')) return; wDraft.grams = $('#wgrams').value; wDraft.name = $('#wname').value; wDraft.note = $('#wnote').value; }
+function wCancel() { wDraft = null; renderPanel(); }
+function wEdit(id) {
+  const w = weights.find(x => x.id == id); if (!w) return;
+  wDraft = { id: w.id, grams: String(w.grams), name: w.name || '', note: w.note || '' };
+  renderPanel(); window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+async function wSave() {
+  wSync(); const d = wDraft, grams = parseInt(d.grams);
+  if (!(grams > 0)) return say('wmsg', 'Escribe el gramaje en g/m² (ej. 220).');
+  if (weights.some(w => w.id != d.id && parseInt(w.grams) === grams && String(w.name || '').trim().toLowerCase() === d.name.trim().toLowerCase())) return say('wmsg', 'Ya existe un gramaje igual.');
+  const row = { grams, name: d.name.trim(), note: d.note.trim() };
+  say('wmsg', 'Guardando…');
+  const q = d.id ? sb.from('fabric_weights').update(row).eq('id', d.id) : sb.from('fabric_weights').insert(row);
+  const { error } = await q;
+  if (error) return say('wmsg', 'Error: ' + error.message);
+  wDraft = null; await loadAll(); say('wmsg', 'Gramaje guardado ✓');
+}
+async function wDel(id) {
+  const w = weights.find(x => x.id == id), n = products.filter(p => p.fabric_weight_id == id).length;
+  if (!await ask(`¿Eliminar el gramaje "${w ? weightLabel(w) : ''}"?${n ? ` Los ${n} productos que lo usan quedarán sin gramaje.` : ''}`)) return;
+  if (n) await sb.from('products').update({ fabric_weight_id: null }).eq('fabric_weight_id', id);
+  const { error } = await sb.from('fabric_weights').delete().eq('id', id);
+  if (error) return alert('No se pudo eliminar: ' + error.message);
+  if (wDraft && wDraft.id == id) wDraft = null;
+  await loadAll();
+}
+
 function vNuevo() {
   if (!cats.length) return `<section class="panel"><div class="empty-box">Crea primero una categoría para poder agregar productos.<br><button class="btn acc" style="margin-top:14px" onclick="go('categorias')">Ir a Categorías</button></div></section>`;
   return `<section class="panel">
@@ -446,6 +503,7 @@ function vNuevo() {
       <div><label for="nn">Nombre del producto</label><input id="nn" placeholder="Ej. Boxy Fit 270 g"></div>
       <div><label for="ncolor">Color</label><input id="ncolor" placeholder="Ej. Negro, verde oliva"></div>
       ${guideField('ngu', '')}
+      ${weightField('nwt', '')}
       <div><label for="nf">Foto frontal</label><input id="nf" type="file" accept="image/*"></div>
       ${backOk ? `<div><label for="nfb">Foto trasera (opcional)</label><input id="nfb" type="file" accept="image/*"></div>` : ''}
     </div>
@@ -475,7 +533,7 @@ function productRow(p) {
     <div class="pr-photos"><img class="front" src="${imgUrl(p.image_path)}" alt="${esc(p.name)}">${backOk && p.image_path_back ? `<img class="back" src="${imgUrl(p.image_path_back)}" alt="Parte trasera de ${esc(p.name)}" title="Foto trasera">` : ''}</div>
     <div class="product-info">
       <div class="pi-head"><b>${esc(p.name)}</b>${p.sold_out ? '<span class="pill out">Agotado</span>' : ''}${p.color ? `<span class="pill">${esc(p.color)}</span>` : ''}</div>
-      <small>${esc(catName)}${guidesOk ? ' · Guía: ' + (((guides.find(g => g.id == p.size_guide_id) || {}).name) ? esc(guides.find(g => g.id == p.size_guide_id).name) : '<i>sin guía</i>') : ''}</small>
+      <small>${esc(catName)}${weightsOk ? ' · Gramaje: ' + (weights.find(w => w.id == p.fabric_weight_id) ? esc(weightLabel(weights.find(w => w.id == p.fabric_weight_id))) : '<i>sin gramaje</i>') : ''}${guidesOk ? ' · Guía: ' + (((guides.find(g => g.id == p.size_guide_id) || {}).name) ? esc(guides.find(g => g.id == p.size_guide_id).name) : '<i>sin guía</i>') : ''}</small>
       <small>Inventario: ${SZ.map(z => `${z} <b>${stock(p, z)}</b>`).join(' · ')}</small>
       <small>Descuentos: ${tiers.filter(t => tierUsable(p, t, keys)).map(t => (t.kind == 'pct' ? tierLabel(t) + ' (' + t.min + '+)' : tierLabel(t))).join(' · ') || 'ninguno'} ${own ? '' : '<i>(de la categoría)</i>'}</small>
       <div class="row-actions">
@@ -1005,6 +1063,7 @@ function editProduct(id) {
     <label>Nombre</label><input id="epname" value="${esc(p.name)}">
     <label>Color</label><input id="epcolor" value="${esc(p.color || '')}" placeholder="Ej. Negro, verde oliva">
     ${guideField('epgu', p.size_guide_id)}
+    ${weightField('epwt', p.fabric_weight_id)}
     <label>Descripción</label><textarea id="epdesc" rows="4">${esc(p.description || '')}</textarea>
     <fieldset class="product-flags"><legend>Destacar en la tienda</legend>
       <label><input id="epbest" type="checkbox" ${p.is_best_seller ? 'checked' : ''}> Best seller (aparece en el carrusel de inicio)</label>
@@ -1022,6 +1081,7 @@ function editProduct(id) {
   </div>`, 'Guardar cambios', async () => {
     const update = { category_id: $('#epcat').value, name: $('#epname').value.trim(), description: $('#epdesc').value.trim(), color: $('#epcolor').value.trim(), price: +$('#epprice').value || 0, price_promo: +$('#eppromo').value || 0, price_dist: +$('#eppd').value || 0, price_mayor: +$('#eppm').value || 0, tiers: $('#ep_inh').checked ? null : JSON.stringify(readBoxes('ep_')), is_best_seller: $('#epbest').checked, is_last_units: $('#eplast').checked, is_new_arrival: $('#epnew').checked };
     if (guidesOk) update.size_guide_id = $('#epgu').value || null;
+    if (weightsOk) update.fabric_weight_id = $('#epwt').value || null;
     SZ.forEach(z => update['stock_' + z.toLowerCase()] = Math.max(0, parseInt($('#es' + z).value) || 0));
     if (!update.name) { alert('El nombre es obligatorio.'); return false; }
     if (update.price_promo && update.price_promo >= update.price) { alert('El precio de promoción debe ser menor al precio detal (o déjalo en 0).'); return false; }
@@ -1076,6 +1136,7 @@ async function saveNew() {
   if (!name) return say('msg', 'Escribe un nombre.');
   const row = { category_id: cat, name, color: $('#ncolor').value.trim(), description: $('#nd').value.trim(), price: +$('#np').value || 0, price_promo: +$('#npp').value || 0, price_dist: +$('#npd').value || 0, price_mayor: +$('#npm').value || 0, tiers: $('#nt_inh').checked ? null : JSON.stringify(readBoxes('nt_')), is_best_seller: $('#nbest').checked, is_last_units: $('#nlast').checked, is_new_arrival: $('#nnew').checked };
   if (guidesOk) row.size_guide_id = $('#ngu').value || null;
+  if (weightsOk) row.fabric_weight_id = $('#nwt').value || null;
   SZ.forEach(z => row['stock_' + z.toLowerCase()] = Math.max(0, parseInt($('#ns' + z).value) || 0));
   if (!(row.price > 0)) return say('msg', 'Pon el precio al detal.');
   if (row.price_promo && row.price_promo >= row.price) return say('msg', 'El precio de promoción debe ser menor al precio detal (o déjalo en 0).');
@@ -1191,7 +1252,7 @@ async function saveWa(v) {
   say('wmsg', error ? 'Error: ' + error.message : 'Guardado ✓');
 }
 function exportBackup() {
-  const snapshot = LOCAL ? localExport() : { exported_at:new Date().toISOString(), note:'Copia de datos descargada desde IZAN Admin. Contiene información de clientes/pedidos; guárdala en un lugar privado.', categories:cats, products, settings, wholesale_codes:codes, orders, size_guides:guides, inventory_movements:movements };
+  const snapshot = LOCAL ? localExport() : { exported_at:new Date().toISOString(), note:'Copia de datos descargada desde IZAN Admin. Contiene información de clientes/pedidos; guárdala en un lugar privado.', categories:cats, products, settings, wholesale_codes:codes, orders, size_guides:guides, fabric_weights:weights, inventory_movements:movements };
   const blob = new Blob([JSON.stringify(snapshot,null,2)], { type: 'application/json' });
   const l = document.createElement('a'); l.href = URL.createObjectURL(blob); l.download = 'izan-copia-' + new Date().toISOString().slice(0, 10) + '.json'; l.click(); setTimeout(()=>URL.revokeObjectURL(l.href),1000);
 }

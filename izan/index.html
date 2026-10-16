@@ -48,6 +48,7 @@
     <aside class="filters" aria-label="Filtros de productos">
       <h2>Filtrar</h2>
       <label for="colorFilter">Color</label><select id="colorFilter" onchange="setColor(this.value)"><option value="all">Todos los colores</option></select>
+      <div id="weightFilterBox" hidden><label for="weightFilter">Gramaje</label><select id="weightFilter" onchange="setWeight(this.value)"><option value="all">Todos los gramajes</option></select></div>
       <label>Talla</label><div id="sizeFilters" class="size-filters"></div>
       <button class="chip" onclick="clearFilters()">Limpiar filtros</button>
     </aside>
@@ -126,7 +127,7 @@
 <script src="config.js"></script>
 <script src="shared.js"></script>
 <script>
-let guides = [], cats = [], products = [], tiers = parseTiers(), countMode = 'ref', catF = 'all', colorF = 'all', sizeF = 'all', featuredFilter = 'all', catalogExpanded = false, selS = {}, cart = [], waDest = C.WHATSAPP, savedQuoteId = null;
+let guides = [], weights = [], weightF = 'all', cats = [], products = [], tiers = parseTiers(), countMode = 'ref', catF = 'all', colorF = 'all', sizeF = 'all', featuredFilter = 'all', catalogExpanded = false, selS = {}, cart = [], waDest = C.WHATSAPP, savedQuoteId = null;
 let wcode = '', wname = '';   /* código de mayorista validado */
 
 const catOf = p => cats.find(c => c.id == p.category_id);
@@ -143,6 +144,7 @@ async function load() {
   if (c.error || p.error) { $('#grid').innerHTML = '<div class="empty serif">No pudimos cargar el catálogo. Intenta de nuevo en un momento.</div>'; return; }
   cats = c.data || []; products = p.data || [];
   try { const g = await sb.from('size_guides').select('*'); guides = g.error ? [] : (g.data || []); } catch (e) { guides = []; }
+  try { const fw = await sb.from('fabric_weights').select('*'); weights = fw.error ? [] : (fw.data || []); } catch (e) { weights = []; }
   const w = (s.data || []).find(r => r.key === 'whatsapp'); if (w && w.value) waDest = w.value;
   const hb = (s.data || []).find(r => r.key === 'hero_banners'), ht = (s.data || []).find(r => r.key === 'home_tiles');
   heroAll = pickCampaigns(hb && hb.value, ht && ht.value); showHero();
@@ -286,12 +288,13 @@ function openBulk(pid) {
 }
 function closeBulk() { $('#pmodal').hidden = true; if ($('#gmodal').hidden) document.body.classList.remove('guide-open'); }
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#pmodal').hidden) closeBulk(); });
+const weightTag = p => { const w = p.fabric_weight_id ? weights.find(x => String(x.id) === String(p.fabric_weight_id)) : null; return w ? `<span class="mini-tag">${esc(parseInt(w.grams) + ' g/m²')}</span>` : ''; };
 function card(p) {
   const av = sizes(p), inStock = av.filter(z => stock(p, z) > 0), cs = inStock.includes(selS[p.id]) ? selS[p.id] : (inStock[0] || av[0]), out = p.sold_out || !inStock.length, wu = wcode ? wcUnit(p) : null;
   const categoryName = cats.find(c => String(c.id) === String(p.category_id))?.name || 'Sin categoría';
   const isFlag = v => v === true || v === 1 || v === '1' || String(v).toLowerCase() === 'true';
   const featuredTags = [isFlag(p.is_best_seller) ? 'Best seller' : '', (SZ.reduce((n,z)=>n+stock(p,z),0) < 4) ? 'Últimas unidades' : '', isFlag(p.is_new_arrival) ? 'Lo más nuevo' : ''].filter(Boolean);
-  return `<article class="card ${out ? 'so' : ''}" data-id="${esc(p.id)}"><div class="im${p.image_path_back ? ' has-back' : ''}"><img class="img-front" src="${imgUrl(p.image_path)}" alt="${esc(p.name)}" loading="lazy">${p.image_path_back ? `<img class="img-back" src="${imgUrl(p.image_path_back)}" alt="" aria-hidden="true" loading="lazy" onerror="this.parentNode.classList.remove('has-back');this.remove()">` : ''}${guideBtn(p)}<div class="im-actions">${bulkBtn(p)}</div></div><div class="b"><div class="product-labels"><span class="category-label">${esc(categoryName)}</span>${out ? '<span class="mini-tag soldout">Agotado</span>' : ''}${onPromo(p) && !out ? `<span class="mini-tag promo">Promo −${promoPct(p)}%</span>` : ''}${featuredTags.map(t=>`<span class="mini-tag">${esc(t)}</span>`).join('')}</div><h3>${esc(p.name)}</h3><p>${esc(p.description)}</p>
+  return `<article class="card ${out ? 'so' : ''}" data-id="${esc(p.id)}"><div class="im${p.image_path_back ? ' has-back' : ''}"><img class="img-front" src="${imgUrl(p.image_path)}" alt="${esc(p.name)}" loading="lazy">${p.image_path_back ? `<img class="img-back" src="${imgUrl(p.image_path_back)}" alt="" aria-hidden="true" loading="lazy" onerror="this.parentNode.classList.remove('has-back');this.remove()">` : ''}${guideBtn(p)}<div class="im-actions">${bulkBtn(p)}</div></div><div class="b"><div class="product-labels"><span class="category-label">${esc(categoryName)}</span>${weightTag(p)}${out ? '<span class="mini-tag soldout">Agotado</span>' : ''}${onPromo(p) && !out ? `<span class="mini-tag promo">Promo −${promoPct(p)}%</span>` : ''}${featuredTags.map(t=>`<span class="mini-tag">${esc(t)}</span>`).join('')}</div><h3>${esc(p.name)}</h3><p>${esc(p.description)}</p>
   <div class="gr sz">${av.map(z => `<button class="${z == cs && stock(p, z) > 0 && !out ? 'on' : ''}" ${stock(p, z) > 0 && !p.sold_out ? '' : 'disabled'} title="${stock(p, z) > 0 && !p.sold_out ? stock(p, z) + ' disponibles' : 'Agotada'}" onclick="pickS('${p.id}','${z}')">${z}</button>`).join('')}</div>
   <div class="row"><span class="price">${wu ? `<s class="old">${fmt(eff(p))}</s> ${fmt(wu)}` : onPromo(p) ? `<s class="old">${fmt(price(p))}</s> <span class="promo-now">${fmt(eff(p))}</span>` : fmt(price(p))}</span><button class="btn acc" ${out ? 'disabled' : ''} onclick="add('${p.id}','${cs}')">${out ? 'Agotado' : 'Añadir'}</button></div>${wu ? '<small class="note">Precio mayorista</small>' : onPromo(p) ? '<small class="note">Precio de promoción</small>' : volume(p)}</div></article>`;
 }
@@ -343,7 +346,7 @@ function chooseCategory(id) {
   document.getElementById('catalogo')?.scrollIntoView({behavior:'smooth', block:'start'});
 }
 function showFeatured(which) {
-  catalogExpanded = false; catF = 'all'; colorF = 'all'; sizeF = 'all';
+  catalogExpanded = false; catF = 'all'; colorF = 'all'; sizeF = 'all'; weightF = 'all';
   if (which === 'best') {
     featuredFilter = 'all';
     render();
@@ -374,6 +377,9 @@ function render() {
   $('#tiers').innerHTML = `<button class="chip wholesale-entry" onclick="wcOpen()">${wcode ? 'Código mayorista activo · Ver pedido' : '¿Eres mayorista? Ingresa tu código'}</button>`;
   const colors = [...new Set(products.map(p => String(p.color || '').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es'));
   const cf = $('#colorFilter'); if (cf) { colorF = colors.includes(colorF) ? colorF : 'all'; cf.innerHTML = '<option value="all">Todos los colores</option>' + colors.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join(''); cf.value = colorF; }
+  const usedW = weights.filter(w => products.some(p => String(p.fabric_weight_id) === String(w.id))).sort(weightSort);
+  const wf = $('#weightFilter'), wbox = $('#weightFilterBox');
+  if (wf && wbox) { wbox.hidden = !usedW.length; weightF = usedW.some(w => String(w.id) === String(weightF)) ? weightF : 'all'; wf.innerHTML = '<option value="all">Todos los gramajes</option>' + usedW.map(w => `<option value="${esc(w.id)}">${esc(weightLabel(w))}</option>`).join(''); wf.value = weightF; }
   $('#sizeFilters').innerHTML = ['S','M','L','XL','XXL'].map(z => `<button class="chip ${sizeF===z?'on':''}" onclick="setSize('${z}')">${z}</button>`).join('');
   // Aplicar filtros ANTES de construir las tarjetas: las referencias que no coinciden desaparecen.
   const norm = value => String(value ?? '').trim().toLocaleLowerCase('es');
@@ -386,7 +392,8 @@ function render() {
     const matchesCategory = catF === 'all' || String(p.category_id) === String(catF);
     const matchesColor = colorF === 'all' || norm(p.color) === norm(colorF);
     const matchesSize = sizeF === 'all' || stock(p, sizeF) > 0;
-    return matchesCategory && matchesColor && matchesSize;
+    const matchesWeight = weightF === 'all' || String(p.fabric_weight_id) === String(weightF);
+    return matchesCategory && matchesColor && matchesSize && matchesWeight;
   });
   // Un solo mosaico continuo: cada tarjeta indica su categoría sin separar el catálogo por referencias.
   const limit = catalogLimit();
@@ -421,8 +428,9 @@ function showMoreProducts() { catalogExpanded = true; render(); }
 function wcOpen() { cartOpen(true); $('#wcd').open = true; setTimeout(() => $('#wci').focus(), 50); }
 const setC = id => { catalogExpanded = false; catF = id; featuredFilter = 'all'; render(); };
 const setColor = value => { catalogExpanded = false; colorF = value; render(); };
+const setWeight = value => { catalogExpanded = false; weightF = value; render(); };
 const setSize = value => { catalogExpanded = false; sizeF = sizeF === value ? 'all' : value; render(); };
-const clearFilters = () => { catalogExpanded = false; colorF = 'all'; sizeF = 'all'; catF = 'all'; render(); };
+const clearFilters = () => { catalogExpanded = false; colorF = 'all'; sizeF = 'all'; weightF = 'all'; catF = 'all'; render(); };
 const pickS = (id, z) => { selS[id] = z; render(); };
 
 function add(id, z) {
