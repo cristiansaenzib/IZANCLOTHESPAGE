@@ -528,30 +528,38 @@ function vNuevo() {
 }
 
 function productRow(p) {
-  const own = parseKeys(p.tiers), keys = tierKeys(p, cats.find(c => c.id == p.category_id), tiers), catName = (cats.find(c => c.id == p.category_id) || {}).name || 'Sin categoría';
+  const showSz = sizes(p);
   return `<div class="product-row" id="prod-${p.id}" data-id="${p.id}" data-name="${esc(String(p.name).toLowerCase())}" data-cat="${esc(p.category_id)}">
     <div class="pr-photos"><img class="front" src="${imgUrl(p.image_path)}" alt="${esc(p.name)}">${backOk && p.image_path_back ? `<img class="back" src="${imgUrl(p.image_path_back)}" alt="Parte trasera de ${esc(p.name)}" title="Foto trasera">` : ''}</div>
     <div class="product-info">
-      <div class="pi-head"><b>${esc(p.name)}</b>${p.sold_out ? '<span class="pill out">Agotado</span>' : ''}${p.color ? `<span class="pill">${esc(p.color)}</span>` : ''}</div>
-      <small>${esc(catName)}${weightsOk ? ' · Gramaje: ' + (weights.find(w => w.id == p.fabric_weight_id) ? esc(weightLabel(weights.find(w => w.id == p.fabric_weight_id))) : '<i>sin gramaje</i>') : ''}${guidesOk ? ' · Guía: ' + (((guides.find(g => g.id == p.size_guide_id) || {}).name) ? esc(guides.find(g => g.id == p.size_guide_id).name) : '<i>sin guía</i>') : ''}</small>
-      <small>Inventario: ${SZ.map(z => `${z} <b>${stock(p, z)}</b>`).join(' · ')}</small>
-      <small>Descuentos: ${tiers.filter(t => tierUsable(p, t, keys)).map(t => (t.kind == 'pct' ? tierLabel(t) + ' (' + t.min + '+)' : tierLabel(t))).join(' · ') || 'ninguno'} ${own ? '' : '<i>(de la categoría)</i>'}</small>
+      <div class="pi-head"><b>${esc(p.name)}</b>${p.sold_out ? '<span class="pill out">Agotado</span>' : ''}</div>
+      <div class="pr-stock">${showSz.map(z => `<span class="${stock(p, z) ? '' : 'zero'}">${z} <b>${stock(p, z)}</b></span>`).join('')}</div>
       <div class="row-actions">
-        <label class="chip">${backOk ? 'Foto frontal' : 'Cambiar foto'}<input type="file" accept="image/*" hidden onchange="newPhoto('${p.id}',this.files[0])"></label>
-        ${backOk ? `<label class="chip ${p.image_path_back ? 'on' : ''}">${p.image_path_back ? 'Cambiar trasera' : '+ Foto trasera'}<input type="file" accept="image/*" hidden onchange="newPhoto('${p.id}',this.files[0],'back')"></label>` : ''}
-        ${backOk && p.image_path_back ? `<button class="chip danger" onclick="removeBack('${p.id}')">Quitar trasera</button>` : ''}
         <button class="chip" onclick="editProduct('${p.id}')">✎ Editar</button>
-        <button class="chip" onclick="duplicateProduct('${p.id}')">Duplicar</button>
-        <button class="chip ${p.sold_out ? 'on' : ''}" onclick="toggleSold('${p.id}')">${p.sold_out ? 'Reactivar' : 'Marcar agotado'}</button>
-        <button class="chip danger" onclick="del('${p.id}')">Eliminar</button>
+        <details class="pr-menu">
+          <summary class="chip" aria-label="Más acciones de ${esc(p.name)}">Más ▾</summary>
+          <div class="pr-menu-list">
+            <label class="mi">${backOk ? 'Foto frontal' : 'Cambiar foto'}<input type="file" accept="image/*" hidden onchange="newPhoto('${p.id}',this.files[0])"></label>
+            ${backOk ? `<label class="mi">${p.image_path_back ? 'Cambiar trasera' : '+ Foto trasera'}<input type="file" accept="image/*" hidden onchange="newPhoto('${p.id}',this.files[0],'back')"></label>` : ''}
+            ${backOk && p.image_path_back ? `<button class="mi" onclick="removeBack('${p.id}')">Quitar trasera</button>` : ''}
+            <button class="mi" onclick="duplicateProduct('${p.id}')">Duplicar</button>
+            <button class="mi" onclick="toggleSold('${p.id}')">${p.sold_out ? 'Reactivar' : 'Marcar agotado'}</button>
+            <button class="mi danger" onclick="del('${p.id}')">Eliminar</button>
+          </div>
+        </details>
       </div>
     </div>
-    <div class="price-box"><small>Detal</small><input type="number" min="0" step="1000" value="${price(p)}" onchange="setPrice('${p.id}','price',this.value)"></div>
-    <div class="price-box"><small>Promoción${onPromo(p) ? ' ✓' : ''}</small><input type="number" min="0" step="1000" value="${+p.price_promo || 0}" onchange="setPrice('${p.id}','price_promo',this.value)"></div>
-    <div class="price-box"><small>Distribuidor</small><input type="number" min="0" step="1000" value="${+p.price_dist || 0}" onchange="setPrice('${p.id}','price_dist',this.value)"></div>
-    <div class="price-box"><small>Mayorista</small><input type="number" min="0" step="1000" value="${+p.price_mayor || 0}" onchange="setPrice('${p.id}','price_mayor',this.value)"></div>
   </div>`;
 }
+/* Menú "Más ▾" de cada tarjeta: solo uno abierto a la vez; se cierra al elegir o al tocar fuera. */
+document.addEventListener('click', e => {
+  const inside = e.target.closest && e.target.closest('.pr-menu');
+  document.querySelectorAll('.pr-menu[open]').forEach(d => {
+    if (d !== inside) d.removeAttribute('open');
+    else if (e.target.closest('.pr-menu-list')) setTimeout(() => d.removeAttribute('open'), 250);
+  });
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') document.querySelectorAll('.pr-menu[open]').forEach(d => d.removeAttribute('open')); });
 function filterCatalog() {
   const qi = $('#catq'), ci = $('#catf'); if (!qi || !ci) return;
   catState.q = qi.value || ''; catState.c = ci.value;
@@ -563,7 +571,7 @@ function vCatalogo() {
   if (!cats.length) return `<section class="panel"><div class="empty-box">Todavía no hay categorías ni productos.<br><button class="btn acc" style="margin-top:14px" onclick="go('categorias')">Crear una categoría</button></div></section>`;
   return `<section class="panel">
     <div class="toolbar"><input id="catq" type="search" value="${esc(catState.q)}" placeholder="Buscar producto por nombre…" oninput="filterCatalog()" aria-label="Buscar producto"><select id="catf" onchange="filterCatalog()" aria-label="Filtrar por categoría"><option value="all">Todas las categorías</option>${cats.map(c => `<option value="${c.id}" ${String(catState.c) === String(c.id) ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select><button class="btn acc" onclick="go('nuevo')">+ Nuevo producto</button></div>
-    <p class="note">Las cuatro cajas de cada producto son: precio detal, promoción (0 = sin promoción), distribuidor y mayorista. Edita nombre, color, descripción, categoría, descuentos o fotografía con ✎ Editar.</p>
+    <p class="note">Cada tarjeta muestra el inventario por talla. Los precios (detal, promoción, distribuidor y mayorista), el nombre, el color, la descripción, la categoría y los descuentos se editan con ✎ Editar. En Más ▾ están las fotos, duplicar, agotado y eliminar.</p>
     ${cats.map(c => { const l = products.filter(p => p.category_id == c.id);
       return `<div class="cat-block"><div class="ch"><b>${esc(c.name)}</b><span class="pill">${l.length}</span><span class="grow"></span><button class="chip" onclick="editCat('${c.id}')">✎ Editar categoría</button></div>${l.length ? `<div class="product-grid">${l.map(productRow).join('')}</div>` : '<p class="note">Sin productos.</p>'}</div>`; }).join('')}
   </section>`;
