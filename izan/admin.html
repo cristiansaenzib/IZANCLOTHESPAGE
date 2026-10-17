@@ -729,11 +729,17 @@ function exportOrdersCsv() {
 function orderCard(o) {
   const items = Array.isArray(o.items) ? o.items : [], sold = isSold(o);
   const units = o.units || items.reduce((a, i) => a + (+i.quantity || 0), 0);
-  return `<article class="order-card ${sold ? 'is-sold' : ''}">
-    <div class="order-top"><div><b>Pedido #${esc(shortId(o))}</b><small>${new Date(o.created_at).toLocaleString('es-CO')}</small></div><span class="pill ${sold ? 'ok' : 'wait'}">${sold ? 'Vendido' : 'Pendiente'}</span></div>
-    ${(o.customer_name || o.customer_phone || o.customer_id_number || o.customer_address || o.customer_city || o.customer_email) ? `<div class="note" style="margin:10px 0;padding:9px 11px;border-radius:8px;background:#f5f4f2;line-height:1.7"><b>DATOS DE ENVÍO</b><br><b>Nombre completo:</b> ${esc(o.customer_name || '—')}<br><b>Cédula:</b> ${esc(o.customer_id_number || '—')}<br><b>Celular:</b> ${o.customer_phone ? `<a href="https://wa.me/${String(o.customer_phone).replace(/\D/g, '')}" target="_blank" rel="noopener">${esc(o.customer_phone)}</a>` : '—'}<br><b>Dirección:</b> ${esc(o.customer_address || '—')}<br><b>Ciudad:</b> ${esc(o.customer_city || '—')}<br><b>Correo electrónico:</b> ${esc(o.customer_email || '—')}</div>` : ''}
-    <ul class="order-items">${items.map(i => `<li><span>${esc(i.quantity)} × ${esc(i.product_name)} <em>talla ${esc(i.size)}</em></span><span>${fmt(i.unit_price)} c/u</span></li>`).join('') || '<li>Sin detalle de prendas</li>'}</ul>
-    <div class="order-total"><span>${esc(units)} unidades${o.wholesale_code ? ` · Código mayorista: <b>${esc(o.wholesale_code)}</b>` : ''}</span><b>${fmt(o.total)}</b></div>
+  const customer = o.customer_name || 'Cliente sin nombre';
+  const phone = o.customer_phone ? `<a href="https://wa.me/${String(o.customer_phone).replace(/\D/g, '')}" target="_blank" rel="noopener">${esc(o.customer_phone)}</a>` : 'Sin celular';
+  const detailsId = `order-details-${String(o.id).replace(/[^a-zA-Z0-9_-]/g, '')}`;
+  return `<article class="order-card ${sold ? 'is-sold' : ''}" style="padding:12px 14px;margin-bottom:10px">
+    <div class="order-top" style="margin-bottom:8px"><div><b>Pedido #${esc(shortId(o))}</b><small>${esc(customer)} · ${phone}</small><small>${new Date(o.created_at).toLocaleString('es-CO')}</small></div><span class="pill ${sold ? 'ok' : 'wait'}">${sold ? 'Vendido' : 'Pendiente'}</span></div>
+    <div class="order-total" style="margin:6px 0 8px;padding-top:8px"><span>${fmt(o.total)}</span><b>${esc(units)} unidades</b></div>
+    <details id="${detailsId}" style="margin:6px 0 10px"><summary style="cursor:pointer;font-weight:600;font-size:13px;padding:5px 0">Ver datos del cliente y detalle de prendas</summary>
+      <div class="note" style="margin:8px 0;padding:9px 11px;background:#f5f4f2;line-height:1.7"><b>DATOS DEL CLIENTE</b><br><b>Nombre:</b> ${esc(o.customer_name || '—')}<br><b>Cédula:</b> ${esc(o.customer_id_number || '—')}<br><b>Celular:</b> ${phone}<br><b>Dirección:</b> ${esc(o.customer_address || '—')}<br><b>Ciudad:</b> ${esc(o.customer_city || '—')}<br><b>Correo:</b> ${esc(o.customer_email || '—')}</div>
+      <ul class="order-items">${items.map(i => `<li><span>${esc(i.quantity)} × ${esc(i.product_name)} <em>talla ${esc(i.size)}</em></span><span>${fmt(i.unit_price)} c/u</span></li>`).join('') || '<li>Sin detalle de prendas</li>'}</ul>
+      ${o.wholesale_code ? `<p class="note">Código mayorista: <b>${esc(o.wholesale_code)}</b></p>` : ''}
+    </details>
     <div class="row-actions"><button class="chip" onclick="downloadOrderPdf('${o.id}')">↓ Descargar PDF</button>${sold ? '<span class="chip on">Inventario descontado</span>' : `<button class="chip" onclick="editOrder('${o.id}')">✎ Editar cotización</button><button class="chip ok" onclick="markOrderSold('${o.id}')">✓ Pedido vendido</button>`}<button class="chip danger" onclick="deleteOrder('${o.id}')">Eliminar pedido</button></div>
   </article>`;
 }
