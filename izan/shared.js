@@ -90,7 +90,8 @@ const promoPct = p => onPromo(p) ? Math.round((1 - eff(p) / price(p)) * 100) : 0
 
 /* ===== PRECIOS POR CANTIDAD =====
    Los descuentos porcentuales se cuentan por referencia o por pedido según la configuración.
-   Distribuidor: de 6 a 11 unidades y mínimo 3 tallas diferentes.
+   Distribuidor: desde 6 unidades y mínimo 3 tallas diferentes. También es el precio de respaldo: si un pedido de 12 o más
+   no cumple las condiciones mayoristas, aplica distribuidor siempre que lleve 3 tallas o más.
    Mayorista: desde 12 unidades, SIEMPRE mínimo 3 tallas diferentes y la talla que menos lleve
    debe tener al menos el 25% del pedido (12 => 3, 24 => 6). Ej. con 12: 3-3-6, 3-4-5, 4-4-4.
    Si lleva exactamente 4 tallas (en cualquier talla): cada talla debe tener al menos 1/6 del pedido
@@ -141,9 +142,9 @@ function qualCounts(t, cnt) {
   const distTier = t.key === 'dist';
 
   if (distTier) {
-    // Distribuidor solo entre 6 y 11 unidades, surtido en al menos 3 tallas.
-    const upper = ((typeof tiers !== 'undefined' ? tiers : DEF_TIERS).find(x => x.key === 'may') || { total: 12 }).total;
-    return tot >= t.total && tot < upper && present.length >= 3;
+    // Distribuidor desde 6 unidades (sin tope), surtido en al menos 3 tallas.
+    // Con 12 o más unidades que no cumplan la regla mayorista, este es el siguiente precio más bajo.
+    return tot >= t.total && present.length >= 3;
   }
   if (mayTier) {
     if (tot < t.total) return false;
@@ -201,8 +202,7 @@ function tierRange(tiers, t) {
 const tierReq = (tiers, t) => {
   if (t.kind === 'pct') return `${tierRange(tiers, t)} unidades`;
   if (t.key === 'dist') {
-    const may = tiers.find(x => x.key === 'may');
-    return `${t.total} a ${Math.max(t.total, (may ? may.total : 12) - 1)} unidades · mínimo 3 tallas diferentes`;
+    return `Desde ${t.total} unidades · mínimo 3 tallas diferentes (también aplica si no se cumple la regla mayorista)`;
   }
   if (t.key === 'may') return `Desde ${t.total} unidades · mínimo 3 tallas diferentes · 3 tallas: la menor ≥ 25% del pedido · 4 tallas: cada una mínimo 1/6 del pedido (12 un. → 2 c/u)`;
   const pats = []; for (let k = t.sizes; k <= SZ.length; k++) pats.push(`${k} tallas con mín. ${Math.max(1, Math.floor(t.total / k))} c/u`);

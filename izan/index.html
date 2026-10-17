@@ -265,9 +265,8 @@ function bulkTiers(p) {
   return ['dist', 'may'].map(k => tiers.find(t => t.key === k)).filter(t => t && tierUsable(p, t, keys));
 }
 function bulkRule(t) {
-  const may = tiers.find(x => x.key === 'may'), upper = Math.max(t.total, (may ? may.total : 12) - 1);
   return t.key === 'dist'
-    ? [`<b>${t.total} a ${upper} unidades</b> en total`, '<b>Mínimo 3 tallas</b> diferentes']
+    ? [`<b>${t.total} unidades o más</b> en total`, '<b>Mínimo 3 tallas</b> diferentes', 'Si tu pedido de 12+ no cumple la regla mayorista, aplica este precio']
     : [`<b>${t.total} unidades o más</b> en total`, '<b>Mínimo 3 tallas</b> diferentes (obligatorio)', 'Con <b>3 tallas</b>: la que menos lleve debe ser al menos el <b>25% del pedido</b> (12 un. → 3 · 24 un. → 6)', 'Con <b>4 tallas</b>: cada talla mínimo <b>1/6 del pedido</b> (12 un. → 2 c/u · 24 un. → 4 c/u)'];
 }
 function bulkBtn(p) {
