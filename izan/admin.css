@@ -147,7 +147,7 @@
 .edit-stock input{padding:10px 8px}
 
 /* ---------- Adaptación a pantallas pequeñas ---------- */
-@media (max-width:1100px){.product-row{grid-template-columns:72px minmax(0,1fr)}.product-row>img{width:72px;height:90px}.product-row .price-box{grid-column:2;display:inline-block;width:23%;vertical-align:top;margin-right:1%}.split{grid-template-columns:1fr}}
+@media (max-width:1100px){.split{grid-template-columns:1fr}}
 @media (max-width:900px){
   .adm-shell{grid-template-columns:1fr;gap:14px;padding-top:16px}
   .adm-side{position:sticky;top:calc(74px + env(safe-area-inset-top,0px));z-index:4;max-height:none;flex-direction:row;gap:6px;padding:8px;border-radius:999px;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:none}
@@ -285,3 +285,18 @@
 /* Resalta la referencia recién guardada en el catálogo */
 @keyframes justSaved{0%{box-shadow:0 0 0 3px var(--ink,#343339);background:#f3f0e8}100%{box-shadow:0 0 0 0 transparent;background:var(--card)}}
 .product-row.just-saved{animation:justSaved 1.8s ease-out}
+
+/* ---------- Catálogo en cuadrícula (edición rápida) ---------- */
+.product-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,380px),1fr));gap:14px;align-items:start}
+.product-grid .product-row{grid-template-columns:96px minmax(0,1fr) minmax(0,1fr);grid-template-rows:auto auto auto;gap:10px 12px;align-items:start;margin:0;padding:14px;height:100%}
+.product-grid .pr-photos{grid-column:1;grid-row:1 / span 3;width:96px;height:120px}
+.product-grid .product-info{grid-column:2 / span 2;grid-row:1}
+.product-grid .product-row>.price-box:nth-child(3){grid-column:2;grid-row:2}
+.product-grid .product-row>.price-box:nth-child(4){grid-column:3;grid-row:2}
+.product-grid .product-row>.price-box:nth-child(5){grid-column:2;grid-row:3}
+.product-grid .product-row>.price-box:nth-child(6){grid-column:3;grid-row:3}
+.product-grid .pi-head b{font-size:20px}
+.product-grid .row-actions{gap:5px;margin-top:6px}
+.product-grid .row-actions .chip{padding:6px 10px;font-size:10px}
+.product-grid .price-box input{padding:9px 10px}
+@media (max-width:520px){.product-grid .product-row{grid-template-columns:76px minmax(0,1fr) minmax(0,1fr)}.product-grid .pr-photos{width:76px;height:96px}}

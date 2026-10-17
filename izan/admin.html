@@ -565,7 +565,7 @@ function vCatalogo() {
     <div class="toolbar"><input id="catq" type="search" value="${esc(catState.q)}" placeholder="Buscar producto por nombre…" oninput="filterCatalog()" aria-label="Buscar producto"><select id="catf" onchange="filterCatalog()" aria-label="Filtrar por categoría"><option value="all">Todas las categorías</option>${cats.map(c => `<option value="${c.id}" ${String(catState.c) === String(c.id) ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select><button class="btn acc" onclick="go('nuevo')">+ Nuevo producto</button></div>
     <p class="note">Las cuatro cajas de cada producto son: precio detal, promoción (0 = sin promoción), distribuidor y mayorista. Edita nombre, color, descripción, categoría, descuentos o fotografía con ✎ Editar.</p>
     ${cats.map(c => { const l = products.filter(p => p.category_id == c.id);
-      return `<div class="cat-block"><div class="ch"><b>${esc(c.name)}</b><span class="pill">${l.length}</span><span class="grow"></span><button class="chip" onclick="editCat('${c.id}')">✎ Editar categoría</button></div>${l.map(productRow).join('') || '<p class="note">Sin productos.</p>'}</div>`; }).join('')}
+      return `<div class="cat-block"><div class="ch"><b>${esc(c.name)}</b><span class="pill">${l.length}</span><span class="grow"></span><button class="chip" onclick="editCat('${c.id}')">✎ Editar categoría</button></div>${l.length ? `<div class="product-grid">${l.map(productRow).join('')}</div>` : '<p class="note">Sin productos.</p>'}</div>`; }).join('')}
   </section>`;
 }
 
