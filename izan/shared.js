@@ -90,14 +90,11 @@ const promoPct = p => onPromo(p) ? Math.round((1 - eff(p) / price(p)) * 100) : 0
 
 /* ===== PRECIOS POR CANTIDAD =====
    Los descuentos porcentuales se cuentan por referencia o por pedido según la configuración.
-   Distribuidor: desde 6 unidades y mínimo 3 tallas diferentes. También es el precio de respaldo: si un pedido de 12 o más
-   no cumple las condiciones mayoristas, aplica distribuidor siempre que lleve 3 tallas o más.
-   Mayorista: desde 12 unidades, SIEMPRE mínimo 3 tallas diferentes y la talla que menos lleve
-   debe tener al menos el 25% del pedido (12 => 3, 24 => 6). Ej. con 12: 3-3-6, 3-4-5, 4-4-4.
-   Si lleva exactamente 4 tallas (en cualquier talla): cada talla debe tener al menos 1/6 del pedido
-   (12 => 2 c/u, 24 => 4 c/u), redondeado hacia abajo.
-   Con 12: pasan 2-4-4-2, 3-3-3-3, 2-2-4-4, 2-2-2-6. No pasa 1-3-4-4.
-   Las reglas se evalúan sobre el pedido completo.
+   Distribuidor: desde 6 unidades y mínimo 3 tallas diferentes (al menos 1 unidad de cada una).
+   El resto de unidades puede ir en cualquier talla. Reparto mínimo: 1-1-4 con 3 tallas, 1-1-1-3 con 4 tallas.
+   Mayorista: desde 12 unidades y mínimo 3 tallas diferentes (al menos 1 unidad de cada una).
+   El resto de unidades puede ir en cualquier talla. Reparto mínimo: 1-1-10 con 3 tallas, 1-1-1-9 con 4 tallas.
+   Las reglas se evalúan sobre el pedido completo (mezclando diseños y categorías).
    Código de mayorista: precio mayorista sin condición de tallas. */
 const DEF_TIERS = [
   { key: 'd2', name: 'Descuento', min: 2, kind: 'pct', pct: 5 },
@@ -142,18 +139,12 @@ function qualCounts(t, cnt) {
   const distTier = t.key === 'dist';
 
   if (distTier) {
-    // Distribuidor desde 6 unidades (sin tope), surtido en al menos 3 tallas.
-    // Con 12 o más unidades que no cumplan la regla mayorista, este es el siguiente precio más bajo.
+    // Distribuidor: 6 unidades o más en al menos 3 tallas. 1-1-4 y 1-1-1-3 son el mínimo; cualquier reparto con más unidades también cumple.
     return tot >= t.total && present.length >= 3;
   }
   if (mayTier) {
-    if (tot < t.total) return false;
-    // Siempre mínimo 3 tallas diferentes.
-    if (present.length < 3) return false;
-    // Con 4 tallas: cada talla debe tener al menos 1/6 del pedido (redondeo hacia abajo).
-    if (present.length === 4) return Math.min(...present) >= Math.floor(tot / 6);
-    // Con 3 tallas: la de menor cantidad debe ser al menos el 25% del pedido (min * 4 >= total).
-    return Math.min(...present) * 4 >= tot;
+    // Mayorista: 12 unidades o más en al menos 3 tallas. 1-1-10 y 1-1-1-9 son el mínimo; cualquier reparto con más unidades también cumple.
+    return tot >= t.total && present.length >= 3;
   }
 
   // Compatibilidad para futuros niveles de precio personalizados.
@@ -202,9 +193,9 @@ function tierRange(tiers, t) {
 const tierReq = (tiers, t) => {
   if (t.kind === 'pct') return `${tierRange(tiers, t)} unidades`;
   if (t.key === 'dist') {
-    return `Desde ${t.total} unidades · mínimo 3 tallas diferentes (también aplica si no se cumple la regla mayorista)`;
+    return `Desde ${t.total} unidades · mínimo 3 tallas diferentes (mínimo 1 de cada talla; el resto en cualquier talla · ej. 3 tallas: 1-1-${t.total - 2} · 4 tallas: 1-1-1-${t.total - 3})`;
   }
-  if (t.key === 'may') return `Desde ${t.total} unidades · mínimo 3 tallas diferentes · 3 tallas: la menor ≥ 25% del pedido · 4 tallas: cada una mínimo 1/6 del pedido (12 un. → 2 c/u)`;
+  if (t.key === 'may') return `Desde ${t.total} unidades · mínimo 3 tallas diferentes (mínimo 1 de cada talla; el resto en cualquier talla · ej. 3 tallas: 1-1-${t.total - 2} · 4 tallas: 1-1-1-${t.total - 3})`;
   const pats = []; for (let k = t.sizes; k <= SZ.length; k++) pats.push(`${k} tallas con mín. ${Math.max(1, Math.floor(t.total / k))} c/u`);
   return `${t.total} unidades surtidas: ${pats.join(' o ')} · desde ${t.total + 1} unidades basta con ${t.flex} tallas`;
 };
