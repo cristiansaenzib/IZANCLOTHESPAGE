@@ -172,6 +172,7 @@ const VIEWS = [
   { id: 'resumen', group: 'Resumen', ico: 'home', name: 'Resumen', desc: 'Una mirada rápida a cómo va tu tienda.' },
   { id: 'pedidos', group: 'Pedidos y cotizaciones', ico: 'mail', name: 'Pedidos y cotizaciones', desc: 'Revisa las cotizaciones que llegan desde el carrito y marca como vendidos los pedidos confirmados.' },
   { id: 'catalogo', group: 'Productos e inventario', ico: 'grid', name: 'Catálogo', desc: 'Edita precios, fotos, inventario y estado de cada producto cargado.' },
+  { id: 'destacados', group: 'Productos e inventario', ico: 'tag', name: 'Best sellers y Lo más nuevo', desc: 'Agrega o quita productos de Best sellers y Lo más nuevo con un solo clic.' },
   { id: 'nuevo', group: 'Productos e inventario', ico: 'plus', name: 'Nuevo producto', desc: 'Crea una referencia nueva con fotos, precios e inventario por talla.' },
   { id: 'categorias', group: 'Productos e inventario', ico: 'tag', name: 'Categorías', desc: 'Organiza el catálogo y define qué descuentos usa cada categoría.' },
   { id: 'gramajes', group: 'Productos e inventario', ico: 'layers', name: 'Gramajes', desc: 'Crea los gramajes de tela (g/m²) y elige cuál lleva cada producto para poder filtrarlos en la tienda.' },
@@ -196,7 +197,7 @@ const shortId = o => String(o.id).slice(0, 8).toUpperCase();
 let catState = { q: '', c: 'all' }, lastRendered = null;
 function renderPanel() {
   const cur = VIEWS.find(v => v.id === view) || VIEWS[0], pend = orders.filter(o => !isSold(o)).length;
-  const body = { resumen: vResumen, pedidos: vPedidos, campanas: vCampanas, visual: vVisual, pie: vPie, categorias: vCategorias, guias: vGuias, gramajes: vGramajes, nuevo: vNuevo, catalogo: vCatalogo, reglas: vReglas, codigos: vCodigos, ajustes: vAjustes, herramientas: vHerramientas }[cur.id]();
+  const body = { resumen: vResumen, pedidos: vPedidos, campanas: vCampanas, visual: vVisual, pie: vPie, categorias: vCategorias, guias: vGuias, gramajes: vGramajes, nuevo: vNuevo, destacados: vDestacados, catalogo: vCatalogo, reglas: vReglas, codigos: vCodigos, ajustes: vAjustes, herramientas: vHerramientas }[cur.id]();
   document.title = cur.name + ' · Administrar · IZAN Clothes';
   /* Si se vuelve a dibujar la MISMA sección (tras guardar un cambio), se conserva la posición de la página. */
   const keepY = lastRendered === cur.id ? window.scrollY : null, pnl = $('#panel');
@@ -310,6 +311,8 @@ function vVisual() {
       <div style="grid-column:1/-1"><label for="vannounce">Avisos de la franja superior</label><textarea id="vannounce" rows="3" placeholder="Un aviso por línea">${esc(v.announcement)}</textarea><small class="note">Cada línea será un aviso rotativo.</small></div>
       <div><label for="vfeaturedLabel">Texto pequeño de destacados</label><input id="vfeaturedLabel" value="${esc(v.featured_label)}"></div>
       <div><label for="vfeaturedTitle">Título de destacados</label><input id="vfeaturedTitle" value="${esc(v.featured_title)}"></div>
+      <div><label for="vnewLabel">Texto pequeño de Lo más nuevo</label><input id="vnewLabel" value="${esc(v.new_label)}"></div>
+      <div><label for="vnewTitle">Título de Lo más nuevo</label><input id="vnewTitle" value="${esc(v.new_title)}"></div>
       <div style="grid-column:1/-1"><label for="vticker">Franja intermedia (texto animado)</label><textarea id="vticker" rows="3">${esc(v.ticker)}</textarea></div>
       <div><label for="vcatalogLabel">Etiqueta sobre el catálogo</label><input id="vcatalogLabel" value="${esc(v.catalog_label)}"></div>
     </div><p><button class="btn acc" onclick="saveVisualContent()">Guardar cambios visuales</button> <span class="note" id="vmsg"></span></p>
@@ -319,7 +322,7 @@ async function saveVisualContent() {
   const picked = document.querySelector('input[name=vpalette]:checked');
   const v = {
     ...(settings.visual_content || {}),
-    announcement: $('#vannounce').value.trim(), featured_label: $('#vfeaturedLabel').value.trim(), featured_title: $('#vfeaturedTitle').value.trim(),
+    announcement: $('#vannounce').value.trim(), featured_label: $('#vfeaturedLabel').value.trim(), featured_title: $('#vfeaturedTitle').value.trim(), new_label: $('#vnewLabel').value.trim(), new_title: $('#vnewTitle').value.trim(),
     ticker: $('#vticker').value.trim(), catalog_label: $('#vcatalogLabel').value.trim(),
     bg_palette: picked && BG_PALETTES[picked.value] ? picked.value : DEFAULT_PALETTE
   };
@@ -557,6 +560,57 @@ function vNuevo() {
   </section>`;
 }
 
+const isFlagOn = v => v === true || v === 1 || v === '1' || String(v).toLowerCase() === 'true';
+const FLAGS = {
+  is_best_seller: { title: 'Best sellers', icon: '🔥', empty: 'Aún no hay productos en Best sellers.', note: 'Aparecen en el carrusel de inicio y en el botón Best sellers del menú.' },
+  is_new_arrival: { title: 'Lo más nuevo', icon: '✦', empty: 'Aún no hay productos en Lo más nuevo.', note: 'Aparecen al pulsar Lo más nuevo en el menú de la tienda.' }
+};
+let flagQ = '';
+function flagMini(p, key, on) {
+  const cat = (cats.find(c => c.id == p.category_id) || {}).name || 'Sin categoría';
+  return `<div class="flag-item" data-name="${esc(String(p.name).toLowerCase())}">
+    <img src="${imgUrl(p.image_path)}" alt="${esc(p.name)}" loading="lazy">
+    <span class="fi-txt"><b>${esc(p.name)}</b><small>${esc(cat)}${p.sold_out ? ' · Agotado' : ''}</small></span>
+    ${on ? `<button class="chip danger" onclick="toggleFlag('${p.id}','${key}')">Quitar</button>` : `<button class="chip ok" onclick="toggleFlag('${p.id}','${key}')">+ Agregar</button>`}
+  </div>`;
+}
+function filterFlags() {
+  const el = $('#flagq'); if (!el) return; flagQ = el.value || '';
+  const q = flagQ.trim().toLowerCase();
+  document.querySelectorAll('.flag-item[data-pool]').forEach(r => { r.hidden = !!q && !r.dataset.name.includes(q); });
+}
+function vDestacados() {
+  if (!products.length) return `<section class="panel"><div class="empty-box">Todavía no hay productos.<br><button class="btn acc" style="margin-top:14px" onclick="go('nuevo')">Crear un producto</button></div></section>`;
+  const col = key => {
+    const f = FLAGS[key], on = products.filter(p => isFlagOn(p[key])), off = products.filter(p => !isFlagOn(p[key]));
+    return `<section class="panel flag-col">
+      <div class="panel-h"><div><h3>${f.icon} ${f.title} <span class="pill">${on.length}</span></h3><p class="note">${f.note}</p></div>${on.length ? `<button class="chip danger" onclick="clearFlag('${key}')">Quitar todos</button>` : ''}</div>
+      <div class="flag-list">${on.map(p => flagMini(p, key, true)).join('') || `<div class="empty-box">${f.empty}</div>`}</div>
+      <details class="flag-add"><summary class="chip">+ Agregar productos (${off.length})</summary>
+        <div class="flag-list">${off.map(p => flagMini(p, key, false).replace('class="flag-item"', 'class="flag-item" data-pool="1"')).join('') || '<p class="note">Todos los productos ya están aquí.</p>'}</div>
+      </details>
+    </section>`;
+  };
+  return `<div class="toolbar"><input id="flagq" type="search" value="${esc(flagQ)}" placeholder="Buscar producto por nombre…" oninput="filterFlags()" aria-label="Buscar producto"></div>
+    <div class="flag-cols">${col('is_best_seller')}${col('is_new_arrival')}</div>`;
+}
+async function toggleFlag(id, key) {
+  const p = products.find(x => x.id == id); if (!p || !FLAGS[key]) return;
+  const next = !isFlagOn(p[key]);
+  const { error } = await sb.from('products').update({ [key]: next }).eq('id', id);
+  if (error) return alert('No se pudo actualizar: ' + error.message + '\n\nSi dice que la columna no existe, ejecuta migracion_destacados.sql en Supabase.');
+  p[key] = next; await reloadProducts(); renderPanel();
+  if (view === 'catalogo') focusProduct(id);
+}
+async function clearFlag(key) {
+  const f = FLAGS[key], ids = products.filter(p => isFlagOn(p[key])).map(p => p.id); if (!ids.length) return;
+  if (!await ask(`¿Quitar los ${ids.length} productos de ${f.title}?`)) return;
+  const res = await Promise.all(ids.map(i => sb.from('products').update({ [key]: false }).eq('id', i)));
+  const bad = res.find(r => r && r.error);
+  if (bad) return alert('No se pudo actualizar: ' + bad.error.message);
+  await reloadProducts(); renderPanel();
+}
+
 function productRow(p) {
   const showSz = sizes(p);
   return `<div class="product-row" id="prod-${p.id}" data-id="${p.id}" data-name="${esc(String(p.name).toLowerCase())}" data-cat="${esc(p.category_id)}">
@@ -566,6 +620,8 @@ function productRow(p) {
       <div class="pr-stock">${showSz.map(z => `<span class="${stock(p, z) ? '' : 'zero'}">${z} <b>${stock(p, z)}</b></span>`).join('')}</div>
       <div class="row-actions">
         <button class="chip" onclick="editProduct('${p.id}')">✎ Editar</button>
+        <button class="chip flag ${isFlagOn(p.is_best_seller) ? 'on' : ''}" aria-pressed="${isFlagOn(p.is_best_seller)}" title="${isFlagOn(p.is_best_seller) ? 'Quitar de Best sellers' : 'Agregar a Best sellers'}" onclick="toggleFlag('${p.id}','is_best_seller')">🔥 Best seller</button>
+        <button class="chip flag ${isFlagOn(p.is_new_arrival) ? 'on' : ''}" aria-pressed="${isFlagOn(p.is_new_arrival)}" title="${isFlagOn(p.is_new_arrival) ? 'Quitar de Lo más nuevo' : 'Agregar a Lo más nuevo'}" onclick="toggleFlag('${p.id}','is_new_arrival')">✦ Lo más nuevo</button>
         <details class="pr-menu">
           <summary class="chip" aria-label="Más acciones de ${esc(p.name)}">Más ▾</summary>
           <div class="pr-menu-list">
@@ -968,7 +1024,7 @@ function editCat(id) {
     await loadAll();
   });
 }
-const DEFAULT_VISUAL = { announcement:'HECHO EN COLOMBIA\nTIENDA EN BOGOTÁ · C.C. PUNTO ONCE\nPIDE TU COTIZACIÓN POR WHATSAPP\nPRECIOS POR MAYOR CON CÓDIGO\nBOXY FIT ✦ OVERSIZED ✦ ACID WASH', featured_label:'LOS FAVORITOS', featured_title:'BEST SELLERS', ticker:'PREMIUM 310 ✦ BOXY FIT ✦ ACID WASH ✦ 180 · 210 · 270 G/M² ✦ HECHO EN COLOMBIA ✦ SERIGRAFÍA ✦ TANK TOPS ✦ ACID WASH', catalog_label:'CATEGORÍA', bg_palette:'marfil' };
+const DEFAULT_VISUAL = { announcement:'HECHO EN COLOMBIA\nTIENDA EN BOGOTÁ · C.C. PUNTO ONCE\nPIDE TU COTIZACIÓN POR WHATSAPP\nPRECIOS POR MAYOR CON CÓDIGO\nBOXY FIT ✦ OVERSIZED ✦ ACID WASH', featured_label:'LOS FAVORITOS', featured_title:'BEST SELLERS', new_label:'RECIÉN LLEGADO', new_title:'LO MÁS NUEVO', ticker:'PREMIUM 310 ✦ BOXY FIT ✦ ACID WASH ✦ 180 · 210 · 270 G/M² ✦ HECHO EN COLOMBIA ✦ SERIGRAFÍA ✦ TANK TOPS ✦ ACID WASH', catalog_label:'CATEGORÍA', bg_palette:'marfil' };
 function parseVisualAdmin(raw) { try { const x=typeof raw==='string'?JSON.parse(raw):raw; return x && typeof x==='object' ? {...DEFAULT_VISUAL,...x} : {...DEFAULT_VISUAL}; } catch(e) { return {...DEFAULT_VISUAL}; } }
 function parseHeroAdmin(raw) { try { const x=typeof raw==='string'?JSON.parse(raw):raw; return Array.isArray(x)?x:[]; } catch(e) { return []; } }
 const heroSrc = s => !s ? '' : /^(https?:|data:|\/|\.\/)/.test(s) ? s : imgUrl(s);

@@ -39,6 +39,11 @@
   <div class="featured-carousel" id="bestSellersCarousel"><div class="empty serif">Cargando favoritos…</div></div>
 </section>
 
+<section class="featured-section" id="newArrivalsSection" hidden>
+  <div class="featured-heading"><div><p class="lbl" id="newLabel">RECIÉN LLEGADO</p><h2 id="newTitle">LO MÁS NUEVO</h2></div><div class="carousel-controls"><button class="btn ghost" onclick="moveCarousel('newArrivalsCarousel',-1)" aria-label="Anterior">←</button><button class="btn ghost" onclick="moveCarousel('newArrivalsCarousel',1)" aria-label="Siguiente">→</button></div></div>
+  <div class="featured-carousel" id="newArrivalsCarousel"></div>
+</section>
+
 <div class="strip"><div id="tickerText">PREMIUM 310 ✦ BOXY FIT ✦ ACID WASH ✦ 180 · 210 · 270 G/M² ✦ HECHO EN COLOMBIA ✦ SERIGRAFIA ✦ TANK TOPS ✦ ACID WASH ✦ 310 · 235 · 180 G/M² ✦ HECHO EN COLOMBIA ✦ </div></div>
 
 <main id="catalogo">
@@ -207,7 +212,7 @@ function renderCampaigns(list) {
   show(0); start();
 }
 /* ===== Contenido visual editable desde Administración ===== */
-const DEFAULT_VISUAL = { announcement:'HECHO EN COLOMBIA\nTIENDA EN BOGOTÁ · C.C. PUNTO ONCE\nPIDE TU COTIZACIÓN POR WHATSAPP\nPRECIOS POR MAYOR CON CÓDIGO\nBOXY FIT ✦ OVERSIZED ✦ ACID WASH', featured_label:'LOS FAVORITOS', featured_title:'BEST SELLERS', ticker:'PREMIUM 310 ✦ BOXY FIT ✦ ACID WASH ✦ 180 · 210 · 270 G/M² ✦ HECHO EN COLOMBIA ✦ SERIGRAFÍA ✦ TANK TOPS ✦ ACID WASH', catalog_label:'CATEGORÍA', bg_palette:'marfil' };
+const DEFAULT_VISUAL = { announcement:'HECHO EN COLOMBIA\nTIENDA EN BOGOTÁ · C.C. PUNTO ONCE\nPIDE TU COTIZACIÓN POR WHATSAPP\nPRECIOS POR MAYOR CON CÓDIGO\nBOXY FIT ✦ OVERSIZED ✦ ACID WASH', featured_label:'LOS FAVORITOS', featured_title:'BEST SELLERS', new_label:'RECIÉN LLEGADO', new_title:'LO MÁS NUEVO', ticker:'PREMIUM 310 ✦ BOXY FIT ✦ ACID WASH ✦ 180 · 210 · 270 G/M² ✦ HECHO EN COLOMBIA ✦ SERIGRAFÍA ✦ TANK TOPS ✦ ACID WASH', catalog_label:'CATEGORÍA', bg_palette:'marfil' };
 function parseVisualContent(raw) { try { const x=typeof raw==='string'?JSON.parse(raw):raw; return x && typeof x==='object' ? {...DEFAULT_VISUAL,...x} : {...DEFAULT_VISUAL}; } catch(e) { return {...DEFAULT_VISUAL}; } }
 function applyVisualContent(v) {
   applyPalette(v.bg_palette);
@@ -215,6 +220,8 @@ function applyVisualContent(v) {
   const track=$('#announceTrack'); if(track){ const items=String(v.announcement||'').split(/\n+/).map(x=>x.trim()).filter(Boolean); const repeated=[...items,...items,...items,...items]; track.innerHTML=repeated.map(x=>`<span>${esc(x)}<i>✦</i></span>`).join(''); }
   if($('#featuredLabel')) $('#featuredLabel').textContent=v.featured_label||'';
   if($('#featuredTitle')) $('#featuredTitle').textContent=v.featured_title||'';
+  if($('#newLabel')) $('#newLabel').textContent=v.new_label||'';
+  if($('#newTitle')) $('#newTitle').textContent=v.new_title||'';
   if($('#tickerText')) $('#tickerText').textContent=(v.ticker||'')+' ✦ '+(v.ticker||'');
   if($('#catalogLabel')) $('#catalogLabel').textContent=v.catalog_label||'';
 }
@@ -352,7 +359,14 @@ function showFeatured(which) {
     document.getElementById('bestSellersSection')?.scrollIntoView({behavior:'smooth', block:'start'});
     return;
   }
-  featuredFilter = ['last','new'].includes(which) ? which : 'all';
+  if (which === 'new') {
+    featuredFilter = 'all';
+    render();
+    const target = document.getElementById('newArrivalsSection');
+    (target && !target.hidden ? target : document.getElementById('catalogo'))?.scrollIntoView({behavior:'smooth', block:'start'});
+    return;
+  }
+  featuredFilter = which === 'last' ? 'last' : 'all';
   render();
   document.getElementById('catalogo')?.scrollIntoView({behavior:'smooth', block:'start'});
 }
@@ -364,14 +378,23 @@ function renderBestSellers() {
     ? list.map(p => `<div class="featured-card">${card(p)}</div>`).join('')
     : '<div class="empty serif featured-empty">Aún no hay diseños marcados como Best Sellers. Puedes seleccionarlos desde Administrar.</div>';
 }
-function moveBest(direction) {
-  const host = $('#bestSellersCarousel');
+function renderNewArrivals() {
+  const host = $('#newArrivalsCarousel'), sec = $('#newArrivalsSection');
+  if (!host || !sec) return;
+  const list = products.filter(p => p.is_new_arrival === true || p.is_new_arrival === 1 || p.is_new_arrival === '1' || String(p.is_new_arrival).toLowerCase() === 'true');
+  sec.hidden = !list.length;   /* sin productos marcados, la sección no se muestra */
+  host.innerHTML = list.map(p => `<div class="featured-card">${card(p)}</div>`).join('');
+}
+function moveCarousel(id, direction) {
+  const host = document.getElementById(id);
   if (host) host.scrollBy({left: direction * Math.max(240, host.clientWidth * .75), behavior:'smooth'});
 }
+const moveBest = direction => moveCarousel('bestSellersCarousel', direction);
 
 function render() {
   $('#categoryDropdown').innerHTML = `<button onclick="chooseCategory('all')">Todas las categorías</button>` + cats.map(c=>`<button onclick="chooseCategory('${c.id}')">${esc(c.name)}</button>`).join('');
   renderBestSellers();
+  renderNewArrivals();
   $('#catChips').innerHTML = [{ id: 'all', name: 'Todas' }, ...cats].map(c => `<button class="chip ${catF == c.id ? 'on' : ''}" onclick="setC('${c.id}')">${esc(c.name)}</button>`).join('');
   $('#tiers').innerHTML = `<button class="chip wholesale-entry" onclick="wcOpen()">${wcode ? 'Código mayorista activo · Ver pedido' : '¿Eres mayorista? Ingresa tu código'}</button>`;
   const colors = [...new Set(products.map(p => String(p.color || '').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es'));
@@ -689,14 +712,14 @@ render(); load();
   function tapApply() { const c = tapCard(); document.querySelectorAll('.card.peek').forEach(k => { if (k !== c) k.classList.remove('peek'); }); if (c) c.classList.toggle('peek', tap.back); }
   function tapStart(card) {
     clearInterval(timer); on.forEach(im => { const k = im.closest('.card'); if (k) k.classList.remove('peek'); }); on = [];
-    tap = { id: card.dataset.id, box: card.closest('#grid') ? 'grid' : 'bestSellersCarousel', back: true }; tapApply();
+    tap = { id: card.dataset.id, box: card.closest('#grid') ? 'grid' : (card.closest('.featured-carousel')?.id || 'bestSellersCarousel'), back: true }; tapApply();
     timer = setInterval(() => { tap.back = !tap.back; tapApply(); }, FLIP_MS);
   }
   document.addEventListener('click', e => {
     const card = e.target.closest && e.target.closest('.card');
     if (!card || !card.querySelector('.im.has-back') || !card.dataset.id) return;
     if (e.target.closest('button, a, select, input, label, textarea')) return;      /* talla, Añadir, guía de tallas… */
-    const box = card.closest('#grid') ? 'grid' : card.closest('#bestSellersCarousel') ? 'bestSellersCarousel' : null; if (!box) return;
+    const box = card.closest('#grid') ? 'grid' : (card.closest('.featured-carousel')?.id || null); if (!box) return;
     if (tap && tap.id === card.dataset.id && tap.box === box) tapStop(); else tapStart(card);
   });
   function update(){
@@ -721,7 +744,7 @@ render(); load();
   addEventListener('scroll', queue, { passive: true, capture: true });      /* capture: también el scroll horizontal del carrusel */
   addEventListener('resize', queue); addEventListener('orientationchange', queue); addEventListener('load', queue);
   const mo = new MutationObserver(queue);
-  ['grid', 'bestSellersCarousel'].forEach(id => { const el = document.getElementById(id); if (el) mo.observe(el, { childList: true }); });
+  ['grid', 'bestSellersCarousel', 'newArrivalsCarousel'].forEach(id => { const el = document.getElementById(id); if (el) mo.observe(el, { childList: true }); });
   queue();
 })();
 
