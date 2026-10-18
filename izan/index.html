@@ -113,6 +113,12 @@
     <p class="gnote">Las cantidades y tallas se suman con <b>todo tu pedido</b>, no solo con esta referencia. Con código de mayorista aplica el precio mayor sin condición de tallas.</p>
   </div>
 </div>
+<div class="gmodal dmodal" id="dmodal" hidden onclick="if(event.target===this)closeDetail()">
+  <div class="dbox" role="dialog" aria-modal="true" aria-labelledby="dtitle">
+    <button type="button" class="gclose" onclick="closeDetail()" aria-label="Cerrar detalle del producto">✕</button>
+    <div id="dbody"></div>
+  </div>
+</div>
 <div class="cart-backdrop" id="cartBackdrop" onclick="cartOpen(false)"></div>
 <aside class="drawer" id="drawer" aria-label="Tu pedido">
   <div class="row" style="margin:0 0 10px"><h2>Tu pedido</h2><div class="ab"><button class="chip cart-expand" onclick="cartOpen(true,'full')">Ver carrito</button><button class="btn ghost" onclick="cartOpen(false)">Cerrar</button></div></div>
@@ -294,6 +300,78 @@ function openBulk(pid) {
 }
 function closeBulk() { $('#pmodal').hidden = true; if ($('#gmodal').hidden) document.body.classList.remove('guide-open'); }
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#pmodal').hidden) closeBulk(); });
+/* ===== Detalle del producto: ventana con fotos, precios, tallas y guía de tallas, todo en una sola vista ===== */
+let detailId = null, detailImg = 'front';
+function detailHTML(p) {
+  const av = sizes(p), inStock = av.filter(z => stock(p, z) > 0), out = p.sold_out || !inStock.length;
+  const cs = inStock.includes(selS[p.id]) ? selS[p.id] : (inStock[0] || av[0]);
+  const cat = catOf(p), wu = wcode ? wcUnit(p) : null;
+  const isFlag = v => v === true || v === 1 || v === '1' || String(v).toLowerCase() === 'true';
+  const tags = [isFlag(p.is_best_seller) ? 'Best seller' : '', (SZ.reduce((n, z) => n + stock(p, z), 0) < 4) ? 'Últimas unidades' : '', isFlag(p.is_new_arrival) ? 'Lo más nuevo' : ''].filter(Boolean);
+  const hasBack = !!p.image_path_back, showBack = hasBack && detailImg === 'back';
+  const mainSrc = imgUrl(showBack ? p.image_path_back : p.image_path);
+  const thumbs = hasBack ? `<div class="dthumbs"><button type="button" class="${showBack ? '' : 'on'}" onclick="dImg('front')" aria-label="Ver foto frontal"><img src="${imgUrl(p.image_path)}" alt=""></button><button type="button" class="${showBack ? 'on' : ''}" onclick="dImg('back')" aria-label="Ver foto trasera"><img src="${imgUrl(p.image_path_back)}" alt=""></button></div>` : '';
+  const priceHTML = wu ? `<s class="old">${fmt(eff(p))}</s> <span class="promo-now">${fmt(wu)}</span><small class="note">Precio mayorista</small>`
+    : onPromo(p) ? `<s class="old">${fmt(price(p))}</s> <span class="promo-now">${fmt(eff(p))}</span><span class="mini-tag promo">Promo −${promoPct(p)}%</span>`
+    : `<span class="promo-now">${fmt(price(p))}</span>`;
+  /* Descuentos por cantidad (niveles %) */
+  const pctAll = tiers.filter(t => t.kind === 'pct'), keys = tierKeys(p, cat, tiers);
+  const pcts = pctAll.filter(t => tierUsable(p, t, keys)).sort((a, b) => a.min - b.min);
+  const qtyHTML = pcts.length ? `<section class="dsec"><h4>Descuentos por cantidad</h4><div class="dtiers"><div><span>1 unidad</span><b>${fmt(eff(p))}</b></div>${pcts.map(t => `<div><span>${tierRange(pctAll, t)} unidades <em>· ${t.pct}% dto.</em></span><b>${fmt(tierUnit(p, t))} <small>c/u</small></b></div>`).join('')}</div></section>` : '';
+  /* Precio por mayor (distribuidor / mayorista) */
+  const base = eff(p), bulk = bulkTiers(p);
+  const bulkHTML = bulk.length ? `<section class="dsec"><h4>Precio por mayor</h4><div class="ptiers">${bulk.map(t => { const u = tierUnit(p, t), off = Math.round((1 - u / base) * 100); return `<div class="ptier"><div class="ptier-h"><span class="ptier-n">${esc(t.name)}</span><span class="ptier-p">${fmt(u)}<small> c/u</small></span></div>${off > 0 ? `<span class="ptier-off">Ahorras ${off}%</span>` : ''}<ul>${bulkRule(t).map(r => `<li>${r}</li>`).join('')}</ul></div>`; }).join('')}</div><p class="gnote">Las cantidades y tallas se suman con <b>todo tu pedido</b>, no solo con esta referencia. Con código de mayorista aplica el precio mayor sin condición de tallas.</p></section>` : '';
+  /* Guía de tallas */
+  const raw = guideOf(p); let guideHTML = '';
+  if (raw) {
+    const g = parseGuide(raw), rows = GSZ.filter(z => (g.rows[z] || []).some(v => String(v).trim()));
+    guideHTML = `<section class="dsec"><h4>Guía de tallas${g.name ? ' · ' + esc(g.name) : ''}</h4>${rows.length ? `<div class="gscroll"><table class="gtbl"><thead><tr><th>Talla</th>${g.cols.map(c => `<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>${rows.map(z => `<tr><th>${z}</th>${g.cols.map((c, i) => `<td>${esc((g.rows[z] || [])[i] || '—')}</td>`).join('')}</tr>`).join('')}</tbody></table></div>` : '<p class="note">Esta guía aún no tiene medidas.</p>'}${g.note ? `<p class="gnote">${esc(g.note)}</p>` : ''}</section>`;
+  }
+  const w = p.fabric_weight_id ? weights.find(x => String(x.id) === String(p.fabric_weight_id)) : null;
+  const meta = [p.color ? 'Color: ' + esc(p.color) : '', w ? esc(parseInt(w.grams) + ' g/m²') : ''].filter(Boolean).join(' · ');
+  return `<div class="dgrid">
+    <div class="dmedia"><div class="dmain"><img src="${mainSrc}" alt="${esc(p.name)}${showBack ? ' (parte trasera)' : ''}">${out ? '<span class="mini-tag soldout">Agotado</span>' : ''}</div>${thumbs}</div>
+    <div class="dinfo">
+      <p class="glbl">${esc(cat?.name || 'Sin categoría')}</p>
+      <h3 id="dtitle">${esc(p.name)}</h3>
+      ${tags.length ? `<div class="product-labels">${tags.map(t => `<span class="mini-tag">${esc(t)}</span>`).join('')}</div>` : ''}
+      ${meta ? `<p class="dmeta">${meta}</p>` : ''}
+      ${p.description ? `<p class="ddesc">${esc(p.description)}</p>` : ''}
+      <div class="dprice">${priceHTML}</div>
+      <label class="dlbl">Talla</label>
+      <div class="gr sz dsizes">${av.map(z => `<button type="button" class="${z == cs && stock(p, z) > 0 && !out ? 'on' : ''}" ${stock(p, z) > 0 && !p.sold_out ? '' : 'disabled'} title="${stock(p, z) > 0 && !p.sold_out ? stock(p, z) + ' disponibles' : 'Agotada'}" onclick="dPick('${p.id}','${z}')">${z}</button>`).join('')}</div>
+      ${!out && cs ? `<small class="note">${stock(p, cs)} disponibles en talla ${cs}</small>` : ''}
+      <button type="button" class="btn acc dadd" ${out ? 'disabled' : ''} onclick="dAdd('${p.id}','${cs}')">${out ? 'Agotado' : 'Añadir al pedido'}</button>
+      ${qtyHTML}${bulkHTML}${guideHTML}
+    </div>
+  </div>`;
+}
+function renderDetail() {
+  const p = products.find(x => String(x.id) === String(detailId)), box = $('#dmodal .dbox');
+  if (!p) return closeDetail();
+  const top = box.scrollTop;
+  $('#dbody').innerHTML = detailHTML(p);
+  box.scrollTop = top;
+}
+function openDetail(id) {
+  if (!products.some(x => String(x.id) === String(id))) return;
+  detailId = id; detailImg = 'front'; renderDetail();
+  $('#dmodal .dbox').scrollTop = 0;
+  $('#dmodal').hidden = false; document.body.classList.add('guide-open');
+  $('#dmodal .gclose').focus();
+}
+function closeDetail() { detailId = null; $('#dmodal').hidden = true; if ($('#gmodal').hidden && $('#pmodal').hidden) document.body.classList.remove('guide-open'); }
+const dImg = which => { detailImg = which; renderDetail(); };
+const dPick = (id, z) => { selS[id] = z; renderDetail(); };
+function dAdd(id, z) { closeDetail(); add(id, z); }
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#dmodal').hidden) closeDetail(); });
+/* Tocar una tarjeta abre el detalle (menos sus botones: tallas, Añadir, guía, precio mayor). */
+document.addEventListener('click', e => {
+  const card = e.target.closest && e.target.closest('.card');
+  if (!card || !card.dataset.id) return;
+  if (e.target.closest('button, a, select, input, label, textarea')) return;
+  openDetail(card.dataset.id);
+});
 const weightTag = p => { const w = p.fabric_weight_id ? weights.find(x => String(x.id) === String(p.fabric_weight_id)) : null; return w ? `<span class="mini-tag">${esc(parseInt(w.grams) + ' g/m²')}</span>` : ''; };
 function card(p) {
   const av = sizes(p), inStock = av.filter(z => stock(p, z) > 0), cs = inStock.includes(selS[p.id]) ? selS[p.id] : (inStock[0] || av[0]), out = p.sold_out || !inStock.length, wu = wcode ? wcUnit(p) : null;
@@ -430,6 +508,7 @@ function render() {
     ? visibleProducts.map(card).join('') + (hiddenCount > 0 ? `<div class="load-more"><button class="btn ghost" onclick="showMoreProducts()">Ver más (${hiddenCount})</button></div>` : '')
     : `<div class="empty serif" style="font-size:20px">No hay diseños que coincidan con los filtros seleccionados.<br><button class="chip" style="margin-top:16px" onclick="clearFilters()">Ver todos los diseños</button></div>`;
   renderCart();
+  if (detailId && !$('#dmodal').hidden) renderDetail();
 }
 /* Catálogo paginado: 6 filas en escritorio, 15 filas en móvil. Las columnas se leen del CSS real
    (la cuadrícula es auto-fill), así que el número de productos se ajusta solo a cada pantalla. */
@@ -720,13 +799,6 @@ render(); load();
     tap = { id: card.dataset.id, box: card.closest('#grid') ? 'grid' : (card.closest('.featured-carousel')?.id || 'bestSellersCarousel'), back: true }; tapApply();
     timer = setInterval(() => { tap.back = !tap.back; tapApply(); }, FLIP_MS);
   }
-  document.addEventListener('click', e => {
-    const card = e.target.closest && e.target.closest('.card');
-    if (!card || !card.querySelector('.im.has-back') || !card.dataset.id) return;
-    if (e.target.closest('button, a, select, input, label, textarea')) return;      /* talla, Añadir, guía de tallas… */
-    const box = card.closest('#grid') ? 'grid' : (card.closest('.featured-carousel')?.id || null); if (!box) return;
-    if (tap && tap.id === card.dataset.id && tap.box === box) tapStop(); else tapStart(card);
-  });
   function update(){
     queued = false;
     if (tap) { tapApply(); return; }   /* mientras hay un producto tocado, el scroll no cambia fotos */
@@ -773,7 +845,7 @@ render(); load();
     ['touchstart', 'pointerdown', 'wheel', 'keydown'].forEach(ev => h.addEventListener(ev, () => hold(h), { passive: true }));
   });
   function advance(h) {
-    if (!h._vis || h._hover || document.hidden || Date.now() < h._hold) return;
+    if (!h._vis || h._hover || document.hidden || Date.now() < h._hold || document.body.classList.contains('guide-open')) return;
     if (h.contains(document.activeElement)) return;                 /* eligiendo talla o botón */
     if (h.querySelector('.card.peek')) return;                      /* foto trasera abierta con un toque */
     const max = h.scrollWidth - h.clientWidth; if (max < 8) return; /* caben todas: no hay nada que mover */

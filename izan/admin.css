@@ -330,3 +330,14 @@ body:has(.adm-shell) header{margin-left:10px;margin-right:10px}
 .flag-add>summary{cursor:pointer;list-style:none;display:inline-block}
 .flag-add>summary::-webkit-details-marker{display:none}
 @media(max-width:860px){.flag-cols{grid-template-columns:1fr}}
+
+/* Botones pequeños Best seller (🔥) y Lo más nuevo (etiqueta) en la esquina de cada tarjeta */
+.product-row{position:relative}
+.flag-btns{position:absolute;top:8px;right:8px;display:flex;gap:5px;z-index:2}
+.flag-btn{display:grid;place-items:center;width:26px;height:26px;padding:0;border-radius:50%;border:1px solid var(--line);background:var(--card);color:var(--mute);font-size:13px;line-height:1;cursor:pointer;transition:background .15s,border-color .15s,color .15s}
+.flag-btn svg{width:14px;height:14px}
+.flag-btn:hover{border-color:var(--ink);color:var(--ink)}
+.flag-btn.on{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.flag-btn:not(.on) .fire{filter:grayscale(1);opacity:.6}
+.flag-btn.on .fire{filter:none;opacity:1}
+.product-grid .pi-head{padding-right:62px}
