@@ -614,14 +614,16 @@ async function clearFlag(key) {
 function productRow(p) {
   const showSz = sizes(p);
   return `<div class="product-row" id="prod-${p.id}" data-id="${p.id}" data-name="${esc(String(p.name).toLowerCase())}" data-cat="${esc(p.category_id)}">
+    <div class="flag-btns">
+      <button type="button" class="flag-btn ${isFlagOn(p.is_best_seller) ? 'on' : ''}" aria-pressed="${isFlagOn(p.is_best_seller)}" aria-label="Best seller: ${isFlagOn(p.is_best_seller) ? 'quitar' : 'agregar'}" title="${isFlagOn(p.is_best_seller) ? 'Quitar de Best sellers' : 'Agregar a Best sellers'}" onclick="toggleFlag('${p.id}','is_best_seller')"><span class="fire" aria-hidden="true">🔥</span></button>
+      <button type="button" class="flag-btn ${isFlagOn(p.is_new_arrival) ? 'on' : ''}" aria-pressed="${isFlagOn(p.is_new_arrival)}" aria-label="Lo más nuevo: ${isFlagOn(p.is_new_arrival) ? 'quitar' : 'agregar'}" title="${isFlagOn(p.is_new_arrival) ? 'Quitar de Lo más nuevo' : 'Agregar a Lo más nuevo'}" onclick="toggleFlag('${p.id}','is_new_arrival')">${ic('tag')}</button>
+    </div>
     <div class="pr-photos"><img class="front" src="${imgUrl(p.image_path)}" alt="${esc(p.name)}">${backOk && p.image_path_back ? `<img class="back" src="${imgUrl(p.image_path_back)}" alt="Parte trasera de ${esc(p.name)}" title="Foto trasera">` : ''}</div>
     <div class="product-info">
       <div class="pi-head"><b>${esc(p.name)}</b>${p.sold_out ? '<span class="pill out">Agotado</span>' : ''}</div>
       <div class="pr-stock">${showSz.map(z => `<span class="${stock(p, z) ? '' : 'zero'}">${z} <b>${stock(p, z)}</b></span>`).join('')}</div>
       <div class="row-actions">
         <button class="chip" onclick="editProduct('${p.id}')">✎ Editar</button>
-        <button class="chip flag ${isFlagOn(p.is_best_seller) ? 'on' : ''}" aria-pressed="${isFlagOn(p.is_best_seller)}" title="${isFlagOn(p.is_best_seller) ? 'Quitar de Best sellers' : 'Agregar a Best sellers'}" onclick="toggleFlag('${p.id}','is_best_seller')">🔥 Best seller</button>
-        <button class="chip flag ${isFlagOn(p.is_new_arrival) ? 'on' : ''}" aria-pressed="${isFlagOn(p.is_new_arrival)}" title="${isFlagOn(p.is_new_arrival) ? 'Quitar de Lo más nuevo' : 'Agregar a Lo más nuevo'}" onclick="toggleFlag('${p.id}','is_new_arrival')">✦ Lo más nuevo</button>
         <details class="pr-menu">
           <summary class="chip" aria-label="Más acciones de ${esc(p.name)}">Más ▾</summary>
           <div class="pr-menu-list">

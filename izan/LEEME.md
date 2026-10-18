@@ -183,3 +183,23 @@ Con `config.js` vacío (sin `SUPABASE_URL` ni `SUPABASE_ANON_KEY`), abre `admin.
 
 ## Solución de errores de permisos
 El correo de administrador debe ser idéntico en `admin.html` y en las políticas SQL (`saenz1098@gmail.com`). Si usas otro correo, cambia ambos lugares y vuelve a ejecutar `supabase.sql`. Nunca pongas una `service_role` key en `config.js`; solo la clave pública anon/publishable.
+
+## Best sellers y Lo más nuevo desde Administrar
+- Nueva sección **Best sellers y Lo más nuevo** (menú Productos e inventario, `admin.html#destacados`): dos columnas con los productos que hoy están en cada sección. Cada uno tiene el botón **Quitar**; el desplegable **+ Agregar productos** lista el resto para sumarlos con un clic, con buscador por nombre y **Quitar todos**.
+- En el **Catálogo**, cada tarjeta tiene dos botones pequeños en la esquina superior derecha: **🔥** (Best seller) y **etiqueta** (Lo más nuevo). Oscuro = activo, claro = inactivo. Un clic los activa o desactiva sin abrir ✎ Editar.
+- No requiere migración nueva (usa las columnas de `migracion_destacados.sql`).
+
+## Orden del inicio: Best sellers → Lo más nuevo → Categorías
+- El index muestra primero el carrusel **Best sellers**, luego el carrusel **Lo más nuevo** (mismo formato, flechas y tarjetas) y después la cinta de texto y las categorías/catálogo.
+- **Lo más nuevo** muestra los productos marcados con ✦ desde Administrar → *Best sellers y Lo más nuevo* (o desde el Catálogo). Si no hay ninguno marcado, la sección se oculta sola.
+- El botón **Lo más nuevo** del menú ahora te lleva a ese carrusel.
+- Los textos de la sección (texto pequeño y título) se editan en Administrar → *Contenido visual*.
+
+## Orden aleatorio en el inicio
+Cada vez que un cliente entra al index, los productos se acomodan en un orden distinto en los tres espacios: carrusel **Best sellers**, carrusel **Lo más nuevo** y el catálogo por categorías. El orden se sortea una vez por visita y se mantiene mientras el cliente navega (filtrar, añadir al carrito o pulsar "Ver más" no vuelve a barajar). El orden de las secciones no cambia. Código: `shuffled()` en `index.html`.
+
+## Carruseles automáticos
+Los carruseles **Best sellers** y **Lo más nuevo** avanzan solos una tarjeta cada 3,5 segundos y vuelven al inicio al llegar al final (los dos van desfasados para no moverse a la vez). Se detienen mientras el cliente tiene el mouse encima, toca o desliza, usa las flechas, tiene una talla o botón enfocado o abrió la foto trasera, y se reanudan unos 8 segundos después. También se pausan si el carrusel no está en pantalla o la pestaña está en segundo plano, y no se mueven si el dispositivo tiene activada la opción "reducir movimiento". Para cambiar la velocidad: `STEP_MS` (y `HOLD_MS` para la pausa tras interactuar) en `index.html`.
+
+## Detalle del producto al tocar
+Al tocar una tarjeta (foto, nombre o descripción) se abre una ventana con el producto en detalle: fotos grandes (frontal y trasera con miniaturas), nombre, categoría, color, gramaje, descripción, precio (con promoción o precio mayorista si hay código), selector de tallas con inventario, botón **Añadir al pedido**, descuentos por cantidad, precio por mayor y la **guía de tallas**, todo en la misma ventana. Los botones de la tarjeta (tallas, Añadir, guía, Precio mayor) siguen funcionando sin abrirla. Se cierra con ✕, tocando fuera o con Escape. Mientras está abierta, los carruseles automáticos se detienen. El giro de la foto trasera por toque en la tarjeta se reemplazó por esta ventana (la foto trasera sigue girando sola al hacer scroll). Código: `openDetail()` en `index.html`; estilos al final de `styles.css`.
