@@ -370,10 +370,15 @@ function showFeatured(which) {
   render();
   document.getElementById('catalogo')?.scrollIntoView({behavior:'smooth', block:'start'});
 }
+/* Orden aleatorio: cada visita sortea una posición por producto. Se conserva mientras la página
+   está abierta (filtrar, añadir al carrito o pulsar "Ver más" no baraja de nuevo las tarjetas). */
+const shuffleRank = new Map();
+const rankOf = p => { const k = String(p.id); if (!shuffleRank.has(k)) shuffleRank.set(k, Math.random()); return shuffleRank.get(k); };
+const shuffled = list => [...list].sort((a, b) => rankOf(a) - rankOf(b));
 function renderBestSellers() {
   const host = $('#bestSellersCarousel');
   if (!host) return;
-  const list = products.filter(p => p.is_best_seller === true || p.is_best_seller === 1 || p.is_best_seller === 'true');
+  const list = shuffled(products.filter(p => p.is_best_seller === true || p.is_best_seller === 1 || p.is_best_seller === 'true'));
   host.innerHTML = list.length
     ? list.map(p => `<div class="featured-card">${card(p)}</div>`).join('')
     : '<div class="empty serif featured-empty">Aún no hay diseños marcados como Best Sellers. Puedes seleccionarlos desde Administrar.</div>';
@@ -381,7 +386,7 @@ function renderBestSellers() {
 function renderNewArrivals() {
   const host = $('#newArrivalsCarousel'), sec = $('#newArrivalsSection');
   if (!host || !sec) return;
-  const list = products.filter(p => p.is_new_arrival === true || p.is_new_arrival === 1 || p.is_new_arrival === '1' || String(p.is_new_arrival).toLowerCase() === 'true');
+  const list = shuffled(products.filter(p => p.is_new_arrival === true || p.is_new_arrival === 1 || p.is_new_arrival === '1' || String(p.is_new_arrival).toLowerCase() === 'true'));
   sec.hidden = !list.length;   /* sin productos marcados, la sección no se muestra */
   host.innerHTML = list.map(p => `<div class="featured-card">${card(p)}</div>`).join('');
 }
@@ -406,7 +411,7 @@ function render() {
   // Aplicar filtros ANTES de construir las tarjetas: las referencias que no coinciden desaparecen.
   const norm = value => String(value ?? '').trim().toLocaleLowerCase('es');
   const inventoryTotal = p => SZ.reduce((total, z) => total + stock(p, z), 0);
-  const filteredProducts = products.filter(p => {
+  const filteredProducts = shuffled(products).filter(p => {
     const flag = value => value === true || value === 1 || value === '1' || String(value).toLowerCase() === 'true';
     if (featuredFilter === 'best' && !flag(p.is_best_seller)) return false;
     if (featuredFilter === 'last' && !(inventoryTotal(p) < 4)) return false;
