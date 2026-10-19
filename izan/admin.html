@@ -191,6 +191,13 @@ let view = (location.hash || '').slice(1), orderFilter = 'pending'; if (view ===
 if (!VIEWS.some(v => v.id === view)) view = 'resumen';
 const navOpen = new Set();
 function navToggle(d) { const g = d.dataset.g; if (d.open) navOpen.add(g); else navOpen.delete(g); }
+function admMenuToggle(force) {
+  const pop = $('#admMenuPop'), btn = $('#admMenuBtn'); if (!pop || !btn) return;
+  const open = typeof force === 'boolean' ? force : pop.hidden;
+  pop.hidden = !open; btn.setAttribute('aria-expanded', open ? 'true' : 'false'); $('#admMenu').classList.toggle('open', open);
+}
+document.addEventListener('click', e => { const m = $('#admMenu'); if (m && !m.contains(e.target)) admMenuToggle(false); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { const b = $('#admMenuBtn'); if (b && b.getAttribute('aria-expanded') === 'true') { admMenuToggle(false); b.focus(); } } });
 function go(v) { view = v; try { history.replaceState(null, '', '#' + v); } catch (e) {} renderPanel(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
 window.addEventListener('hashchange', () => { const h = location.hash.slice(1); if (VIEWS.some(v => v.id === h) && h !== view) { view = h; if (logged) renderPanel(); } });
 const setOrderFilter = k => { orderFilter = k; renderPanel(); };
@@ -213,7 +220,18 @@ function renderPanel() {
   const link = v => `<button class="adm-link ${v.id === cur.id ? 'on' : ''}" onclick="go('${v.id}')" ${v.id === cur.id ? 'aria-current="page"' : ''}><span class="ico">${ic(v.ico)}</span><span class="lbl2">${v.name}</span>${v.id === 'pedidos' && pend ? `<em>${pend}</em>` : ''}</button>`;
   const groups = []; VIEWS.forEach(v => { if (v.group === 'Resumen') return; let g = groups.find(x => x.name === v.group); if (!g) groups.push(g = { name: v.group, items: [] }); g.items.push(v); });
   const nav = VIEWS.filter(v => v.group === 'Resumen').map(link).join('') + groups.map(g => `<details class="adm-grp" data-g="${esc(g.name)}" ${mobile || navOpen.has(g.name) ? 'open' : ''} ontoggle="navToggle(this)"><summary class="adm-group"><span>${g.name}</span>${g.name === 'Pedidos y cotizaciones' && pend ? `<em class="adm-dot">${pend}</em>` : ''}</summary>${g.items.map(link).join('')}</details>`).join('');
+  const popNav = `<div class="adm-col"><p class="adm-pop-g">Inicio</p>${VIEWS.filter(v => v.group === 'Resumen').map(link).join('')}</div>` +
+    groups.map(g => `<div class="adm-col"><p class="adm-pop-g">${g.name}</p>${g.items.map(link).join('')}</div>`).join('');
   $('#panel').innerHTML = `<div class="adm-shell">
+    <div class="adm-menu" id="admMenu">
+      <button type="button" class="adm-menu-btn" id="admMenuBtn" aria-haspopup="true" aria-expanded="false" aria-controls="admMenuPop" onclick="admMenuToggle()">
+        <span class="adm-burger" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span class="adm-menu-cur"><small>Menú · ${cur.group}</small><b>${cur.name}</b></span>
+        ${pend ? `<em class="adm-dot">${pend}</em>` : ''}
+        <span class="adm-caret" aria-hidden="true"></span>
+      </button>
+      <nav class="adm-pop" id="admMenuPop" aria-label="Secciones de administración" hidden>${popNav}</nav>
+    </div>
     <nav class="adm-side" aria-label="Secciones de administración">${nav}</nav>
     <section class="adm-main" aria-live="polite">
       <div class="adm-head"><div><p class="eyebrow">${cur.group}</p><h2>${cur.name}</h2><p class="note">${cur.desc}</p></div></div>

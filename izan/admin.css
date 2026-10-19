@@ -451,3 +451,35 @@ body:has(.adm-shell) header{margin-left:10px;margin-right:10px}
   .adm-grp{display:contents}
   .adm-grp>summary{display:none}
 }
+
+
+/* =====================================================================
+   Menú desplegable de administración — SOLO MÓVILES (≤900px)
+   En escritorio se conserva la barra lateral original.
+   ===================================================================== */
+.adm-menu{display:none}
+@media (max-width:900px){
+  .adm-side{display:none}
+  .adm-menu{display:block;position:relative;z-index:30}
+  .adm-menu-btn{display:flex;align-items:center;gap:12px;width:100%;padding:9px 14px 9px 10px;border-radius:999px;background:var(--ink);color:var(--bg);text-align:left;cursor:pointer;box-shadow:0 14px 28px -18px rgba(52,51,57,.8)}
+  .adm-menu-btn:focus-visible{outline:2px solid var(--acc);outline-offset:3px}
+  .adm-burger{flex:none;display:grid;align-content:center;justify-items:center;gap:4px;width:38px;height:38px;border-radius:50%;background:var(--acc);color:#fff}
+  .adm-burger i{display:block;width:16px;height:2px;border-radius:2px;background:currentColor;transition:transform .2s,opacity .2s}
+  .adm-menu.open .adm-burger i:nth-child(1){transform:translateY(6px) rotate(45deg)}
+  .adm-menu.open .adm-burger i:nth-child(2){opacity:0}
+  .adm-menu.open .adm-burger i:nth-child(3){transform:translateY(-6px) rotate(-45deg)}
+  .adm-menu-cur{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.2}
+  .adm-menu-cur small{font:700 9px Inter,sans-serif;letter-spacing:.08em;text-transform:uppercase;opacity:.7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .adm-menu-cur b{font:600 15px Inter,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .adm-caret{flex:none;width:8px;height:8px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(45deg) translate(-2px,-2px);transition:transform .2s}
+  .adm-menu.open .adm-caret{transform:rotate(-135deg) translate(-2px,-2px)}
+  .adm-menu-btn .adm-dot{display:grid}
+  .adm-pop{position:absolute;top:calc(100% + 8px);left:0;right:0;max-height:calc(100vh - 190px);overflow-y:auto;overscroll-behavior:contain;background:var(--ink);color:var(--bg);border-radius:var(--r-lg);padding:12px;display:flex;flex-direction:column;gap:4px;box-shadow:0 34px 60px -20px rgba(52,51,57,.6);animation:admPop .16s ease-out}
+  .adm-pop[hidden]{display:none}
+  @keyframes admPop{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+  .adm-col{display:flex;flex-direction:column;gap:3px}
+  .adm-pop-g{margin:10px 10px 4px;font:700 9px Inter,sans-serif;letter-spacing:.08em;line-height:1.45;text-transform:uppercase;color:color-mix(in srgb,var(--bg) 70%,transparent)}
+  .adm-pop .adm-link{width:100%;flex:none;padding:8px 12px 8px 8px;white-space:normal}
+  .adm-pop .adm-link:hover{transform:none}
+  .adm-pop .adm-link .lbl2{flex:1;min-width:0}
+}
