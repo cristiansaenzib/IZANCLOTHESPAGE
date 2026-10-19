@@ -341,3 +341,87 @@ body:has(.adm-shell) header{margin-left:10px;margin-right:10px}
 .flag-btn:not(.on) .fire{filter:grayscale(1);opacity:.6}
 .flag-btn.on .fire{filter:none;opacity:1}
 .product-grid .pi-head{padding-right:62px}
+
+/* ---------- Venta física (mostrador) ---------- */
+.pos{display:grid;grid-template-columns:minmax(0,1fr) 390px;gap:18px;align-items:start}
+.pos-catalog{margin:0}
+.pos-tools{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.pos-tools input{flex:1;min-width:0}
+.pos-tools .note{margin:0;white-space:nowrap}
+.pos-catalog .chips-row{margin-bottom:16px}
+.pos-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(176px,1fr));gap:14px}
+.pos-card{cursor:default}
+.pos-card:hover,.pos-card:nth-child(even):hover{transform:none}
+.pos-card.in{border-color:var(--ink);box-shadow:0 0 0 1px var(--ink)}
+.pos-card .b{padding:11px 11px 12px;gap:7px}
+.pos-card h3{font-size:18px;line-height:1.05}
+.pos-card .im{position:relative}
+.pos-badge{position:absolute;top:8px;right:8px;min-width:26px;height:26px;padding:0 8px;border-radius:999px;background:var(--ink);color:var(--bg);font:700 12px Inter,sans-serif;display:grid;place-items:center;z-index:2}
+.pos-sz button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:7px 0;line-height:1;min-width:0;font-size:9px}
+.pos-sz button small{font:600 9px Inter,sans-serif;letter-spacing:0;opacity:.65;text-decoration:none}
+.pos-sz button.on small{opacity:1}
+.pos-card .row{margin-top:2px}
+.pos-lv{font-size:10px;line-height:1.35;color:var(--mute)}
+
+.pos-ticket{position:sticky;top:96px;max-height:calc(100vh - 116px);overflow:auto;margin:0}
+.pos-line{display:grid;grid-template-columns:62px minmax(0,1fr);gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.pos-line img{width:62px;height:78px;object-fit:cover;border-radius:8px;background:var(--chip)}
+.pos-line-h{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.pos-line-h b{font:600 13px Inter,sans-serif;line-height:1.25}
+.pos-line-h .chip{padding:3px 9px;font-size:11px;flex:none}
+.pos-line .note{margin:2px 0 6px;font-size:11px}
+.pos-sizes{display:flex;flex-wrap:wrap;gap:6px}
+.pos-sz-ctl{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);border-radius:999px;padding:2px 4px 2px 9px;background:var(--card)}
+.pos-sz-ctl i{font:700 10px Syncopate,sans-serif;font-style:normal;margin-right:2px}
+.pos-sz-ctl b{min-width:16px;text-align:center;font:700 13px Inter,sans-serif}
+.pos-sz-ctl button{width:26px;height:26px;border-radius:50%;border:1px solid var(--line);background:var(--chip);color:var(--ink);font:700 15px/1 Inter,sans-serif;padding:0;cursor:pointer}
+.pos-sz-ctl button:disabled{opacity:.3;cursor:not-allowed}
+.pos-line-t{display:flex;justify-content:space-between;margin-top:7px;font:500 12px Inter,sans-serif;color:var(--mute)}
+.pos-line-t b{color:var(--ink);font-weight:700}
+.pos-tot{margin-top:14px;display:grid;gap:7px}
+.pos-tot>div{display:flex;justify-content:space-between;font:500 14px Inter,sans-serif}
+.pos-tot>div b{font-weight:700}
+.pos-tot .pos-final{margin-top:4px;padding:14px 16px;border-radius:14px;background:var(--ink);color:var(--bg);align-items:center}
+.pos-tot .pos-final span{font:700 11px Syncopate,sans-serif;letter-spacing:.12em;text-transform:uppercase}
+.pos-tot .pos-final b{font:400 30px Anton,sans-serif;letter-spacing:.5px}
+.pos-hint{padding:8px 10px;border-radius:10px;background:var(--chip)}
+.pos-cust{margin-top:14px;border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.pos-cust summary{cursor:pointer;font:600 13px Inter,sans-serif}
+.pos-cust summary small{font-weight:500;color:var(--mute)}
+.pos-cust input{width:100%;box-sizing:border-box}
+.pos-actions{display:grid;gap:8px;margin-top:14px}
+.pos-actions .btn{width:100%;justify-content:center}
+.pos-actions .btn:disabled{opacity:.4;cursor:not-allowed}
+.pos-done{display:grid;gap:6px;padding:16px;border-radius:14px;background:var(--chip);margin-bottom:6px}
+.pos-done b{font:700 16px Inter,sans-serif}
+.pos-done span{font:500 13px Inter,sans-serif;color:var(--mute)}
+.pos-bar{display:none}
+@media (max-width:1100px){
+  .pos{grid-template-columns:1fr}
+  .pos-ticket{position:static;max-height:none}
+  .pos-bar:not([hidden]){display:flex;position:fixed;left:10px;right:10px;bottom:calc(10px + env(safe-area-inset-bottom,0px));z-index:40;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px 10px 18px;border-radius:999px;background:var(--ink);color:var(--bg);box-shadow:0 14px 40px -10px rgba(0,0,0,.5)}
+  .pos-bar span{display:grid;line-height:1.1}
+  .pos-bar small{font:600 11px Inter,sans-serif;opacity:.75}
+  .pos-bar b{font:400 22px Anton,sans-serif}
+}
+@media (max-width:650px){.pos-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.pos-card h3{font-size:16px}}
+
+/* Venta física: ventana de tallas */
+.pos-card:not(.so){cursor:pointer}
+.pos-sz button{cursor:inherit}
+.pos-modal{position:fixed;inset:0;z-index:200;background:rgba(23,23,23,.55);display:grid;place-items:center;padding:16px}
+.pos-dlg{width:min(380px,100%);max-height:92vh;overflow:auto;background:var(--card);color:var(--ink);border-radius:20px;padding:16px;box-shadow:0 30px 80px -20px rgba(0,0,0,.6)}
+.pos-dlg-h{display:grid;grid-template-columns:54px minmax(0,1fr) auto;gap:12px;align-items:center;margin-bottom:10px}
+.pos-dlg-h img{width:54px;height:68px;object-fit:cover;border-radius:8px;background:var(--chip)}
+.pos-dlg-h b{display:block;font:700 15px Inter,sans-serif;line-height:1.2}
+.pos-dlg-h small{display:block;margin-top:3px;font:500 12px Inter,sans-serif;color:var(--mute)}
+.pos-dlg-rows{display:grid;gap:8px}
+.pos-dlg-row{display:grid;grid-template-columns:44px 1fr 48px 34px 48px;align-items:center;gap:6px;padding:8px 10px;border:1px solid var(--line);border-radius:14px}
+.pos-dlg-row.off{opacity:.45}
+.pos-dlg-row .zl{font:700 15px Syncopate,sans-serif}
+.pos-dlg-row small{font:500 11px Inter,sans-serif;color:var(--mute)}
+.pos-dlg-row b{text-align:center;font:700 22px Inter,sans-serif}
+.pos-dlg-row button{height:48px;border-radius:50%;border:1px solid var(--line);background:var(--chip);color:var(--ink);font:700 24px/1 Inter,sans-serif;padding:0;cursor:pointer}
+.pos-dlg-row button:not(:disabled):active{background:var(--ink);color:var(--bg)}
+.pos-dlg-row button:disabled{opacity:.3;cursor:not-allowed}
+.pos-dlg-ok{width:100%;margin-top:12px;justify-content:center}
