@@ -178,17 +178,19 @@ const VIEWS = [
   { id: 'nuevo', group: 'Productos e inventario', ico: 'plus', name: 'Nuevo producto', desc: 'Crea una referencia nueva con fotos, precios e inventario por talla.' },
   { id: 'categorias', group: 'Productos e inventario', ico: 'tag', name: 'Categorías', desc: 'Organiza el catálogo y define qué descuentos usa cada categoría.' },
   { id: 'gramajes', group: 'Productos e inventario', ico: 'layers', name: 'Gramajes', desc: 'Crea los gramajes de tela (g/m²) y elige cuál lleva cada producto para poder filtrarlos en la tienda.' },
+  { id: 'guias', group: 'Productos e inventario', ico: 'ruler', name: 'Guías de tallas', desc: 'Guarda las medidas exactas por categoría y elige qué guía lleva cada producto.' },
   { id: 'reglas', group: 'Precios y mayoristas', ico: 'percent', name: 'Reglas de precios', desc: 'Descuentos por cantidad y condiciones de distribuidor y mayorista.' },
   { id: 'codigos', group: 'Precios y mayoristas', ico: 'key', name: 'Códigos mayorista', desc: 'Un código por cliente para que vea todo a precio mayorista.' },
   { id: 'campanas', group: 'Diseño de la tienda', ico: 'image', name: 'Campañas', desc: 'Crea campañas de portada con una sola imagen o con tres imágenes simétricas, y elige cuáles se muestran.' },
   { id: 'visual', group: 'Diseño de la tienda', ico: 'image', name: 'Contenido visual', desc: 'Elige el color de fondo de la tienda y edita avisos y textos del inicio.' },
   { id: 'pie', group: 'Diseño de la tienda', ico: 'image', name: 'Pie de página', desc: 'Edita cada texto del pie: marca, tienda, horario, contacto, redes y línea legal, con vista previa.' },
-  { id: 'guias', group: 'Diseño de la tienda', ico: 'ruler', name: 'Guías de tallas', desc: 'Guarda las medidas exactas por categoría y elige qué guía lleva cada producto.' },
   { id: 'ajustes', group: 'Configuración', ico: 'cog', name: 'Configuración', desc: 'Configura los datos de contacto, WhatsApp y otras opciones de la tienda.' },
   { id: 'herramientas', group: 'Reportes y copias de seguridad', ico: 'grid', name: 'Inventario y reportes', desc: 'Ajustes de stock con historial, importación masiva y exportación de datos.' }
 ];
 let view = (location.hash || '').slice(1), orderFilter = 'pending'; if (view === 'portada') view = 'campanas';
 if (!VIEWS.some(v => v.id === view)) view = 'resumen';
+const navOpen = new Set();
+function navToggle(d) { const g = d.dataset.g; if (d.open) navOpen.add(g); else navOpen.delete(g); }
 function go(v) { view = v; try { history.replaceState(null, '', '#' + v); } catch (e) {} renderPanel(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
 window.addEventListener('hashchange', () => { const h = location.hash.slice(1); if (VIEWS.some(v => v.id === h) && h !== view) { view = h; if (logged) renderPanel(); } });
 const setOrderFilter = k => { orderFilter = k; renderPanel(); };
@@ -205,11 +207,12 @@ function renderPanel() {
   const keepY = lastRendered === cur.id ? window.scrollY : null, pnl = $('#panel');
   if (keepY !== null && pnl) pnl.style.minHeight = pnl.offsetHeight + 'px';
   lastRendered = cur.id;
-  let lastGroup = '';
-  const nav = VIEWS.map(v => {
-    const head = v.group !== lastGroup ? `<p class="adm-group">${v.group}</p>` : ''; lastGroup = v.group;
-    return `${head}<button class="adm-link ${v.id === cur.id ? 'on' : ''}" onclick="go('${v.id}')" ${v.id === cur.id ? 'aria-current="page"' : ''}><span class="ico">${ic(v.ico)}</span><span class="lbl2">${v.name}</span>${v.id === 'pedidos' && pend ? `<em>${pend}</em>` : ''}</button>`;
-  }).join('');
+  /* Menú con desplegables: Resumen va suelto; el resto se agrupa. Abiertos: los que el usuario abrió + el de la sección actual. */
+  navOpen.add(cur.group);
+  const mobile = window.matchMedia('(max-width:900px)').matches;
+  const link = v => `<button class="adm-link ${v.id === cur.id ? 'on' : ''}" onclick="go('${v.id}')" ${v.id === cur.id ? 'aria-current="page"' : ''}><span class="ico">${ic(v.ico)}</span><span class="lbl2">${v.name}</span>${v.id === 'pedidos' && pend ? `<em>${pend}</em>` : ''}</button>`;
+  const groups = []; VIEWS.forEach(v => { if (v.group === 'Resumen') return; let g = groups.find(x => x.name === v.group); if (!g) groups.push(g = { name: v.group, items: [] }); g.items.push(v); });
+  const nav = VIEWS.filter(v => v.group === 'Resumen').map(link).join('') + groups.map(g => `<details class="adm-grp" data-g="${esc(g.name)}" ${mobile || navOpen.has(g.name) ? 'open' : ''} ontoggle="navToggle(this)"><summary class="adm-group"><span>${g.name}</span>${g.name === 'Pedidos y cotizaciones' && pend ? `<em class="adm-dot">${pend}</em>` : ''}</summary>${g.items.map(link).join('')}</details>`).join('');
   $('#panel').innerHTML = `<div class="adm-shell">
     <nav class="adm-side" aria-label="Secciones de administración">${nav}</nav>
     <section class="adm-main" aria-live="polite">

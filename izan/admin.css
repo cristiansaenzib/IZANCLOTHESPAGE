@@ -435,3 +435,19 @@ body:has(.adm-shell) header{margin-left:10px;margin-right:10px}
 .pos-badge{top:5px;right:5px;min-width:20px;height:20px;padding:0 6px;font-size:11px}
 .pos-out{position:absolute;left:5px;bottom:5px;padding:3px 7px;border-radius:999px;background:var(--ink);color:var(--bg);font:700 8px Inter,sans-serif;letter-spacing:.06em;text-transform:uppercase;z-index:2}
 @media (max-width:650px){.pos-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}.pos-card h3{font-size:11px}}
+
+/* Menú con desplegables */
+.adm-grp{display:flex;flex-direction:column;gap:3px;margin-top:8px}
+.adm-grp>summary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0;padding:10px 12px;border-radius:12px;cursor:pointer;user-select:none;font:700 10px Inter,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:color-mix(in srgb,var(--bg) 85%,transparent);transition:background .2s}
+.adm-grp>summary::-webkit-details-marker{display:none}
+.adm-grp>summary:hover{background:color-mix(in srgb,var(--bg) 10%,transparent)}
+.adm-grp>summary:after{content:"";flex:none;width:7px;height:7px;margin-left:auto;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(45deg) translate(-2px,-2px);transition:transform .2s}
+.adm-grp[open]>summary:after{transform:rotate(-135deg) translate(-2px,-2px)}
+.adm-grp>summary:focus-visible{outline:2px solid var(--bg);outline-offset:-2px}
+.adm-dot{font:700 10px Inter,sans-serif;font-style:normal;min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:var(--acc);color:#fff;display:grid;place-items:center;letter-spacing:0}
+.adm-grp:not([open])>summary .adm-dot{display:grid}
+.adm-grp[open]>summary .adm-dot{display:none}
+@media (max-width:900px){
+  .adm-grp{display:contents}
+  .adm-grp>summary{display:none}
+}
