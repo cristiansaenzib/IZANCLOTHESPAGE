@@ -172,7 +172,7 @@ const VIEWS = [
   // Menú agrupado por tareas, manteniendo las pantallas y funciones existentes.
   { id: 'resumen', group: 'Resumen', ico: 'home', name: 'Resumen', desc: 'Una mirada rápida a cómo va tu tienda.' },
   { id: 'pedidos', group: 'Pedidos y cotizaciones', ico: 'mail', name: 'Pedidos y cotizaciones', desc: 'Revisa las cotizaciones que llegan desde el carrito y marca como vendidos los pedidos confirmados.' },
-  { id: 'ventafisica', group: 'Pedidos y cotizaciones', ico: 'cart', name: 'Venta física', desc: 'Arma el ticket en el mostrador: toca las tallas, aplica descuentos y mayoristas automáticamente y entrega el valor final al cliente.' },
+  { id: 'ventafisica', group: 'Pedidos y cotizaciones', ico: 'cart', name: 'Venta física', desc: 'Arma el ticket en el mostrador: toca un diseño, suma las tallas, aplica descuentos y mayoristas automáticamente y entrega el valor final al cliente.' },
   { id: 'catalogo', group: 'Productos e inventario', ico: 'grid', name: 'Catálogo', desc: 'Edita precios, fotos, inventario y estado de cada producto cargado.' },
   { id: 'destacados', group: 'Productos e inventario', ico: 'tag', name: 'Best sellers y Lo más nuevo', desc: 'Agrega o quita productos de Best sellers y Lo más nuevo con un solo clic.' },
   { id: 'nuevo', group: 'Productos e inventario', ico: 'plus', name: 'Nuevo producto', desc: 'Crea una referencia nueva con fotos, precios e inventario por talla.' },
@@ -1099,13 +1099,8 @@ function posRenderGrid() {
 function posSetCat(id) { pos.cat = id; posRenderGrid(); }
 function posCard(p) {
   const av = sizes(p), out = p.sold_out || !av.some(z => stock(p, z) > 0), inCart = posQty(p.id);
-  const priceTxt = onPromo(p) ? `<s class="old">${fmt(price(p))}</s> <span class="promo-now">${fmt(eff(p))}</span>` : fmt(price(p));
-  const lv = [+p.price_dist > 0 ? `Dist. ${fmt(p.price_dist)}` : '', +p.price_mayor > 0 ? `Mayor. ${fmt(p.price_mayor)}` : ''].filter(Boolean).join(' · ');
-  return `<article class="card pos-card ${out ? 'so' : ''} ${inCart ? 'in' : ''}" data-id="${esc(p.id)}" ${out ? '' : `onclick="posOpen('${esc(p.id)}')" tabindex="0" onkeydown="if(event.key==='Enter')posOpen('${esc(p.id)}')"`}><div class="im"><img src="${imgUrl(p.image_path)}" alt="${esc(p.name)}" loading="lazy">${inCart ? `<span class="pos-badge">${inCart}</span>` : ''}</div>
-    <div class="b"><div class="product-labels"><span class="category-label">${esc(posCatName(p))}</span>${out ? '<span class="mini-tag soldout">Agotado</span>' : ''}${onPromo(p) && !out ? `<span class="mini-tag promo">Promo −${promoPct(p)}%</span>` : ''}</div>
-    <h3>${esc(p.name)}</h3>${p.color ? `<small class="note">${esc(p.color)}</small>` : ''}
-    <div class="gr sz pos-sz">${av.map(z => { const st = stock(p, z), q = posQty(p.id, z), ok = st > 0 && !p.sold_out; return `<button type="button" class="${q ? 'on' : ''}" ${ok ? '' : 'disabled'} title="${ok ? st + ' disponibles' : 'Agotada'}">${z}<small>${q ? '×' + q : st}</small></button>`; }).join('')}</div>
-    <div class="row"><span class="price">${priceTxt}</span></div>${lv ? `<small class="note pos-lv">${lv}</small>` : ''}</div></article>`;
+  return `<article class="card pos-card ${out ? 'so' : ''} ${inCart ? 'in' : ''}" data-id="${esc(p.id)}" title="${esc(p.name)}" ${out ? '' : `onclick="posOpen('${esc(p.id)}')" tabindex="0" onkeydown="if(event.key==='Enter')posOpen('${esc(p.id)}')"`}><div class="im"><img src="${imgUrl(p.image_path)}" alt="${esc(p.name)}" loading="lazy">${inCart ? `<span class="pos-badge">${inCart}</span>` : ''}${out ? '<span class="pos-out">Agotado</span>' : ''}</div>
+    <div class="b"><h3>${esc(p.name)}</h3></div></article>`;
 }
 function posRefreshCard(id) {
   const p = posProd(id), el = document.querySelector(`.pos-card[data-id="${CSS.escape(String(id))}"]`);
