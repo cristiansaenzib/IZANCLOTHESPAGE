@@ -202,12 +202,14 @@ function go(v) { view = v; try { history.replaceState(null, '', '#' + v); } catc
 window.addEventListener('hashchange', () => { const h = location.hash.slice(1); if (VIEWS.some(v => v.id === h) && h !== view) { view = h; if (logged) renderPanel(); } });
 const setOrderFilter = k => { orderFilter = k; renderPanel(); };
 const isSold = o => o.status === 'sold';
+const isReserved = o => o.status === 'reserved';
+const isCancelled = o => o.status === 'cancelled';
 const shortId = o => o.label || String(o.id).slice(0, 8).toUpperCase();
 
 /* ================= SHELL ================= */
 let catState = { q: '', c: 'all' }, lastRendered = null;
 function renderPanel() {
-  const cur = VIEWS.find(v => v.id === view) || VIEWS[0], pend = orders.filter(o => !isSold(o)).length;
+  const cur = VIEWS.find(v => v.id === view) || VIEWS[0], pend = orders.filter(o => o.status === 'pending' || !o.status).length;
   const body = { resumen: vResumen, pedidos: vPedidos, ventafisica: vVentaFisica, campanas: vCampanas, visual: vVisual, pie: vPie, categorias: vCategorias, guias: vGuias, gramajes: vGramajes, nuevo: vNuevo, destacados: vDestacados, catalogo: vCatalogo, reglas: vReglas, codigos: vCodigos, ajustes: vAjustes, herramientas: vHerramientas }[cur.id]();
   document.title = cur.name + ' · Administrar · IZAN Clothes';
   /* Si se vuelve a dibujar la MISMA sección (tras guardar un cambio), se conserva la posición de la página. */
@@ -247,10 +249,10 @@ function renderPanel() {
 
 /* ================= VISTAS ================= */
 function vResumen() {
-  const pend = orders.filter(o => !isSold(o)), agotados = products.filter(p => p.sold_out || !SZ.some(z => stock(p, z))), lowStock = products.filter(p => !p.sold_out && SZ.some(z => stock(p,z)>0 && stock(p,z)<=3));
+  const pend = orders.filter(o => o.status === 'pending' || !o.status), agotados = products.filter(p => p.sold_out || !SZ.some(z => stock(p, z))), lowStock = products.filter(p => !p.sold_out && SZ.some(z => stock(p,z)>0 && stock(p,z)<=3));
   const camp = (settings.hero_banners || []).filter(b => b.active !== false).length, cods = codes.filter(k => k.active).length;
   const stat = (v, n, label, cls) => `<button class="stat ${cls}" onclick="go('${v}')"><b>${n}</b><span>${label}</span><i aria-hidden="true">↗</i></button>`;
-  const mini = o => `<button class="mini" onclick="go('pedidos')"><span><b>#${esc(shortId(o))}</b><small>${new Date(o.created_at).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' })}</small></span><span class="mini-t">${fmt(o.total)}</span><span class="pill ${isSold(o) ? 'ok' : 'wait'}">${isSold(o) ? 'Vendido' : 'Pendiente'}</span></button>`;
+  const mini = o => `<button class="mini" onclick="go('pedidos')"><span><b>#${esc(shortId(o))}</b><small>${new Date(o.created_at).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' })}</small></span><span class="mini-t">${fmt(o.total)}</span><span class="pill ${isSold(o) ? 'ok' : 'wait'}">${isSold(o) ? 'Vendido' : isReserved(o) ? 'Apartado' : isCancelled(o) ? 'Cancelado' : 'Pendiente'}</span></button>`;
   const quick = (v, ico, t) => `<button class="quick" onclick="go('${v}')"><span class="ico">${ic(ico)}</span>${t}</button>`;
   return `<div class="stats">
       ${stat('pedidos', pend.length, 'Cotizaciones pendientes', 's-orange')}
@@ -274,7 +276,7 @@ function vResumen() {
 function stockQuoteConflicts() {
   // Una alerta aparece cuando el stock real es exactamente 1 y dos o más
   // cotizaciones pendientes solicitan la misma referencia y talla.
-  const pending = orders.filter(o => !isSold(o));
+  const pending = orders.filter(o => o.status === 'pending' || isReserved(o));
   const buckets = new Map();
   for (const o of pending) {
     for (const item of (Array.isArray(o.items) ? o.items : [])) {
@@ -302,13 +304,14 @@ function stockConflictPanel() {
 }
 
 function vPedidos() {
-  const cnt = k => orders.filter(o => k === 'all' || (k === 'sold') === isSold(o)).length;
-  const list = orders.filter(o => orderFilter === 'all' || (orderFilter === 'sold') === isSold(o));
+  const states = { pending: o => o.status === 'pending' || !o.status, reserved: isReserved, sold: isSold };
+  const cnt = k => k === 'all' ? orders.length : (states[k] ? orders.filter(states[k]).length : 0);
+  const list = orders.filter(o => orderFilter === 'all' || (states[orderFilter] && states[orderFilter](o)) || (orderFilter === 'pending' && (!o.status || o.status === 'pending')));
   const f = (k, t) => `<button class="chip ${orderFilter === k ? 'on' : ''}" onclick="setOrderFilter('${k}')">${t} <small>${cnt(k)}</small></button>`;
   return `${stockConflictPanel()}<section class="panel">
-    <div class="panel-h"><div class="chips-row">${f('pending', 'Pendientes')}${f('sold', 'Vendidas')}${f('all', 'Todas')}</div><button class="chip" onclick="loadAll()">↻ Actualizar</button></div>
-    <p class="note">Marca como vendido únicamente cuando confirmes la venta; el inventario se descontará una sola vez. Eliminar una cotización no modifica el inventario. Las alertas de última unidad comparan el inventario actual con todas las cotizaciones pendientes.</p>
-    ${ordersErr ? '<p class="note">No se pudo cargar Pedidos. Ejecuta el archivo <b>migracion_pedidos.sql</b> en Supabase y vuelve a cargar.</p>' : list.length ? `<div class="orders">${list.map(orderCard).join('')}</div>` : `<div class="empty-box">${orderFilter === 'pending' ? 'No tienes cotizaciones pendientes.' : 'No hay cotizaciones en esta lista.'}</div>`}
+    <div class="panel-h"><div class="chips-row">${f('pending', 'Pendiente')}${f('reserved', 'Apartado')}${f('sold', 'Vendido')}${f('all', 'Todos')}</div><button class="chip" onclick="loadAll()">↻ Actualizar</button></div>
+    <p class="note">Pendiente: cotizaciones nuevas sin reserva. Apartado: unidades bloqueadas para otros clientes. Vendido: salida definitiva del inventario. En Apartados puedes cancelar la cotización para liberar las unidades.</p>
+    ${ordersErr ? '<p class="note">No se pudo cargar Pedidos. Ejecuta el archivo <b>migracion_estados_pedidos.sql</b> en Supabase y vuelve a cargar.</p>' : list.length ? `<div class="orders">${list.map(orderCard).join('')}</div>` : `<div class="empty-box">No hay cotizaciones en esta lista.</div>`}
   </section>`;
 }
 
@@ -809,20 +812,29 @@ function exportOrdersCsv() {
 }
 
 function orderCard(o) {
-  const items = Array.isArray(o.items) ? o.items : [], sold = isSold(o);
+  const items = Array.isArray(o.items) ? o.items : [], sold = isSold(o), reserved = isReserved(o), cancelled = isCancelled(o);
   const units = o.units || items.reduce((a, i) => a + (+i.quantity || 0), 0);
   const customer = o.customer_name || 'Cliente sin nombre';
   const phone = o.customer_phone ? `<a href="https://wa.me/${String(o.customer_phone).replace(/\D/g, '')}" target="_blank" rel="noopener">${esc(o.customer_phone)}</a>` : 'Sin celular';
   const detailsId = `order-details-${String(o.id).replace(/[^a-zA-Z0-9_-]/g, '')}`;
+  const statusText = sold ? 'Vendido' : reserved ? 'Apartado' : cancelled ? 'Cancelado' : 'Pendiente';
+  const statusClass = sold ? 'ok' : reserved ? 'wait' : cancelled ? '' : 'wait';
+  let actions = `<button class="chip" onclick="downloadOrderPdf('${o.id}')">↓ Descargar PDF</button>`;
+  if (!sold && !cancelled) actions += `<button class="chip" onclick="editOrder('${o.id}')">✎ Editar cotización</button>`;
+  if (!sold && !cancelled && !reserved) actions += `<button class="chip" onclick="reserveOrder('${o.id}')">▣ Apartar</button>`;
+  if (!sold && !cancelled) actions += `<button class="chip ok" onclick="markOrderSold('${o.id}')">✓ Marcar vendido</button>`;
+  if (reserved) actions += `<button class="chip danger" onclick="cancelReservation('${o.id}')">Cancelar cotización</button>`;
+  if (sold) actions += '<span class="chip on">Inventario descontado</span>';
+  if (cancelled) actions += '<span class="chip">Reserva liberada</span>';
+  if (!reserved && !sold && !cancelled) actions += `<button class="chip danger" onclick="deleteOrder('${o.id}')">Eliminar cotización</button>`;
   return `<article class="order-card ${sold ? 'is-sold' : ''}" style="padding:12px 14px;margin-bottom:10px">
-    <div class="order-top" style="margin-bottom:8px"><div><b>Pedido #${esc(shortId(o))}</b><small>${esc(customer)} · ${phone}</small><small>${new Date(o.created_at).toLocaleString('es-CO')}</small></div><span class="pill ${sold ? 'ok' : 'wait'}">${sold ? 'Vendido' : 'Pendiente'}</span></div>
+    <div class="order-top" style="margin-bottom:8px"><div><b>Pedido #${esc(shortId(o))}</b><small>${esc(customer)} · ${phone}</small><small>${new Date(o.created_at).toLocaleString('es-CO')}</small></div><span class="pill ${statusClass}">${statusText}</span></div>
     <div class="order-total" style="margin:6px 0 8px;padding-top:8px"><span>${fmt(o.total)}</span><b>${esc(units)} unidades</b></div>
     <details id="${detailsId}" style="margin:6px 0 10px"><summary style="cursor:pointer;font-weight:600;font-size:13px;padding:5px 0">Ver datos del cliente y detalle de prendas</summary>
       <div class="note" style="margin:8px 0;padding:9px 11px;background:#f5f4f2;line-height:1.7"><b>DATOS DEL CLIENTE</b><br><b>Nombre:</b> ${esc(o.customer_name || '—')}<br><b>Cédula:</b> ${esc(o.customer_id_number || '—')}<br><b>Celular:</b> ${phone}<br><b>Dirección:</b> ${esc(o.customer_address || '—')}<br><b>Ciudad:</b> ${esc(o.customer_city || '—')}<br><b>Correo:</b> ${esc(o.customer_email || '—')}</div>
       <ul class="order-items">${items.map(i => `<li><span>${esc(i.quantity)} × ${esc(i.product_name)} <em>talla ${esc(i.size)}</em></span><span>${fmt(i.unit_price)} c/u</span></li>`).join('') || '<li>Sin detalle de prendas</li>'}</ul>
       ${o.wholesale_code ? `<p class="note">Código mayorista: <b>${esc(o.wholesale_code)}</b></p>` : ''}
-    </details>
-    <div class="row-actions"><button class="chip" onclick="downloadOrderPdf('${o.id}')">↓ Descargar PDF</button>${sold ? '<span class="chip on">Inventario descontado</span>' : `<button class="chip" onclick="editOrder('${o.id}')">✎ Editar cotización</button><button class="chip ok" onclick="markOrderSold('${o.id}')">✓ Pedido vendido</button>`}<button class="chip danger" onclick="deleteOrder('${o.id}')">Eliminar pedido</button></div>
+    </details><div class="row-actions">${actions}</div>
   </article>`;
 }
 
@@ -891,7 +903,7 @@ function removeEditOrderAddedItem(index) { editingOrderAddedItems.splice(index,1
 async function editOrder(id) {
   const o = orders.find(x => String(x.id) === String(id));
   if (!o) return alert('No se encontró la cotización.');
-  if (isSold(o)) return alert('Esta cotización ya fue marcada como vendida. Para proteger el inventario, solo se pueden editar cotizaciones pendientes.');
+  if (isSold(o) || isCancelled(o)) return alert('Esta cotización ya está cerrada y no se puede editar.');
   const items = (Array.isArray(o.items) ? o.items : []).map(i => ({...i}));
   editingOrderAddedItems = [];
   const field = (id, label, value, type='text') => `<label>${label}</label><input id="${id}" type="${type}" value="${esc(value ?? '')}" style="width:100%;box-sizing:border-box;margin:4px 0 9px">`;
@@ -922,7 +934,7 @@ async function editOrder(id) {
     const total = Math.round(newSubtotal * discountFactor);
     const updates = { items: nextItems, total, units: nextItems.reduce((sum,i)=>sum+(Number(i.quantity)||0),0), customer_name: $('#edit_customer_name').value.trim(), customer_phone: $('#edit_customer_phone').value.trim(), customer_id_number: $('#edit_customer_id').value.trim(), customer_address: $('#edit_customer_address').value.trim(), customer_city: $('#edit_customer_city').value.trim(), customer_email: $('#edit_customer_email').value.trim() };
     if (!await ask('¿Guardar los cambios de esta cotización? El inventario no se modificará.')) return false;
-    const {error} = await sb.from('orders').update(updates).eq('id',id).eq('status','pending');
+    const {error} = await sb.from('orders').update(updates).eq('id',id).in('status',['pending','reserved']);
     if (error) { alert('No se pudo guardar la cotización: '+error.message); return false; }
     await loadAll();
   });
@@ -1007,8 +1019,44 @@ async function buildOrderPdf(o) {
   const foot=doc.splitTextToSize((o.label||o.customer_name===STORE_SALE_NAME)?'Cotización sujeta a disponibilidad de inventario.':'Cotización sujeta a confirmación de inventario y cierre de venta por WhatsApp.',contentW); ensure(foot.length*4+4); doc.text(foot,margin,y+2);
   doc.save(`Cotizacion-IZAN-${shortId(o)}.pdf`);
 }
+async function orderNeeds(o) {
+  const totals = {};
+  for (const i of (Array.isArray(o.items) ? o.items : [])) {
+    const z = String(i.size || '').toLowerCase();
+    if (!i.product_id || !['s','m','l','xl','xxl'].includes(z)) continue;
+    const key = `${i.product_id}|${z}`; totals[key] = (totals[key] || 0) + (Number(i.quantity) || 0);
+  }
+  return totals;
+}
+async function reserveOrder(id) {
+  const o = orders.find(x => String(x.id) === String(id));
+  if (!o || o.status !== 'pending') return;
+  const needs = await orderNeeds(o), otherReserved = {};
+  for (const other of orders.filter(x => isReserved(x) && String(x.id) !== String(id))) {
+    for (const [key,q] of Object.entries(await orderNeeds(other))) otherReserved[key] = (otherReserved[key] || 0) + q;
+  }
+  for (const [key,q] of Object.entries(needs)) {
+    const [pid,z] = key.split('|'), p = products.find(x => String(x.id) === String(pid));
+    if (!p) return alert('No se encontró un producto del pedido. No se realizó el apartado.');
+    const available = stock(p,z.toUpperCase()) - (otherReserved[key] || 0);
+    if (available < q) return alert(`No hay suficientes unidades libres de ${p.name}, talla ${z.toUpperCase()}. Disponibles para apartar: ${Math.max(0,available)}; solicitadas: ${q}.`);
+  }
+  if (!await ask('¿Apartar esta cotización? Las unidades quedarán bloqueadas para otros clientes hasta que la marques como vendida o canceles la cotización.')) return;
+  const {error} = await sb.from('orders').update({status:'reserved'}).eq('id',o.id).eq('status','pending');
+  if (error) return alert('No se pudo apartar la cotización: '+error.message);
+  await loadAll();
+}
+async function cancelReservation(id) {
+  const o = orders.find(x => String(x.id) === String(id));
+  if (!o || !isReserved(o)) return;
+  if (!await confirmAs('¿Cancelar esta cotización apartada? Las unidades se liberarán y volverán a estar disponibles para otros clientes. El inventario físico no se modificará.', 'Sí, cancelar cotización')) return;
+  const {error} = await sb.from('orders').update({status:'cancelled', cancelled_at:new Date().toISOString()}).eq('id',o.id).eq('status','reserved');
+  if (error) return alert('No se pudo cancelar el apartado: '+error.message);
+  await loadAll();
+}
+
 async function markOrderSold(id) {
-  const o = orders.find(x => x.id == id); if (!o || o.status === 'sold') return;
+  const o = orders.find(x => x.id == id); if (!o || isSold(o) || isCancelled(o)) return;
   if (!await confirmAs('¿Confirmas la venta? Se descontarán del inventario las cantidades de esta cotización.', 'Sí, confirmar venta')) return;
   await sellOrder(o);
 }
@@ -1017,11 +1065,18 @@ async function sellOrder(o) {
   const items = Array.isArray(o.items) ? o.items : [];
   const totals = {};
   items.forEach(i => { const z = String(i.size || '').toLowerCase(); if (!i.product_id || !['s','m','l','xl','xxl'].includes(z)) return; const k = i.product_id; totals[k] = totals[k] || {}; totals[k][z] = (totals[k][z] || 0) + (+i.quantity || 0); });
-  // Validar todo el stock antes de cambiarlo.
+  // Validar el stock físico descontando las reservas de otros pedidos para no vender unidades comprometidas.
+  const reservedByOthers = {};
+  for (const other of orders.filter(x => isReserved(x) && String(x.id) !== String(o.id))) {
+    for (const [key,q] of Object.entries(await orderNeeds(other))) reservedByOthers[key] = (reservedByOthers[key] || 0) + q;
+  }
   for (const [pid, qtys] of Object.entries(totals)) {
     const product = products.find(x => x.id == pid);
     if (!product) { alert('No se encontró uno de los productos de la cotización. No se modificó el inventario.'); return false; }
-    for (const [z, q] of Object.entries(qtys)) if (stock(product, z.toUpperCase()) < q) { alert(`Inventario insuficiente para ${product.name}, talla ${z.toUpperCase()}. Disponible: ${stock(product,z.toUpperCase())}, solicitado: ${q}. No se descontó nada.`); return false; }
+    for (const [z, q] of Object.entries(qtys)) {
+      const key = `${pid}|${z}`, physical = stock(product, z.toUpperCase()), available = physical - (reservedByOthers[key] || 0);
+      if (available < q) { alert(`Inventario insuficiente para ${product.name}, talla ${z.toUpperCase()}. Disponible sin afectar apartados: ${Math.max(0,available)}, solicitado: ${q}. No se descontó nada.`); return false; }
+    }
   }
   for (const [pid, qtys] of Object.entries(totals)) {
     const product = products.find(x => x.id == pid), update = {};
@@ -1029,7 +1084,7 @@ async function sellOrder(o) {
     const { error } = await sb.from('products').update(update).eq('id', pid);
     if (error) { alert('Error al actualizar el inventario: ' + error.message + '. Verifica las existencias antes de volver a intentarlo.'); await loadAll(); return false; }
   }
-  const { error } = await sb.from('orders').update({ status: 'sold', sold_at: new Date().toISOString() }).eq('id', o.id).eq('status', 'pending');
+  const { error } = await sb.from('orders').update({ status: 'sold', sold_at: new Date().toISOString() }).eq('id', o.id).in('status', ['pending','reserved']);
   if (error) { alert('Se actualizó el inventario, pero no se pudo marcar el pedido como vendido. Contacta al administrador antes de reintentar para evitar un descuento duplicado.'); await loadAll(); return false; }
   await loadAll();
   return true;

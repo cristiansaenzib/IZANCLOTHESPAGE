@@ -154,6 +154,18 @@ async function load() {
   ]);
   if (c.error || p.error) { $('#grid').innerHTML = '<div class="empty serif">No pudimos cargar el catálogo. Intenta de nuevo en un momento.</div>'; return; }
   cats = c.data || []; products = p.data || [];
+  // El catálogo público muestra existencias disponibles: inventario físico menos unidades apartadas.
+  // El inventario real permanece intacto hasta que el administrador confirme la venta.
+  try {
+    const reservedResult = await sb.rpc('get_reserved_stock');
+    if (!reservedResult.error && Array.isArray(reservedResult.data)) {
+      for (const r of reservedResult.data) {
+        const product = products.find(x => String(x.id) === String(r.product_id));
+        const size = String(r.size || '').toLowerCase();
+        if (product && ['s','m','l','xl','xxl'].includes(size)) product['stock_' + size] = Math.max(0, (Number(product['stock_' + size]) || 0) - (Number(r.quantity) || 0));
+      }
+    }
+  } catch (e) { console.warn('No se pudieron cargar las reservas; ejecuta migracion_estados_pedidos.sql en Supabase.', e); }
   try { const g = await sb.from('size_guides').select('*'); guides = g.error ? [] : (g.data || []); } catch (e) { guides = []; }
   try { const fw = await sb.from('fabric_weights').select('*'); weights = fw.error ? [] : (fw.data || []); } catch (e) { weights = []; }
   const w = (s.data || []).find(r => r.key === 'whatsapp'); if (w && w.value) waDest = w.value;
