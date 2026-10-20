@@ -1104,6 +1104,10 @@ async function deleteOrder(id) {
 const STORE_SALE_NAME = 'Venta en tienda';
 let pos = { open: null, lines: [], code: '', q: '', cat: 'all', done: null, busy: false, cust: { name: '', idn: '', phone: '', address: '', city: '', email: '' } };
 const posNorm = s => String(s ?? '').toLocaleLowerCase('es').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+/* Unidades apartadas (estado "reserved") por producto y talla: no se pueden vender en el mostrador. */
+const posReserved = (id, z) => orders.filter(isReserved).reduce((a, o) => a + (Array.isArray(o.items) ? o.items : []).reduce((b, i) => b + (String(i.product_id) === String(id) && String(i.size || '').toLowerCase() === String(z).toLowerCase() ? (Number(i.quantity) || 0) : 0), 0), 0);
+/* Existencia libre para vender = inventario físico − apartados (igual que el catálogo público). */
+const posStock = (p, z) => Math.max(0, stock(p, z) - posReserved(p.id, z));
 const posProd = id => products.find(x => x.id == id);
 const posCat = p => cats.find(c => c.id == p.category_id);
 const posCatName = p => (posCat(p) || {}).name || 'Sin categoría';
@@ -1174,7 +1178,7 @@ function posRenderGrid() {
 }
 function posSetCat(id) { pos.cat = id; posRenderGrid(); }
 function posCard(p) {
-  const av = sizes(p), out = p.sold_out || !av.some(z => stock(p, z) > 0), inCart = posQty(p.id);
+  const av = sizes(p), out = p.sold_out || !av.some(z => posStock(p, z) > 0), inCart = posQty(p.id);
   return `<article class="card pos-card ${out ? 'so' : ''} ${inCart ? 'in' : ''}" data-id="${esc(p.id)}" title="${esc(p.name)}" ${out ? '' : `onclick="posOpen('${esc(p.id)}')" tabindex="0" onkeydown="if(event.key==='Enter')posOpen('${esc(p.id)}')"`}><div class="im"><img src="${imgUrl(p.image_path)}" alt="${esc(p.name)}" loading="lazy">${inCart ? `<span class="pos-badge">${inCart}</span>` : ''}${out ? '<span class="pos-out">Agotado</span>' : ''}</div>
     <div class="b"><h3>${esc(p.name)}</h3></div></article>`;
 }
@@ -1196,7 +1200,7 @@ function posRenderModal() {
   const id = esc(p.id), line = posCalc().lines.find(x => x.p.id == p.id);
   m.innerHTML = `<div class="pos-dlg" role="dialog" aria-modal="true" aria-label="${esc(p.name)}">
     <div class="pos-dlg-h"><img src="${imgUrl(p.image_path)}" alt=""><div><b>${esc(p.name)}</b><small>${esc(posCatName(p))}${line ? ` · ${fmt(line.unit)} c/u${line.tier ? ' · ' + esc(tierLabel(line.tier)) : ''}` : ` · ${fmt(eff(p))}`}</small></div><button type="button" class="chip" aria-label="Cerrar" onclick="posClose()">✕</button></div>
-    <div class="pos-dlg-rows">${sizes(p).map(z => { const st = stock(p, z), q = posQty(p.id, z); return `<div class="pos-dlg-row ${st || q ? '' : 'off'}"><span class="zl">${z}</span><small>${st ? st + ' disp.' : 'Agotada'}</small><button type="button" aria-label="Restar talla ${z}" ${q ? '' : 'disabled'} onclick="posAdd('${id}','${z}',-1)">−</button><b>${q}</b><button type="button" aria-label="Sumar talla ${z}" ${q < st && !p.sold_out ? '' : 'disabled'} onclick="posAdd('${id}','${z}',1)">+</button></div>`; }).join('')}</div>
+    <div class="pos-dlg-rows">${sizes(p).map(z => { const st = posStock(p, z), q = posQty(p.id, z); return `<div class="pos-dlg-row ${st || q ? '' : 'off'}"><span class="zl">${z}</span><small>${st ? st + ' disp.' : (posReserved(p.id, z) ? 'Apartada' : 'Agotada')}${st && posReserved(p.id, z) ? ' · ' + posReserved(p.id, z) + ' apart.' : ''}</small><button type="button" aria-label="Restar talla ${z}" ${q ? '' : 'disabled'} onclick="posAdd('${id}','${z}',-1)">−</button><b>${q}</b><button type="button" aria-label="Sumar talla ${z}" ${q < st && !p.sold_out ? '' : 'disabled'} onclick="posAdd('${id}','${z}',1)">+</button></div>`; }).join('')}</div>
     <button type="button" class="btn acc pos-dlg-ok" onclick="posClose()">Listo${posQty(p.id) ? ` · ${posQty(p.id)} ${posQty(p.id) == 1 ? 'unidad' : 'unidades'}` : ''}</button></div>`;
 }
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && pos.open) posClose(); });
@@ -1206,7 +1210,7 @@ function posAdd(id, z, d = 1) {
   const i = pos.lines.findIndex(l => l.id == id && l.s == z);
   if (d > 0) {
     const cur = i >= 0 ? pos.lines[i].q : 0;
-    if (p.sold_out || cur >= stock(p, z)) { alert(`Solo hay ${stock(p, z)} unidades disponibles en talla ${z}.`); return; }
+    if (p.sold_out || cur >= posStock(p, z)) { alert(`Solo hay ${posStock(p, z)} unidades disponibles en talla ${z}.`); return; }
     i >= 0 ? pos.lines[i].q++ : pos.lines.push({ id: p.id, s: z, q: 1 });
   } else if (i >= 0) { pos.lines[i].q--; if (pos.lines[i].q < 1) pos.lines.splice(i, 1); }
   pos.done = null; posRefreshCard(id); posRenderTicket(); posRenderModal();
@@ -1231,7 +1235,7 @@ function posRenderTicket() {
   const groups = new Map();
   lines.forEach(x => { if (!groups.has(x.p.id)) groups.set(x.p.id, { p: x.p, unit: x.unit, tier: x.tier, code: x.code, q: 0, rows: [] }); const G = groups.get(x.p.id); G.q += x.l.q; G.rows.push(x); });
   L.innerHTML = has ? [...groups.values()].map(G => {
-    const id = esc(G.p.id), ctl = G.rows.map(x => `<span class="pos-sz-ctl"><i>${x.l.s}</i><button type="button" aria-label="Restar talla ${x.l.s}" onclick="posAdd('${id}','${x.l.s}',-1)">−</button><b>${x.l.q}</b><button type="button" aria-label="Sumar talla ${x.l.s}" ${x.l.q >= stock(G.p, x.l.s) ? 'disabled' : ''} onclick="posAdd('${id}','${x.l.s}',1)">+</button></span>`).join('');
+    const id = esc(G.p.id), ctl = G.rows.map(x => `<span class="pos-sz-ctl"><i>${x.l.s}</i><button type="button" aria-label="Restar talla ${x.l.s}" onclick="posAdd('${id}','${x.l.s}',-1)">−</button><b>${x.l.q}</b><button type="button" aria-label="Sumar talla ${x.l.s}" ${x.l.q >= posStock(G.p, x.l.s) ? 'disabled' : ''} onclick="posAdd('${id}','${x.l.s}',1)">+</button></span>`).join('');
     return `<div class="pos-line"><img src="${imgUrl(G.p.image_path)}" alt=""><div class="pos-line-b"><div class="pos-line-h"><b>${esc(G.p.name)}</b><button type="button" class="chip" aria-label="Quitar este diseño" onclick="posRemove('${id}')">✕</button></div>
       <span class="note">${fmt(G.unit)} c/u${G.tier ? ` · ${esc(tierLabel(G.tier))}${G.code ? ' (código)' : ''}` : ''}</span><div class="pos-sizes">${ctl}</div><div class="pos-line-t"><span>${G.q} und.</span><b>${fmt(G.unit * G.q)}</b></div></div></div>`;
   }).join('') : '<p class="note">Toca una talla en las tarjetas para agregar prendas al ticket.</p>';
@@ -1279,7 +1283,7 @@ async function posSave(sold) {
   if (pos.busy) return; const c = posValidate(); if (!c) return;
   if (sold) {
     const need = {}; c.lines.forEach(x => { const k = x.p.id + '|' + x.l.s; need[k] = (need[k] || 0) + x.l.q; });
-    for (const [k, q] of Object.entries(need)) { const [pid, z] = k.split('|'), p = posProd(pid); if (stock(p, z) < q) { alert(`Inventario insuficiente para ${p.name}, talla ${z}. Disponible: ${stock(p, z)}, en el ticket: ${q}.`); return; } }
+    for (const [k, q] of Object.entries(need)) { const [pid, z] = k.split('|'), p = posProd(pid); if (posStock(p, z) < q) { alert(`Inventario insuficiente para ${p.name}, talla ${z}. Disponible: ${posStock(p, z)}, en el ticket: ${q}.`); return; } }
     if (!await confirmAs(`<b>Total a cobrar: ${fmt(c.tot)}</b><br>${c.n} ${c.n == 1 ? 'unidad' : 'unidades'}. Se registrará la venta y se descontará el inventario.`, 'Sí, registrar venta')) return;
   }
   pos.busy = true; posRenderTicket();
