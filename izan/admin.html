@@ -325,7 +325,7 @@ function vPedidos() {
 function vCampanas() {
   const legacy = parseHeroAdmin(settings.home_tiles), hasLegacy = legacy.length === 3 && legacy.some(t => t && t.image);
   return `<section class="panel" id="heroAdmin">
-    <div class="panel-h"><div><h3>Campañas de la portada</h3><p class="note">Cada campaña puede ser de <b>una imagen</b> o de <b>tres imágenes</b> (simétricas, del mismo tamaño). Todas ocupan el mismo espacio en la tienda y las activas se alternan automáticamente. Una imagen: fotos horizontales de unos 1800 × 900 px. Tres imágenes: fotos verticales 4:5 (unos 1000 × 1250 px) con el producto centrado.</p></div><button class="btn acc" onclick="addHeroBanner()">+ Nueva campaña</button></div>
+    <div class="panel-h"><div><h3>Campañas de la portada</h3><p class="note">Añade tantas imágenes principales como quieras: pulsa <b>+ Nueva campaña</b> para cada imagen. Todas las campañas activas se alternan automáticamente cada <b>2 segundos</b> en computador, iPhone y Android. Elige <b>Computador y celular</b> para mostrar la campaña en todos los dispositivos; también puedes cargar una imagen específica para celular. Si lo prefieres, cada campaña puede usar tres imágenes simétricas. Para computador recomendamos imágenes horizontales de unos 1800 × 900 px y para móvil imágenes verticales de unos 900 × 1200 px.</p></div><button class="btn acc" onclick="addHeroBanner()">+ Nueva campaña</button></div>
     ${hasLegacy ? `<div class="empty-box" style="margin-bottom:14px">Tienes una portada de tres imágenes de la versión anterior. <button class="chip" onclick="importLegacyTiles()">Convertirla en campaña</button></div>` : ''}
     <div id="heroAdminList" class="hero-list"></div><p class="note" id="heromsg"></p>
   </section>`;
@@ -1414,7 +1414,7 @@ function heroForm(b={}) {
     </div>
     <label for="hbdevice">¿En qué dispositivos se muestra esta campaña?</label>
     <select id="hbdevice" onchange="campDeviceToggle()"><option value="all" ${dev==='all'?'selected':''}>Computador y celular</option><option value="desktop" ${dev==='desktop'?'selected':''}>Solo computador</option><option value="mobile" ${dev==='mobile'?'selected':''} ${triple?'disabled':''}>Solo celular (una imagen)</option></select>
-    <small class="note">Las campañas de tres imágenes solo se muestran en computador. Para celular crea una campaña de una imagen y elige "Solo celular".</small>
+    <small class="note">Para que una imagen aparezca en computador, iPhone y Android, elige “Computador y celular”. Puedes crear una campaña por cada imagen principal; todas las campañas activas se alternan cada 2 segundos. En móvil se adapta el encuadre y, si cargas una imagen específica para celular, se utilizará en esos dispositivos.</small>
     <div id="campSingle" style="${triple?'display:none':''}">
       <label>Texto pequeño superior</label><input id="hbeyebrow" value="${esc(b.eyebrow||'IZAN CLOTHES · NUEVA COLECCIÓN')}">
       <label>Título principal</label><textarea id="hbtitle" rows="2" placeholder="Ej. Nueva temporada.\nNuevo nivel.">${esc(triple?'':(b.title||''))}</textarea>

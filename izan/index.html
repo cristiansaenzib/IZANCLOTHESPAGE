@@ -218,7 +218,7 @@ async function load() {
   setTimeout(() => { loadJsPDF().catch(() => {}); }, 4000);
 }
 
-/* ===== Campañas: una sola imagen o tres imágenes simétricas (mismo tamaño) ===== */
+/* ===== Carrusel de portada: campañas ilimitadas administrables, con adaptación a escritorio y móvil ===== */
 const DEFAULT_HERO = [{id:'default', layout:'single', eyebrow:'HECHO EN COLOMBIA · NUEVA COLECCIÓN', title:'Boxy fit. Acid wash.', subtitle:'Siluetas oversized, estampados protagonistas y actitud urbana.', image:'', cta:'Ver colección', link:'#catalogo', active:true}];
 const heroSrc = v => !v ? '' : /^(https?:|data:|\/|\.\/)/.test(v) ? v : imgUrl(v);
 const safeHref = l => /^(https?:\/\/|#|\/(?!\/))/i.test(l || '') ? l : '#catalogo';
@@ -228,7 +228,7 @@ function legacyTilesCampaign(raw) {
   const t = parseList(raw); if (t.length !== 3 || !t.some(x => x && x.image)) return null;
   return {id:'legacy-tiles', layout:'triple', title:'Portada', active:true, tiles:t};
 }
-/* Cada campaña se muestra según su dispositivo. Sin dato guardado: las de tres imágenes solo en computador, el resto en todos. */
+/* Cada campaña puede dirigirse a todos los dispositivos, computador o móvil. Las campañas de una imagen funcionan en iOS y Android. */
 const mqMobile = window.matchMedia('(max-width:700px)');
 let heroAll = DEFAULT_HERO;
 const deviceOf = b => ['all', 'desktop', 'mobile'].includes(b && b.device) ? b.device : (b && b.layout === 'triple' ? 'desktop' : 'all');
@@ -265,7 +265,7 @@ function renderCampaigns(list) {
     stage.innerHTML = campaignHTML(list[current]);
     ctrls.innerHTML = list.length > 1 ? list.map((x, j) => `<button class="hero-dot ${j === current ? 'on' : ''}" aria-label="Ver campaña ${j+1}" onclick="window.izanHeroShow(${j})">${String(j+1).padStart(2,'0')}</button>`).join('') : '';
   };
-  const start = () => { if (window.izanHeroTimer) clearInterval(window.izanHeroTimer); if (list.length > 1) window.izanHeroTimer = setInterval(() => show(current + 1), 6500); };
+  const start = () => { if (window.izanHeroTimer) clearInterval(window.izanHeroTimer); if (list.length > 1) window.izanHeroTimer = setInterval(() => show(current + 1), 2000); };
   window.izanHeroShow = j => { show(j); start(); };
   show(0); start();
 }
