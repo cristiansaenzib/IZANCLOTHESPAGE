@@ -163,6 +163,8 @@ function applyCatalog(d) {
       if (product && ['s','m','l','xl','xxl'].includes(size)) product['stock_' + size] = Math.max(0, (Number(product['stock_' + size]) || 0) - (Number(r.quantity) || 0));
     }
   }
+  // Las prendas agotadas no se muestran en la tienda: quedan solo en Administrar → Agotados.
+  products = products.filter(x => !(x.sold_out || !sizes(x).some(z => stock(x, z) > 0)));
   guides = d.guides || []; weights = d.weights || [];
   const rows = d.settings || [];
   const w = rows.find(r => r.key === 'whatsapp'); if (w && w.value) waDest = w.value;
