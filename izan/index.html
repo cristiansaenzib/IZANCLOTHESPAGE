@@ -24,7 +24,9 @@
 <div class="announce" id="announceBar" aria-label="Avisos"><div id="announceTrack"><span>HECHO EN COLOMBIA<i>✦</i></span></div></div>
 <header>
   <a class="brand" href="#" onclick="return goTop(event)" aria-label="IZAN Clothes · volver al inicio"><img class="logo" src="img/logo-izan-blanco.png" alt="IZAN" width="374" height="158"></a>
+  <button class="mobile-filter-toggle" id="mobileFilterToggle" type="button" aria-expanded="false" aria-controls="headerFilters" onclick="toggleMobileFilters()"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h18M6 12h12M10 19h4"/></svg><span>Filtros</span><b class="mf-count" id="mobileFilterCount" hidden>0</b></button>
   <button class="mobile-nav-toggle" id="mobileNavToggle" type="button" aria-expanded="false" aria-controls="shopNavigation" onclick="toggleMobileNavigation()"><span class="menu-lines" aria-hidden="true"><i></i><i></i><i></i></span><span>Menú</span></button>
+  <div class="header-filters" id="headerFilters" role="group" aria-label="Filtros de productos"></div>
   <div class="nav shop-nav" id="shopNavigation">
     <div class="category-menu"><button class="btn ghost" type="button" onclick="toggleCategoryMenu()" aria-expanded="false">Categorías ▾</button><div class="category-dropdown" id="categoryDropdown"></div></div>
     <button class="btn ghost nav-filter fire-best" onclick="showFeatured('best')"><span class="fire-icon" aria-hidden="true">🔥</span><span>Best sellers</span></button>
@@ -439,6 +441,7 @@ function card(p) {
 function goTop(e) {
   if (e) e.preventDefault();
   if (typeof toggleMobileNavigation === 'function') toggleMobileNavigation(false);
+  if (typeof toggleMobileFilters === 'function') toggleMobileFilters(false);
   if (typeof cartOpen === 'function') cartOpen(false);
   window.scrollTo({ top: 0, behavior: 'smooth' });
   try { history.replaceState(null, '', location.pathname + location.search); } catch (err) {}
@@ -452,7 +455,55 @@ function toggleMobileNavigation(force) {
   nav.classList.toggle('mobile-nav-open', open);
   button.setAttribute('aria-expanded', String(open));
   button.classList.toggle('is-open', open);
+  if (open) toggleMobileFilters(false);
 }
+
+/* ---------- Filtros flotantes en la cabecera ----------
+   PC: al llegar al catálogo, el menú de la cabecera se sustituye por los filtros.
+   Móvil: la cabecera sigue igual de flotante y aparece un botón "Filtros" que despliega el panel. */
+function toggleMobileFilters(force) {
+  const panel = document.getElementById('headerFilters');
+  const button = document.getElementById('mobileFilterToggle');
+  if (!panel || !button) return;
+  const open = typeof force === 'boolean' ? force : !panel.classList.contains('open');
+  panel.classList.toggle('open', open);
+  button.setAttribute('aria-expanded', String(open));
+  button.classList.toggle('is-open', open);
+  if (open) toggleMobileNavigation(false);
+}
+function renderHeaderFilters(colors, usedW) {
+  const box = document.getElementById('headerFilters'); if (!box) return;
+  const opt = (v, label, cur) => `<option value="${esc(v)}"${String(cur) === String(v) ? ' selected' : ''}>${esc(label)}</option>`;
+  box.innerHTML =
+    `<div class="hf-field"><label for="hfCat">Categoría</label><select id="hfCat" onchange="setC(this.value)">${opt('all', 'Todas las categorías', catF)}${cats.map(c => opt(c.id, c.name, catF)).join('')}</select></div>` +
+    `<div class="hf-field"><label for="hfColor">Color</label><select id="hfColor" onchange="setColor(this.value)">${opt('all', 'Todos los colores', colorF)}${colors.map(c => opt(c, c, colorF)).join('')}</select></div>` +
+    (usedW.length ? `<div class="hf-field"><label for="hfWeight">Gramaje</label><select id="hfWeight" onchange="setWeight(this.value)">${opt('all', 'Todos los gramajes', weightF)}${usedW.map(w => opt(w.id, weightLabel(w), weightF)).join('')}</select></div>` : '') +
+    `<div class="hf-field hf-sizes"><label>Talla</label><div class="hf-chips">${['S','M','L','XL','XXL'].map(z => `<button type="button" class="chip ${sizeF === z ? 'on' : ''}" aria-pressed="${sizeF === z}" onclick="setSize('${z}')">${z}</button>`).join('')}</div></div>` +
+    `<button type="button" class="chip hf-clear" onclick="clearFilters()">Limpiar filtros</button>`;
+  const n = [catF, colorF, weightF, sizeF].filter(v => v !== 'all').length;
+  const badge = document.getElementById('mobileFilterCount');
+  if (badge) { badge.textContent = n; badge.hidden = !n; }
+}
+let filterModeTick = false;
+function updateFilterMode() {
+  filterModeTick = false;
+  const cat = document.getElementById('catalogo'), head = document.querySelector('header');
+  if (!cat || !head) return;
+  const r = cat.getBoundingClientRect();
+  /* Activo desde que la sección de categorías llega a la parte alta hasta que termina el catálogo */
+  const on = r.top <= 140 && r.bottom > 160;
+  if (head.classList.contains('filters-mode') === on) return;
+  head.classList.toggle('filters-mode', on);
+  if (!on) toggleMobileFilters(false);
+}
+function queueFilterMode() { if (!filterModeTick) { filterModeTick = true; requestAnimationFrame(updateFilterMode); } }
+addEventListener('scroll', queueFilterMode, { passive: true });
+addEventListener('resize', queueFilterMode);
+addEventListener('load', queueFilterMode);
+document.addEventListener('click', (event) => {
+  const panel = document.getElementById('headerFilters');
+  if (panel && panel.classList.contains('open') && !event.composedPath().some(n => n.tagName === 'HEADER')) toggleMobileFilters(false);
+});
 
 document.addEventListener('click', (event) => {
   if (window.matchMedia('(max-width: 700px)').matches) {
@@ -463,7 +514,7 @@ document.addEventListener('click', (event) => {
   }
 });
 window.addEventListener('resize', () => {
-  if (window.innerWidth > 700) toggleMobileNavigation(false);
+  if (window.innerWidth > 700) { toggleMobileNavigation(false); toggleMobileFilters(false); }
 });
 
 function toggleCategoryMenu() {
@@ -540,6 +591,7 @@ function render() {
   const wf = $('#weightFilter'), wbox = $('#weightFilterBox');
   if (wf && wbox) { wbox.hidden = !usedW.length; weightF = usedW.some(w => String(w.id) === String(weightF)) ? weightF : 'all'; wf.innerHTML = '<option value="all">Todos los gramajes</option>' + usedW.map(w => `<option value="${esc(w.id)}">${esc(weightLabel(w))}</option>`).join(''); wf.value = weightF; }
   $('#sizeFilters').innerHTML = ['S','M','L','XL','XXL'].map(z => `<button class="chip ${sizeF===z?'on':''}" onclick="setSize('${z}')">${z}</button>`).join('');
+  renderHeaderFilters(colors, usedW);
   // Aplicar filtros ANTES de construir las tarjetas: las referencias que no coinciden desaparecen.
   const norm = value => String(value ?? '').trim().toLocaleLowerCase('es');
   const inventoryTotal = p => SZ.reduce((total, z) => total + stock(p, z), 0);

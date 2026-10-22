@@ -1455,3 +1455,88 @@ body.guide-open .category-dropdown {
   visibility: hidden !important;
   pointer-events: none !important;
 }
+
+
+/* ===== FILTROS FLOTANTES EN LA CABECERA =====
+   PC (>700px): al llegar al catálogo, el menú (Categorías / Best sellers / Últimas unidades / Lo más nuevo)
+   se sustituye por los filtros; el carrito, el pedido rápido y el acceso admin se mantienen.
+   Móvil (≤700px): la cabecera sigue igual de flotante y aparece el botón "Filtros" con un desplegable. */
+.header-filters,.mobile-filter-toggle{display:none}
+.header-filters select{appearance:none;-webkit-appearance:none;min-width:0;max-width:100%;box-sizing:border-box;height:40px;padding:0 32px 0 15px;border:1px solid var(--line);border-radius:999px;background:color-mix(in srgb,var(--card) 70%,transparent) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23343339' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 13px center;color:var(--ink);font:500 12px/1 Inter,sans-serif;cursor:pointer;text-overflow:ellipsis}
+.header-filters select:hover,.header-filters select:focus-visible{border-color:var(--ink);outline:none}
+.header-filters label{font:700 9px Syncopate,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:var(--mute)}
+.header-filters .hf-field{display:flex;align-items:center;min-width:0}
+.header-filters .hf-chips{display:flex;gap:5px;flex-wrap:wrap}
+.header-filters .chip{height:40px;box-sizing:border-box;padding:0 13px;border-radius:999px;border:1px solid var(--line);background:color-mix(in srgb,var(--card) 70%,transparent);color:var(--ink);font:700 10px Syncopate,sans-serif;letter-spacing:.08em;cursor:pointer}
+.header-filters .chip:hover{border-color:var(--ink)}
+.header-filters .chip.on{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.header-filters .hf-clear{font-weight:600;letter-spacing:.06em;text-transform:none;font-family:Inter,sans-serif;font-size:12px;white-space:nowrap}
+.mf-count{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:var(--ink);color:var(--bg);font:700 10px/1 Inter,sans-serif}
+.mf-count[hidden]{display:none}
+
+@media(min-width:701px){
+  /* El menú se sustituye por los filtros (el carrito y el acceso admin se quedan) */
+  header.filters-mode .category-menu,
+  header.filters-mode .nav-filter{display:none!important}
+  header.filters-mode .header-filters{display:flex;flex:1 1 auto;min-width:0;align-items:center;justify-content:center;flex-wrap:wrap;gap:8px;margin:0 14px;animation:hfIn .28s ease both}
+  header.filters-mode .header-filters label{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  header.filters-mode .header-filters .hf-sizes::before{content:"Talla";margin-right:8px;font:700 9px Syncopate,sans-serif;letter-spacing:.14em;text-transform:uppercase;color:var(--mute)}
+  header.filters-mode .header-filters .hf-sizes label{display:none}
+  header.filters-mode .shop-nav{flex:0 0 auto;flex-wrap:nowrap}
+  /* En pantallas medianas, la píldora pasa a esquinas redondeadas para que los filtros puedan envolver */
+  @media(max-width:1180px){header.filters-mode{border-radius:28px}}
+}
+@keyframes hfIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+
+@media(max-width:700px){
+  header .mobile-filter-toggle{align-items:center;justify-content:center;gap:7px;min-height:40px;padding:8px 11px;border:1px solid var(--line);border-radius:11px;background:var(--card);color:var(--ink);font:600 12px/1 Inter,sans-serif;cursor:pointer;white-space:nowrap}
+  header.filters-mode{grid-template-columns:minmax(0,1fr) auto auto!important}
+  header.filters-mode .mobile-filter-toggle{display:inline-flex}
+  header.filters-mode .mobile-filter-toggle.is-open{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+  header.filters-mode .mobile-filter-toggle.is-open .mf-count{background:var(--bg);color:var(--ink)}
+  header .header-filters{display:none!important}
+  header.filters-mode .header-filters.open{display:grid!important;grid-column:1/-1;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:12px 0 4px;border-top:1px solid var(--line);max-height:min(62vh,430px);overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;animation:hfIn .22s ease both}
+  header .header-filters .hf-field{flex-direction:column;align-items:stretch;gap:5px}
+  header .header-filters select{width:100%;font-size:13px}
+  header .header-filters .hf-sizes,
+  header .header-filters .hf-clear{grid-column:1/-1}
+  header .header-filters .hf-chips .chip{flex:1 1 0;padding:0 6px}
+  header .header-filters .hf-clear{justify-self:stretch}
+}
+@media(prefers-reduced-motion:reduce){header .header-filters{animation:none!important}}
+
+/* --- Legibilidad: la cabecera es transparente, así que el panel de filtros lleva fondo propio --- */
+@media(min-width:701px){
+  header.filters-mode .header-filters{
+    padding:6px 8px;border-radius:999px;
+    background:color-mix(in srgb,#fff 90%,transparent);
+    -webkit-backdrop-filter:blur(14px) saturate(1.3);backdrop-filter:blur(14px) saturate(1.3);
+    border:1px solid color-mix(in srgb,var(--line) 80%,transparent);
+    box-shadow:0 14px 34px -16px rgba(23,23,23,.45);
+    color:#171717;
+  }
+  header.filters-mode .header-filters select{background-color:#fff;color:#171717}
+  header.filters-mode .header-filters .chip{background:#fff;color:#171717}
+  header.filters-mode .header-filters .chip.on{background:#171717;border-color:#171717;color:#fff}
+  header.filters-mode .header-filters .hf-sizes::before{color:#5a5b5d}
+  @media(max-width:1180px){header.filters-mode .header-filters{border-radius:24px}}
+}
+@media(max-width:700px){
+  /* mismo estilo oscuro que el menú móvil ya existente */
+  header.filters-mode .header-filters.open{
+    background:rgba(23,23,23,.94);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
+    padding:14px 12px 12px;border:0;border-radius:14px;margin-top:2px;
+    box-shadow:0 18px 40px -16px rgba(0,0,0,.55);color:#fff;
+  }
+  header .header-filters label{color:rgba(255,255,255,.62)}
+  header .header-filters select{background-color:rgba(255,255,255,.1);color:#fff;border-color:rgba(255,255,255,.28);
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23ffffff' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")}
+  header .header-filters select option{color:#171717;background:#fff}
+  header .header-filters .chip{background:transparent;color:#fff;border-color:rgba(255,255,255,.35)}
+  header .header-filters .chip.on{background:#fff;color:#171717;border-color:#fff}
+  /* el botón "Filtros" sigue el color flotante del menú (blanco sobre campaña, oscuro sobre fondo claro) */
+  header .mobile-filter-toggle{background:transparent!important;border:0!important;box-shadow:none!important;color:var(--mc,#fff)!important;text-shadow:var(--mshadow,none);text-transform:uppercase;letter-spacing:.16em;font-size:11px!important}
+  header.filters-mode .mobile-filter-toggle.is-open{background:rgba(23,23,23,.94)!important;color:#fff!important;text-shadow:none;border-radius:11px}
+  header .mobile-filter-toggle .mf-count{background:var(--mc,#fff);color:#171717;text-shadow:none;letter-spacing:0}
+  header.on-light .mobile-filter-toggle .mf-count{background:#171717;color:#fff}
+}
