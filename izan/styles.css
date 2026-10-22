@@ -1355,3 +1355,31 @@ header .nav .fire-best:hover{transform:translateY(-2px)!important;box-shadow:0 0
 .camp-single picture.camp-bg{display:block}
 .camp-single picture.camp-bg img{width:100%;height:100%;object-fit:cover;object-position:center}
 @media (max-width:760px){.campaign{width:100%;border-radius:0}.campaign-stage{height:100%}.camp-single .camp-copy{max-width:100%;box-sizing:border-box}.hero-controls{right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));gap:5px}.hero-dot{padding:8px 10px;min-width:34px;min-height:34px}}
+
+/* Corrección móvil: mostrar la campaña completa sin desbordamiento ni recortes laterales.
+   En pantallas estrechas se prioriza contain; las franjas toman el color de fondo de la campaña. */
+@media (max-width: 700px) {
+  .campaign,
+  .camp-single,
+  .camp-single picture.camp-bg {
+    width: 100%;
+    max-width: 100vw;
+    box-sizing: border-box;
+    background-color: #171717;
+  }
+  .camp-single picture.camp-bg {
+    overflow: hidden;
+  }
+  .camp-single picture.camp-bg > img,
+  .camp-single .camp-bg > img,
+  .camp-single img.camp-bg {
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    object-fit: contain !important;
+    object-position: center center !important;
+  }
+}
