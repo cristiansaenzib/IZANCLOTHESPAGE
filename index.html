@@ -1,0 +1,932 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>IZAN CLOTHES</title>
+<meta name="description" content="IZAN CLOHTES">
+<meta property="og:title" content="STREETWEAR">
+<meta property="og:description" content="HECHO EN COLOMBIA">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="img/favicon-192.png">
+<link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+<link rel="preconnect" href="https://gtficbaikhospnqkubqi.supabase.co" crossorigin>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Syncopate:wght@400;700&family=Playfair+Display:ital@1&family=Inter:wght@400;500;600&display=swap" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Syncopate:wght@400;700&family=Playfair+Display:ital@1&family=Inter:wght@400;500;600&display=swap"></noscript>
+<link rel="stylesheet" href="styles.css">
+<script>try{var pc=localStorage.getItem('izan_palette_css');if(pc&&/^[-a-z0-9:#;,.() %]+$/i.test(pc))document.documentElement.style.cssText+=pc}catch(e){}</script>
+</head>
+<body>
+<div class="announce" id="announceBar" aria-label="Avisos"><div id="announceTrack"><span>HECHO EN COLOMBIA<i>✦</i></span></div></div>
+<header>
+  <a class="brand" href="#" onclick="return goTop(event)" aria-label="IZAN Clothes · volver al inicio"><img class="logo" src="img/logo-izan-blanco.png" alt="IZAN" width="374" height="158"></a>
+  <button class="mobile-nav-toggle" id="mobileNavToggle" type="button" aria-expanded="false" aria-controls="shopNavigation" onclick="toggleMobileNavigation()"><span class="menu-lines" aria-hidden="true"><i></i><i></i><i></i></span><span>Menú</span></button>
+  <div class="nav shop-nav" id="shopNavigation">
+    <div class="category-menu"><button class="btn ghost" type="button" onclick="toggleCategoryMenu()" aria-expanded="false">Categorías ▾</button><div class="category-dropdown" id="categoryDropdown"></div></div>
+    <button class="btn ghost nav-filter fire-best" onclick="showFeatured('best')"><span class="fire-icon" aria-hidden="true">🔥</span><span>Best sellers</span></button>
+    <button class="btn ghost nav-filter" onclick="showFeatured('last')">Últimas unidades</button>
+    <button class="btn ghost nav-filter" onclick="showFeatured('new')">Lo más nuevo</button>
+    <button class="btn cart-icon-btn" onclick="cartOpen(true,'full')" aria-label="Abrir carrito de compras" title="Carrito de compras"><svg class="shopping-cart-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg><span id="cc" class="cart-count">0</span></button>
+    <button class="btn ghost quick-order-toggle" id="quickOrderBtn" type="button" onclick="cartOpen(true,'mini')" aria-label="Desplegar pedido lateral sin abrir carrito completo" title="Abrir pedido en panel lateral">Pedido rápido ▾</button>
+    <a class="btn ghost nav-admin" href="admin.html" aria-label="Administrar la tienda (acceso de administrador)" title="Acceso de administrador"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg></a>
+  </div>
+</header>
+
+<section class="campaign" id="campaign" aria-label="Campaña IZAN">
+  <h1 class="camp-sr">IZAN Clothes · Viste tu propia identidad</h1>
+  <div class="campaign-stage" id="campaignStage" aria-live="polite"></div>
+  <div class="hero-controls" id="heroControls"></div>
+</section>
+
+<section class="featured-section" id="bestSellersSection">
+  <div class="featured-heading"><div><p class="lbl" id="featuredLabel">LOS FAVORITOS</p><h2 id="featuredTitle">BEST SELLERS</h2></div><div class="carousel-controls"><button class="btn ghost" onclick="moveBest(-1)" aria-label="Anterior">←</button><button class="btn ghost" onclick="moveBest(1)" aria-label="Siguiente">→</button></div></div>
+  <div class="featured-carousel" id="bestSellersCarousel"><div class="empty serif">Cargando favoritos…</div></div>
+</section>
+
+<section class="featured-section" id="newArrivalsSection" hidden>
+  <div class="featured-heading"><div><p class="lbl" id="newLabel">RECIÉN LLEGADO</p><h2 id="newTitle">LO MÁS NUEVO</h2></div><div class="carousel-controls"><button class="btn ghost" onclick="moveCarousel('newArrivalsCarousel',-1)" aria-label="Anterior">←</button><button class="btn ghost" onclick="moveCarousel('newArrivalsCarousel',1)" aria-label="Siguiente">→</button></div></div>
+  <div class="featured-carousel" id="newArrivalsCarousel"></div>
+</section>
+
+<div class="strip"><div id="tickerText">PREMIUM 310 ✦ BOXY FIT ✦ ACID WASH ✦ 180 · 210 · 270 G/M² ✦ HECHO EN COLOMBIA ✦ SERIGRAFIA ✦ TANK TOPS ✦ ACID WASH ✦ 310 · 235 · 180 G/M² ✦ HECHO EN COLOMBIA ✦ </div></div>
+
+<main id="catalogo">
+  <p class="lbl" id="catalogLabel">CATEGORÍA</p><div class="chips" id="catChips"></div>
+  <div class="tiers" id="tiers"></div>
+  <div class="catalog-layout">
+    <aside class="filters" aria-label="Filtros de productos">
+      <h2>Filtrar</h2>
+      <label for="colorFilter">Color</label><select id="colorFilter" onchange="setColor(this.value)"><option value="all">Todos los colores</option></select>
+      <div id="weightFilterBox" hidden><label for="weightFilter">Gramaje</label><select id="weightFilter" onchange="setWeight(this.value)"><option value="all">Todos los gramajes</option></select></div>
+      <label>Talla</label><div id="sizeFilters" class="size-filters"></div>
+      <button class="chip" onclick="clearFilters()">Limpiar filtros</button>
+    </aside>
+    <div id="grid"><div class="empty serif">Cargando…</div></div>
+  </div>
+</main>
+
+<footer class="site-footer" id="siteFooter"></footer>
+
+<div id="quoteModal" class="quote-modal" role="dialog" aria-modal="true" aria-labelledby="quoteTitle" style="display:none;position:fixed;inset:0;z-index:3000;background:rgba(20,20,24,0.78);padding:18px;align-items:center;justify-content:center">
+  <div style="background:#ffffff;color:#343339;border-radius:30px;padding:26px;width:min(100%,440px);max-height:calc(100dvh - 36px);overflow-y:auto;box-shadow:0 20px 70px rgba(52,51,57,0.33)">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><h2 id="quoteTitle" style="margin:0">Cotización lista</h2><button class="btn ghost" onclick="quoteClose()" aria-label="Cerrar">✕</button></div>
+    <div id="quoteForm">
+      <form id="shippingForm" class="shipping-form" novalidate onsubmit="event.preventDefault();saveShipping()">
+        <p class="serif" style="line-height:1.5;margin:10px 0 14px">Escribe tus datos de envío. Los incluiremos en tu cotización.</p>
+        <div class="customer-contact-fields shipping-fields">
+          <input id="customerName" class="sf-wide" type="text" autocomplete="name" maxlength="120" placeholder="Nombre completo *" aria-label="Nombre completo" required>
+          <input id="customerIdNumber" type="text" inputmode="numeric" maxlength="30" placeholder="Cédula *" aria-label="Cédula" required>
+          <input id="customerPhone" type="tel" autocomplete="tel" inputmode="tel" maxlength="25" placeholder="Celular *" aria-label="Celular" required>
+          <input id="customerAddress" class="sf-wide" type="text" autocomplete="street-address" maxlength="180" placeholder="Dirección *" aria-label="Dirección" required>
+          <input id="customerCity" type="text" autocomplete="address-level2" maxlength="100" placeholder="Ciudad *" aria-label="Ciudad" required>
+          <input id="customerEmail" type="email" autocomplete="email" maxlength="150" placeholder="Correo electrónico *" aria-label="Correo electrónico" required>
+        </div>
+        <small class="sf-note">Consulta nuestra <a href="politica-tratamiento-datos.html" target="_blank" rel="noopener">política de tratamiento de datos</a>.</small>
+        <small id="customerSaveHint" class="customer-save-hint sf-hint" aria-live="polite"></small>
+        <button type="submit" class="btn acc sf-save" id="saveShippingBtn">Guardar datos</button>
+      </form>
+    </div>
+    <div id="quoteActions" hidden>
+    <p class="serif" style="line-height:1.5"><b>Datos guardados ✓</b> Generamos el PDF con el detalle de tu pedido y el total. Puedes compartirlo o descargarlo y continuar al chat de WhatsApp.</p>
+    <div style="display:grid;gap:10px;margin-top:18px">
+      <button class="btn acc" id="sharePdfBtn" onclick="shareQuotePdf()">Compartir PDF</button>
+      <button class="btn" onclick="downloadQuotePdf()">Descargar cotización PDF</button>
+      <button class="btn" onclick="openQuoteWhatsApp()">Continuar a WhatsApp</button>
+    </div>
+    <small id="quoteHint" style="display:block;margin-top:12px;line-height:1.4;color:#5a5b5d">En algunos computadores WhatsApp no permite adjuntar archivos desde una página web. Si no aparece la opción de compartir, descarga el PDF y adjúntalo manualmente en el chat.</small>
+    </div>
+  </div>
+</div>
+<div class="gmodal" id="gmodal" hidden onclick="if(event.target===this)closeGuide()">
+  <div class="gbox" role="dialog" aria-modal="true" aria-labelledby="gtitle">
+    <button type="button" class="gclose" onclick="closeGuide()" aria-label="Cerrar guía de tallas">✕</button>
+    <p class="glbl">Guía de tallas</p>
+    <h3 id="gtitle"></h3>
+    <p class="gprod serif" id="gprod"></p>
+    <div class="gscroll"><table class="gtbl" id="gtable"></table></div>
+    <p class="gnote" id="gnote"></p>
+  </div>
+</div>
+<div class="gmodal" id="pmodal" hidden onclick="if(event.target===this)closeBulk()">
+  <div class="gbox" role="dialog" aria-modal="true" aria-labelledby="ptitle">
+    <button type="button" class="gclose" onclick="closeBulk()" aria-label="Cerrar precios por mayor">✕</button>
+    <p class="glbl">Precio mayor</p>
+    <h3 id="ptitle"></h3>
+    <p class="gprod serif" id="pbase"></p>
+    <div class="ptiers" id="ptiers"></div>
+    <p class="gnote">Las cantidades y tallas se suman con <b>todo tu pedido</b>, no solo con esta referencia. Con código de mayorista aplica el precio mayor sin condición de tallas.</p>
+  </div>
+</div>
+<div class="gmodal dmodal" id="dmodal" hidden onclick="if(event.target===this)closeDetail()">
+  <div class="dbox" role="dialog" aria-modal="true" aria-labelledby="dtitle">
+    <button type="button" class="gclose" onclick="closeDetail()" aria-label="Cerrar detalle del producto">✕</button>
+    <div id="dbody"></div>
+  </div>
+</div>
+<div class="cart-backdrop" id="cartBackdrop" onclick="cartOpen(false)"></div>
+<aside class="drawer" id="drawer" aria-label="Tu pedido">
+  <div class="row" style="margin:0 0 10px"><h2>Tu pedido</h2><div class="ab"><button class="chip cart-expand" onclick="cartOpen(true,'full')">Ver carrito</button><button class="btn ghost" onclick="cartOpen(false)">Cerrar</button></div></div>
+  <div id="items" style="flex:1;overflow:auto"></div>
+  <div class="wcode" id="wcode">
+    <div id="wcin"><details id="wcd"><summary>¿Tienes código de mayorista?</summary><div class="row" style="margin-top:8px;gap:8px"><input id="wci" placeholder="Tu código" autocapitalize="characters" onkeydown="if(event.key==='Enter')wcApply()"><button class="chip" onclick="wcApply()">Aplicar</button></div></details></div>
+    <div id="wcon" class="row" hidden><span>Precio mayorista: <b id="wcn"></b></span><button class="chip" onclick="wcRemove()">Quitar</button></div>
+    <small class="note" id="wcm"></small>
+  </div>
+  <div class="tierinfo" id="tierinfo"></div>
+  <div class="cart-summary"><div class="row"><span>Unidades</span><b id="cartUnits">0</b></div><div class="row"><span>Subtotal</span><b id="subtotal"></b></div><div class="row" id="discountRow" hidden><span>Descuento</span><b id="discountTotal"></b></div><div class="row cart-grand-total"><b>Total estimado</b><span class="price" id="total"></span></div></div>
+  <button class="btn acc" id="wa" onclick="checkout()">Pedir por WhatsApp</button>
+</aside>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="config.js"></script>
+<script src="shared.js"></script>
+<script>
+let guides = [], weights = [], weightF = 'all', cats = [], products = [], tiers = parseTiers(), countMode = 'ref', catF = 'all', colorF = 'all', sizeF = 'all', featuredFilter = 'all', catalogExpanded = false, selS = {}, cart = [], waDest = C.WHATSAPP, savedQuoteId = null;
+let wcode = '', wname = '';   /* código de mayorista validado */
+
+const catOf = p => cats.find(c => c.id == p.category_id);
+
+const CATALOG_CACHE = 'izan_catalog_v1';
+let firstApply = true;
+function applyCatalog(d) {
+  cats = d.cats || []; products = (d.products || []).map(x => Object.assign({}, x));
+  // El catálogo público muestra existencias disponibles: inventario físico menos unidades apartadas.
+  // El inventario real permanece intacto hasta que el administrador confirme la venta.
+  if (Array.isArray(d.reserved)) {
+    for (const r of d.reserved) {
+      const product = products.find(x => String(x.id) === String(r.product_id));
+      const size = String(r.size || '').toLowerCase();
+      if (product && ['s','m','l','xl','xxl'].includes(size)) product['stock_' + size] = Math.max(0, (Number(product['stock_' + size]) || 0) - (Number(r.quantity) || 0));
+    }
+  }
+  // Las prendas agotadas no se muestran en la tienda: quedan solo en Administrar → Agotados.
+  products = products.filter(x => !(x.sold_out || !sizes(x).some(z => stock(x, z) > 0)));
+  guides = d.guides || []; weights = d.weights || [];
+  const rows = d.settings || [];
+  const w = rows.find(r => r.key === 'whatsapp'); if (w && w.value) waDest = w.value;
+  const hb = rows.find(r => r.key === 'hero_banners'), ht = rows.find(r => r.key === 'home_tiles');
+  heroAll = pickCampaigns(hb && hb.value, ht && ht.value); showHero();
+  const vc = rows.find(r => r.key === 'visual_content'); applyVisualContent(parseVisualContent(vc && vc.value));
+  tiers = parseTiers(d.settings); countMode = parseCountMode(d.settings);
+  render();
+  if (firstApply) {
+    firstApply = false;
+    let saved = ''; try { saved = localStorage.getItem('izan_wcode') || ''; } catch (e) {}
+    if (saved) wcCheck(saved, true);
+  }
+}
+
+async function load() {
+  renderCampaigns(DEFAULT_HERO);
+  { const ft=$('#siteFooter'); if(ft) ft.innerHTML=footerHTML(parseFooter(null)); }
+  if (!sb) { $('#grid').innerHTML = '<div class="empty serif">Falta configurar config.js con los datos de Supabase.</div>'; return; }
+  // Visita repetida: se pinta al instante lo último que se vio y se actualiza en segundo plano.
+  let cachedRaw = null;
+  try {
+    cachedRaw = localStorage.getItem(CATALOG_CACHE);
+    if (cachedRaw) applyCatalog(JSON.parse(cachedRaw));
+  } catch (e) { cachedRaw = null; }
+  const q = fn => (async () => fn())().catch(e => ({ error: e, data: null }));
+  const [c, p, s, rs, g, fw] = await Promise.all([
+    q(() => sb.from('categories').select('*').order('created_at')),
+    q(() => sb.from('products').select('*').order('created_at', { ascending: false })),
+    q(() => sb.from('settings').select('*')),
+    q(() => sb.rpc('get_reserved_stock')),
+    q(() => sb.from('size_guides').select('*')),
+    q(() => sb.from('fabric_weights').select('*'))
+  ]);
+  if (c.error || p.error) {
+    if (!cachedRaw) $('#grid').innerHTML = '<div class="empty serif">No pudimos cargar el catálogo. Intenta de nuevo en un momento.</div>';
+    return;
+  }
+  if (rs.error) console.warn('No se pudieron cargar las reservas; ejecuta migracion_estados_pedidos.sql en Supabase.', rs.error);
+  const data = {
+    cats: c.data || [], products: p.data || [], settings: s.data || null,
+    reserved: !rs.error && Array.isArray(rs.data) ? rs.data : null,
+    guides: g.error ? [] : (g.data || []), weights: fw.error ? [] : (fw.data || [])
+  };
+  const fresh = JSON.stringify(data);
+  if (fresh !== cachedRaw) {
+    applyCatalog(data);
+    try { localStorage.setItem(CATALOG_CACHE, fresh); } catch (e) {}
+  }
+  // jsPDF se descarga en segundo plano, cuando la tienda ya está visible.
+  setTimeout(() => { loadJsPDF().catch(() => {}); }, 4000);
+}
+
+/* ===== Campañas: una sola imagen o tres imágenes simétricas (mismo tamaño) ===== */
+const DEFAULT_HERO = [{id:'default', layout:'single', eyebrow:'HECHO EN COLOMBIA · NUEVA COLECCIÓN', title:'Boxy fit. Acid wash.', subtitle:'Siluetas oversized, estampados protagonistas y actitud urbana.', image:'', cta:'Ver colección', link:'#catalogo', active:true}];
+const heroSrc = v => !v ? '' : /^(https?:|data:|\/|\.\/)/.test(v) ? v : imgUrl(v);
+const safeHref = l => /^(https?:\/\/|#|\/(?!\/))/i.test(l || '') ? l : '#catalogo';
+function parseList(raw) { try { const x = typeof raw === 'string' ? JSON.parse(raw) : raw; return Array.isArray(x) ? x : []; } catch(e) { return []; } }
+/* Compatibilidad: si aún existe la antigua configuración "home_tiles", se muestra como campaña de tres imágenes. */
+function legacyTilesCampaign(raw) {
+  const t = parseList(raw); if (t.length !== 3 || !t.some(x => x && x.image)) return null;
+  return {id:'legacy-tiles', layout:'triple', title:'Portada', active:true, tiles:t};
+}
+/* Cada campaña se muestra según su dispositivo. Sin dato guardado: las de tres imágenes solo en computador, el resto en todos. */
+const mqMobile = window.matchMedia('(max-width:700px)');
+let heroAll = DEFAULT_HERO;
+const deviceOf = b => ['all', 'desktop', 'mobile'].includes(b && b.device) ? b.device : (b && b.layout === 'triple' ? 'desktop' : 'all');
+function forDevice(list) {
+  const want = mqMobile.matches ? 'mobile' : 'desktop';
+  const ok = list.filter(b => { const d = deviceOf(b); return d === 'all' || d === want; });
+  return ok.length ? ok : list;   /* si ninguna aplica, se muestran todas antes que dejar la portada vacía */
+}
+function showHero() { renderCampaigns(forDevice(heroAll)); }
+if (mqMobile.addEventListener) mqMobile.addEventListener('change', showHero); else if (mqMobile.addListener) mqMobile.addListener(showHero);
+function pickCampaigns(heroRaw, tilesRaw) {
+  const active = parseList(heroRaw).filter(b => b && b.active !== false && (b.layout !== 'triple' || (Array.isArray(b.tiles) && b.tiles.length === 3)));
+  if (active.length) return active;
+  const legacy = legacyTilesCampaign(tilesRaw); return legacy ? [legacy] : DEFAULT_HERO;
+}
+function campaignHTML(b) {
+  if (b.layout === 'triple') {
+    return `<div class="camp-slide camp-triple" role="group" aria-label="${esc(b.title || 'Campaña')}">` + b.tiles.map((t, i) => {
+      t = t || {}; const img = heroSrc(t.image);
+      const cat = t.category_id ? `onclick="event.preventDefault();chooseCategory('${String(t.category_id).replace(/[^a-zA-Z0-9_-]/g,'')}')"` : '';
+      return `<article class="camp-tile">${img ? `<img class="camp-bg" src="${esc(img)}" alt="${esc(t.title || b.title || 'Colección IZAN')}" loading="eager">` : ''}<div class="camp-shade"></div><div class="camp-copy"><span class="camp-num">0${i+1} / 03</span>${t.title ? `<h2>${esc(t.title)}</h2>` : ''}${t.description ? `<p>${esc(t.description)}</p>` : ''}<a class="camp-link" href="${esc(safeHref(t.link))}" ${cat}>${esc(t.cta || 'EXPLORAR')} <span aria-hidden="true">↗</span></a></div></article>`;
+    }).join('') + '</div>';
+  }
+  if (b.design) { const free = campFreeHTML(b, mqMobile.matches ? 'm' : 'd'); if (free) return free; }   /* diseño libre (editado en Administrar) */
+  const desktop = heroSrc(b.image || b.mobile_image), mobile = heroSrc(b.mobile_image || b.image);
+  const pic = desktop ? `<picture class="camp-bg">${mobile && mobile !== desktop ? `<source media="(max-width:700px)" srcset="${esc(mobile)}">` : ''}<img src="${esc(desktop)}" alt="" loading="eager"></picture>` : '';
+  return `<div class="camp-slide camp-single">${pic}<div class="camp-shade"></div><div class="camp-copy"><small>${esc(b.eyebrow || 'IZAN CLOTHES')}</small><h2>${esc(b.title || 'Nueva colección').replace(/\n/g,'<br>')}</h2>${b.subtitle ? `<p>${esc(b.subtitle)}</p>` : ''}<a class="btn acc" href="${esc(safeHref(b.link))}">${esc(b.cta || 'Ver colección')}</a></div></div>`;
+}
+function renderCampaigns(list) {
+  const stage = $('#campaignStage'), ctrls = $('#heroControls'); if (!stage || !ctrls) return;
+  let current = 0;
+  const show = i => {
+    current = (i + list.length) % list.length;
+    stage.innerHTML = campaignHTML(list[current]);
+    ctrls.innerHTML = list.length > 1 ? list.map((x, j) => `<button class="hero-dot ${j === current ? 'on' : ''}" aria-label="Ver campaña ${j+1}" onclick="window.izanHeroShow(${j})">${String(j+1).padStart(2,'0')}</button>`).join('') : '';
+  };
+  const start = () => { if (window.izanHeroTimer) clearInterval(window.izanHeroTimer); if (list.length > 1) window.izanHeroTimer = setInterval(() => show(current + 1), 6500); };
+  window.izanHeroShow = j => { show(j); start(); };
+  show(0); start();
+}
+/* ===== Contenido visual editable desde Administración ===== */
+const DEFAULT_VISUAL = { announcement:'HECHO EN COLOMBIA\nTIENDA EN BOGOTÁ · C.C. PUNTO ONCE\nPIDE TU COTIZACIÓN POR WHATSAPP\nPRECIOS POR MAYOR CON CÓDIGO\nBOXY FIT ✦ OVERSIZED ✦ ACID WASH', featured_label:'LOS FAVORITOS', featured_title:'BEST SELLERS', new_label:'RECIÉN LLEGADO', new_title:'LO MÁS NUEVO', ticker:'PREMIUM 310 ✦ BOXY FIT ✦ ACID WASH ✦ 180 · 210 · 270 G/M² ✦ HECHO EN COLOMBIA ✦ SERIGRAFÍA ✦ TANK TOPS ✦ ACID WASH', catalog_label:'CATEGORÍA', bg_palette:'marfil' };
+function parseVisualContent(raw) { try { const x=typeof raw==='string'?JSON.parse(raw):raw; return x && typeof x==='object' ? {...DEFAULT_VISUAL,...x} : {...DEFAULT_VISUAL}; } catch(e) { return {...DEFAULT_VISUAL}; } }
+function applyVisualContent(v) {
+  applyPalette(v.bg_palette);
+  const ft=$('#siteFooter'); if(ft) ft.innerHTML=footerHTML(parseFooter(v));
+  const track=$('#announceTrack'); if(track){ const items=String(v.announcement||'').split(/\n+/).map(x=>x.trim()).filter(Boolean); const repeated=[...items,...items,...items,...items]; track.innerHTML=repeated.map(x=>`<span>${esc(x)}<i>✦</i></span>`).join(''); }
+  if($('#featuredLabel')) $('#featuredLabel').textContent=v.featured_label||'';
+  if($('#featuredTitle')) $('#featuredTitle').textContent=v.featured_title||'';
+  if($('#newLabel')) $('#newLabel').textContent=v.new_label||'';
+  if($('#newTitle')) $('#newTitle').textContent=v.new_title||'';
+  if($('#tickerText')) $('#tickerText').textContent=(v.ticker||'')+' ✦ '+(v.ticker||'');
+  if($('#catalogLabel')) $('#catalogLabel').textContent=v.catalog_label||'';
+}
+
+/* ===== Código de mayorista ===== */
+async function wcCheck(code, silent) {
+  code = (code || '').trim(); if (!code) return;
+  say('wcm', silent ? '' : 'Verificando…');
+  try {
+    const { data, error } = await sb.rpc('check_wholesale_code', { p_code: code });
+    if (error) throw error;
+    if (data) { wcode = code.toUpperCase(); wname = String(data); try { localStorage.setItem('izan_wcode', wcode); } catch (e) {} say('wcm', ''); }
+    else { wcode = ''; wname = ''; try { localStorage.removeItem('izan_wcode'); } catch (e) {} say('wcm', silent ? '' : 'Código no válido o desactivado.'); }
+  } catch (e) { say('wcm', silent ? '' : 'No pudimos verificar el código. Intenta de nuevo.'); }
+  render();
+}
+const wcApply = () => wcCheck($('#wci').value, false);
+function wcRemove() { wcode = ''; wname = ''; try { localStorage.removeItem('izan_wcode'); } catch (e) {} $('#wci').value = ''; render(); }
+const say = (id, t) => { const m = $('#' + id); if (m) m.textContent = t; };
+const wcUnit = p => { const m = tiers.find(t => t.key === 'may'); return m && tierUsable(p, m, tierKeys(p, catOf(p), tiers)) ? tierUnit(p, m) : null; };
+
+function volume(p) { return ''; }
+/* ===== Guía de tallas: botón sobre la foto (aparece al pasar el mouse) + ventana superpuesta ===== */
+const guideOf = p => p && p.size_guide_id ? guides.find(g => g.id == p.size_guide_id) : null;
+function guideBtn(p) {
+  const g = guideOf(p); if (!g) return '';
+  return `<button type="button" class="ruler-btn" onclick="openGuide('${g.id}','${p.id}')" aria-haspopup="dialog" aria-label="Guía de tallas" title="Guía de tallas"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="7" width="20" height="10" rx="1.5"/><path d="M6 7v4M10 7v5M14 7v4M18 7v5"/></svg></button>`;
+}
+function openGuide(gid, pid) {
+  const raw = guides.find(g => g.id == gid); if (!raw) return;
+  const g = parseGuide(raw), p = products.find(x => x.id == pid);
+  const rows = GSZ.filter(z => (g.rows[z] || []).some(v => String(v).trim()));
+  $('#gtitle').textContent = g.name;
+  $('#gprod').textContent = p ? p.name : '';
+  $('#gprod').hidden = !p;
+  $('#gtable').innerHTML = rows.length
+    ? `<thead><tr><th>Talla</th>${g.cols.map(c => `<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>${rows.map(z => `<tr><th>${z}</th>${g.cols.map((c, i) => `<td>${esc((g.rows[z] || [])[i] || '—')}</td>`).join('')}</tr>`).join('')}</tbody>`
+    : '<tbody><tr><td>Esta guía aún no tiene medidas.</td></tr></tbody>';
+  $('#gnote').textContent = g.note; $('#gnote').hidden = !g.note;
+  $('#gmodal').hidden = false; document.body.classList.add('guide-open');
+  $('#gmodal .gclose').focus();
+}
+function closeGuide() { $('#gmodal').hidden = true; document.body.classList.remove('guide-open'); }
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#gmodal').hidden) closeGuide(); });
+/* ===== Precio mayor: botón sobre la foto + ventana con precios Distribuidor / Mayorista ===== */
+function bulkTiers(p) {
+  const keys = tierKeys(p, catOf(p), tiers);
+  return ['dist', 'may'].map(k => tiers.find(t => t.key === k)).filter(t => t && tierUsable(p, t, keys));
+}
+function bulkRule(t) {
+  return [`<b>${t.total} unidades o más</b> en total`, '<b>Mínimo 3 tallas</b> diferentes, con al menos 1 unidad de cada una', 'El resto de unidades puedes llevarlas <b>en cualquier talla</b>', `Reparto mínimo: <b>1-1-${t.total - 2}</b> con 3 tallas · <b>1-1-1-${t.total - 3}</b> con 4 tallas`];
+}
+function bulkBtn(p) {
+  if (!bulkTiers(p).length) return '';
+  return `<button type="button" class="guide-btn" onclick="openBulk('${p.id}')" aria-haspopup="dialog"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.6 13.4l-7.2 7.2a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.2"/></svg>Precio mayor</button>`;
+}
+function openBulk(pid) {
+  const p = products.find(x => x.id == pid); if (!p) return;
+  const base = eff(p);
+  $('#ptitle').textContent = p.name;
+  $('#pbase').textContent = 'Precio detal: ' + fmt(base);
+  $('#ptiers').innerHTML = bulkTiers(p).map(t => {
+    const u = tierUnit(p, t), off = Math.round((1 - u / base) * 100);
+    return `<div class="ptier"><div class="ptier-h"><span class="ptier-n">${esc(t.name)}</span><span class="ptier-p">${fmt(u)}<small> c/u</small></span></div>${off > 0 ? `<span class="ptier-off">Ahorras ${off}%</span>` : ''}<ul>${bulkRule(t).map(r => `<li>${r}</li>`).join('')}</ul></div>`;
+  }).join('');
+  $('#pmodal').hidden = false; document.body.classList.add('guide-open');
+  $('#pmodal .gclose').focus();
+}
+function closeBulk() { $('#pmodal').hidden = true; if ($('#gmodal').hidden) document.body.classList.remove('guide-open'); }
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#pmodal').hidden) closeBulk(); });
+/* ===== Detalle del producto: ventana con fotos, precios, tallas y guía de tallas, todo en una sola vista ===== */
+let detailId = null, detailImg = 'front';
+function detailHTML(p) {
+  const av = sizes(p), inStock = av.filter(z => stock(p, z) > 0), out = p.sold_out || !inStock.length;
+  const cs = inStock.includes(selS[p.id]) ? selS[p.id] : (inStock[0] || av[0]);
+  const cat = catOf(p), wu = wcode ? wcUnit(p) : null;
+  const isFlag = v => v === true || v === 1 || v === '1' || String(v).toLowerCase() === 'true';
+  const tags = [isFlag(p.is_best_seller) ? 'Best seller' : '', (SZ.reduce((n, z) => n + stock(p, z), 0) < 4) ? 'Últimas unidades' : '', isFlag(p.is_new_arrival) ? 'Lo más nuevo' : ''].filter(Boolean);
+  const hasBack = !!p.image_path_back, showBack = hasBack && detailImg === 'back';
+  const mainSrc = imgUrl(showBack ? p.image_path_back : p.image_path);
+  const thumbs = hasBack ? `<div class="dthumbs"><button type="button" class="${showBack ? '' : 'on'}" onclick="dImg('front')" aria-label="Ver foto frontal"><img src="${imgUrl(p.image_path)}" alt=""></button><button type="button" class="${showBack ? 'on' : ''}" onclick="dImg('back')" aria-label="Ver foto trasera"><img src="${imgUrl(p.image_path_back)}" alt=""></button></div>` : '';
+  const priceHTML = wu ? `<s class="old">${fmt(eff(p))}</s> <span class="promo-now">${fmt(wu)}</span><small class="note">Precio mayorista</small>`
+    : onPromo(p) ? `<s class="old">${fmt(price(p))}</s> <span class="promo-now">${fmt(eff(p))}</span><span class="mini-tag promo">Promo −${promoPct(p)}%</span>`
+    : `<span class="promo-now">${fmt(price(p))}</span>`;
+  /* Descuentos por cantidad (niveles %) */
+  const pctAll = tiers.filter(t => t.kind === 'pct'), keys = tierKeys(p, cat, tiers);
+  const pcts = pctAll.filter(t => tierUsable(p, t, keys)).sort((a, b) => a.min - b.min);
+  const qtyHTML = pcts.length ? `<section class="dsec"><h4>Descuentos por cantidad</h4><div class="dtiers"><div><span>1 unidad</span><b>${fmt(eff(p))}</b></div>${pcts.map(t => `<div><span>${tierRange(pctAll, t)} unidades <em>· ${t.pct}% dto.</em></span><b>${fmt(tierUnit(p, t))} <small>c/u</small></b></div>`).join('')}</div></section>` : '';
+  /* Precio por mayor (distribuidor / mayorista) */
+  const base = eff(p), bulk = bulkTiers(p);
+  const bulkHTML = bulk.length ? `<section class="dsec"><h4>Precio por mayor</h4><div class="ptiers">${bulk.map(t => { const u = tierUnit(p, t), off = Math.round((1 - u / base) * 100); return `<div class="ptier"><div class="ptier-h"><span class="ptier-n">${esc(t.name)}</span><span class="ptier-p">${fmt(u)}<small> c/u</small></span></div>${off > 0 ? `<span class="ptier-off">Ahorras ${off}%</span>` : ''}<ul>${bulkRule(t).map(r => `<li>${r}</li>`).join('')}</ul></div>`; }).join('')}</div><p class="gnote">Las cantidades y tallas se suman con <b>todo tu pedido</b>, no solo con esta referencia. Con código de mayorista aplica el precio mayor sin condición de tallas.</p></section>` : '';
+  /* Guía de tallas */
+  const raw = guideOf(p); let guideHTML = '';
+  if (raw) {
+    const g = parseGuide(raw), rows = GSZ.filter(z => (g.rows[z] || []).some(v => String(v).trim()));
+    guideHTML = `<section class="dsec"><h4>Guía de tallas${g.name ? ' · ' + esc(g.name) : ''}</h4>${rows.length ? `<div class="gscroll"><table class="gtbl"><thead><tr><th>Talla</th>${g.cols.map(c => `<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>${rows.map(z => `<tr><th>${z}</th>${g.cols.map((c, i) => `<td>${esc((g.rows[z] || [])[i] || '—')}</td>`).join('')}</tr>`).join('')}</tbody></table></div>` : '<p class="note">Esta guía aún no tiene medidas.</p>'}${g.note ? `<p class="gnote">${esc(g.note)}</p>` : ''}</section>`;
+  }
+  const w = p.fabric_weight_id ? weights.find(x => String(x.id) === String(p.fabric_weight_id)) : null;
+  const meta = [p.color ? 'Color: ' + esc(p.color) : '', w ? esc(parseInt(w.grams) + ' g/m²') : ''].filter(Boolean).join(' · ');
+  return `<div class="dgrid">
+    <div class="dmedia"><div class="dmain"><img src="${mainSrc}" alt="${esc(p.name)}${showBack ? ' (parte trasera)' : ''}">${out ? '<span class="mini-tag soldout">Agotado</span>' : ''}</div>${thumbs}</div>
+    <div class="dinfo">
+      <p class="glbl">${esc(cat?.name || 'Sin categoría')}</p>
+      <h3 id="dtitle">${esc(p.name)}</h3>
+      ${tags.length ? `<div class="product-labels">${tags.map(t => `<span class="mini-tag">${esc(t)}</span>`).join('')}</div>` : ''}
+      ${meta ? `<p class="dmeta">${meta}</p>` : ''}
+      ${p.description ? `<p class="ddesc">${esc(p.description)}</p>` : ''}
+      <div class="dprice">${priceHTML}</div>
+      <label class="dlbl">Talla</label>
+      <div class="gr sz dsizes">${av.map(z => `<button type="button" class="${z == cs && stock(p, z) > 0 && !out ? 'on' : ''}" ${stock(p, z) > 0 && !p.sold_out ? '' : 'disabled'} title="${stock(p, z) > 0 && !p.sold_out ? stock(p, z) + ' disponibles' : 'Agotada'}" onclick="dPick('${p.id}','${z}')">${z}</button>`).join('')}</div>
+      ${!out && cs ? `<small class="note">${stock(p, cs)} disponibles en talla ${cs}</small>` : ''}
+      <button type="button" class="btn acc dadd" ${out ? 'disabled' : ''} onclick="dAdd('${p.id}','${cs}')">${out ? 'Agotado' : 'Añadir al pedido'}</button>
+      ${qtyHTML}${bulkHTML}${guideHTML}
+    </div>
+  </div>`;
+}
+function renderDetail() {
+  const p = products.find(x => String(x.id) === String(detailId)), box = $('#dmodal .dbox');
+  if (!p) return closeDetail();
+  const top = box.scrollTop;
+  $('#dbody').innerHTML = detailHTML(p);
+  box.scrollTop = top;
+}
+function openDetail(id) {
+  if (!products.some(x => String(x.id) === String(id))) return;
+  detailId = id; detailImg = 'front'; renderDetail();
+  $('#dmodal .dbox').scrollTop = 0;
+  $('#dmodal').hidden = false; document.body.classList.add('guide-open');
+  $('#dmodal .gclose').focus();
+}
+function closeDetail() { detailId = null; $('#dmodal').hidden = true; if ($('#gmodal').hidden && $('#pmodal').hidden) document.body.classList.remove('guide-open'); }
+const dImg = which => { detailImg = which; renderDetail(); };
+const dPick = (id, z) => { selS[id] = z; renderDetail(); };
+function dAdd(id, z) { closeDetail(); add(id, z); }
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#dmodal').hidden) closeDetail(); });
+/* Tocar una tarjeta abre el detalle (menos sus botones: tallas, Añadir, guía, precio mayor). */
+document.addEventListener('click', e => {
+  const card = e.target.closest && e.target.closest('.card');
+  if (!card || !card.dataset.id) return;
+  if (e.target.closest('button, a, select, input, label, textarea')) return;
+  openDetail(card.dataset.id);
+});
+const weightTag = p => { const w = p.fabric_weight_id ? weights.find(x => String(x.id) === String(p.fabric_weight_id)) : null; return w ? `<span class="mini-tag">${esc(parseInt(w.grams) + ' g/m²')}</span>` : ''; };
+function card(p) {
+  const av = sizes(p), inStock = av.filter(z => stock(p, z) > 0), cs = inStock.includes(selS[p.id]) ? selS[p.id] : (inStock[0] || av[0]), out = p.sold_out || !inStock.length, wu = wcode ? wcUnit(p) : null;
+  const categoryName = cats.find(c => String(c.id) === String(p.category_id))?.name || 'Sin categoría';
+  const isFlag = v => v === true || v === 1 || v === '1' || String(v).toLowerCase() === 'true';
+  const featuredTags = [isFlag(p.is_best_seller) ? 'Best seller' : '', (SZ.reduce((n,z)=>n+stock(p,z),0) < 4) ? 'Últimas unidades' : '', isFlag(p.is_new_arrival) ? 'Lo más nuevo' : ''].filter(Boolean);
+  return `<article class="card ${out ? 'so' : ''}" data-id="${esc(p.id)}"><div class="im${p.image_path_back ? ' has-back' : ''}"><img class="img-front" src="${imgUrl(p.image_path)}" alt="${esc(p.name)}" loading="lazy">${p.image_path_back ? `<img class="img-back" src="${imgUrl(p.image_path_back)}" alt="" aria-hidden="true" loading="lazy" onerror="this.parentNode.classList.remove('has-back');this.remove()">` : ''}${guideBtn(p)}<div class="im-actions">${bulkBtn(p)}</div></div><div class="b"><div class="product-labels"><span class="category-label">${esc(categoryName)}</span>${weightTag(p)}${out ? '<span class="mini-tag soldout">Agotado</span>' : ''}${onPromo(p) && !out ? `<span class="mini-tag promo">Promo −${promoPct(p)}%</span>` : ''}${featuredTags.map(t=>`<span class="mini-tag">${esc(t)}</span>`).join('')}</div><h3>${esc(p.name)}</h3><p>${esc(p.description)}</p>
+  <div class="gr sz">${av.map(z => `<button class="${z == cs && stock(p, z) > 0 && !out ? 'on' : ''}" ${stock(p, z) > 0 && !p.sold_out ? '' : 'disabled'} title="${stock(p, z) > 0 && !p.sold_out ? stock(p, z) + ' disponibles' : 'Agotada'}" onclick="pickS('${p.id}','${z}')">${z}</button>`).join('')}</div>
+  <div class="row"><span class="price">${wu ? `<s class="old">${fmt(eff(p))}</s> ${fmt(wu)}` : onPromo(p) ? `<s class="old">${fmt(price(p))}</s> <span class="promo-now">${fmt(eff(p))}</span>` : fmt(price(p))}</span><button class="btn acc" ${out ? 'disabled' : ''} onclick="add('${p.id}','${cs}')">${out ? 'Agotado' : 'Añadir'}</button></div>${wu ? '<small class="note">Precio mayorista</small>' : onPromo(p) ? '<small class="note">Precio de promoción</small>' : volume(p)}</div></article>`;
+}
+function goTop(e) {
+  if (e) e.preventDefault();
+  if (typeof toggleMobileNavigation === 'function') toggleMobileNavigation(false);
+  if (typeof cartOpen === 'function') cartOpen(false);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  try { history.replaceState(null, '', location.pathname + location.search); } catch (err) {}
+  return false;
+}
+function toggleMobileNavigation(force) {
+  const nav = document.getElementById('shopNavigation');
+  const button = document.getElementById('mobileNavToggle');
+  if (!nav || !button) return;
+  const open = typeof force === 'boolean' ? force : !nav.classList.contains('mobile-nav-open');
+  nav.classList.toggle('mobile-nav-open', open);
+  button.setAttribute('aria-expanded', String(open));
+  button.classList.toggle('is-open', open);
+}
+
+document.addEventListener('click', (event) => {
+  if (window.matchMedia('(max-width: 700px)').matches) {
+    const nav = document.getElementById('shopNavigation');
+    if (nav && nav.classList.contains('mobile-nav-open') && nav.contains(event.target) && !event.target.closest('.category-menu')) {
+      toggleMobileNavigation(false);
+    }
+  }
+});
+window.addEventListener('resize', () => {
+  if (window.innerWidth > 700) toggleMobileNavigation(false);
+});
+
+function toggleCategoryMenu() {
+  const menu = $('#categoryDropdown');
+  const button = document.querySelector('.category-menu > button');
+  const open = !menu.classList.contains('open');
+  menu.classList.toggle('open', open);
+  if (button) button.setAttribute('aria-expanded', String(open));
+}
+function chooseCategory(id) {
+  catF = id; catalogExpanded = false;
+  featuredFilter = 'all';
+  const menu = $('#categoryDropdown');
+  if (menu) menu.classList.remove('open');
+  const button = document.querySelector('.category-menu > button');
+  if (button) button.setAttribute('aria-expanded', 'false');
+  render();
+  document.getElementById('catalogo')?.scrollIntoView({behavior:'smooth', block:'start'});
+}
+function showFeatured(which) {
+  catalogExpanded = false; catF = 'all'; colorF = 'all'; sizeF = 'all'; weightF = 'all';
+  if (which === 'best') {
+    featuredFilter = 'all';
+    render();
+    document.getElementById('bestSellersSection')?.scrollIntoView({behavior:'smooth', block:'start'});
+    return;
+  }
+  if (which === 'new') {
+    featuredFilter = 'all';
+    render();
+    const target = document.getElementById('newArrivalsSection');
+    (target && !target.hidden ? target : document.getElementById('catalogo'))?.scrollIntoView({behavior:'smooth', block:'start'});
+    return;
+  }
+  featuredFilter = which === 'last' ? 'last' : 'all';
+  render();
+  document.getElementById('catalogo')?.scrollIntoView({behavior:'smooth', block:'start'});
+}
+/* Orden aleatorio: cada visita sortea una posición por producto. Se conserva mientras la página
+   está abierta (filtrar, añadir al carrito o pulsar "Ver más" no baraja de nuevo las tarjetas). */
+const shuffleRank = new Map();
+const rankOf = p => { const k = String(p.id); if (!shuffleRank.has(k)) shuffleRank.set(k, Math.random()); return shuffleRank.get(k); };
+const shuffled = list => [...list].sort((a, b) => rankOf(a) - rankOf(b));
+function renderBestSellers() {
+  const host = $('#bestSellersCarousel');
+  if (!host) return;
+  const list = shuffled(products.filter(p => p.is_best_seller === true || p.is_best_seller === 1 || p.is_best_seller === 'true'));
+  host.innerHTML = list.length
+    ? list.map(p => `<div class="featured-card">${card(p)}</div>`).join('')
+    : '<div class="empty serif featured-empty">Aún no hay diseños marcados como Best Sellers. Puedes seleccionarlos desde Administrar.</div>';
+}
+function renderNewArrivals() {
+  const host = $('#newArrivalsCarousel'), sec = $('#newArrivalsSection');
+  if (!host || !sec) return;
+  const list = shuffled(products.filter(p => p.is_new_arrival === true || p.is_new_arrival === 1 || p.is_new_arrival === '1' || String(p.is_new_arrival).toLowerCase() === 'true'));
+  sec.hidden = !list.length;   /* sin productos marcados, la sección no se muestra */
+  host.innerHTML = list.map(p => `<div class="featured-card">${card(p)}</div>`).join('');
+}
+function moveCarousel(id, direction) {
+  const host = document.getElementById(id);
+  if (host) { host._hold = Date.now() + 8000; host.scrollBy({left: direction * Math.max(240, host.clientWidth * .75), behavior:'smooth'}); }
+}
+const moveBest = direction => moveCarousel('bestSellersCarousel', direction);
+
+function render() {
+  $('#categoryDropdown').innerHTML = `<button onclick="chooseCategory('all')">Todas las categorías</button>` + cats.map(c=>`<button onclick="chooseCategory('${c.id}')">${esc(c.name)}</button>`).join('');
+  renderBestSellers();
+  renderNewArrivals();
+  $('#catChips').innerHTML = [{ id: 'all', name: 'Todas' }, ...cats].map(c => `<button class="chip ${catF == c.id ? 'on' : ''}" onclick="setC('${c.id}')">${esc(c.name)}</button>`).join('');
+  $('#tiers').innerHTML = `<button class="chip wholesale-entry" onclick="wcOpen()">${wcode ? 'Código mayorista activo · Ver pedido' : '¿Eres mayorista? Ingresa tu código'}</button>`;
+  const colors = [...new Set(products.map(p => String(p.color || '').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es'));
+  const cf = $('#colorFilter'); if (cf) { colorF = colors.includes(colorF) ? colorF : 'all'; cf.innerHTML = '<option value="all">Todos los colores</option>' + colors.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join(''); cf.value = colorF; }
+  const usedW = weights.filter(w => products.some(p => String(p.fabric_weight_id) === String(w.id))).sort(weightSort);
+  const wf = $('#weightFilter'), wbox = $('#weightFilterBox');
+  if (wf && wbox) { wbox.hidden = !usedW.length; weightF = usedW.some(w => String(w.id) === String(weightF)) ? weightF : 'all'; wf.innerHTML = '<option value="all">Todos los gramajes</option>' + usedW.map(w => `<option value="${esc(w.id)}">${esc(weightLabel(w))}</option>`).join(''); wf.value = weightF; }
+  $('#sizeFilters').innerHTML = ['S','M','L','XL','XXL'].map(z => `<button class="chip ${sizeF===z?'on':''}" onclick="setSize('${z}')">${z}</button>`).join('');
+  // Aplicar filtros ANTES de construir las tarjetas: las referencias que no coinciden desaparecen.
+  const norm = value => String(value ?? '').trim().toLocaleLowerCase('es');
+  const inventoryTotal = p => SZ.reduce((total, z) => total + stock(p, z), 0);
+  const filteredProducts = shuffled(products).filter(p => {
+    const flag = value => value === true || value === 1 || value === '1' || String(value).toLowerCase() === 'true';
+    if (featuredFilter === 'best' && !flag(p.is_best_seller)) return false;
+    if (featuredFilter === 'last' && !(inventoryTotal(p) < 4)) return false;
+    if (featuredFilter === 'new' && !flag(p.is_new_arrival)) return false;
+    const matchesCategory = catF === 'all' || String(p.category_id) === String(catF);
+    const matchesColor = colorF === 'all' || norm(p.color) === norm(colorF);
+    const matchesSize = sizeF === 'all' || stock(p, sizeF) > 0;
+    const matchesWeight = weightF === 'all' || String(p.fabric_weight_id) === String(weightF);
+    return matchesCategory && matchesColor && matchesSize && matchesWeight;
+  });
+  // Un solo mosaico continuo: cada tarjeta indica su categoría sin separar el catálogo por referencias.
+  const limit = catalogLimit();
+  const visibleProducts = catalogExpanded ? filteredProducts : filteredProducts.slice(0, limit);
+  const hiddenCount = filteredProducts.length - visibleProducts.length;
+  $('#grid').innerHTML = filteredProducts.length
+    ? visibleProducts.map(card).join('') + (hiddenCount > 0 ? `<div class="load-more"><button class="btn ghost" onclick="showMoreProducts()">Ver más (${hiddenCount})</button></div>` : '')
+    : `<div class="empty serif" style="font-size:20px">No hay diseños que coincidan con los filtros seleccionados.<br><button class="chip" style="margin-top:16px" onclick="clearFilters()">Ver todos los diseños</button></div>`;
+  renderCart();
+  if (detailId && !$('#dmodal').hidden) renderDetail();
+}
+/* Catálogo paginado: 6 filas en escritorio, 15 filas en móvil. Las columnas se leen del CSS real
+   (la cuadrícula es auto-fill), así que el número de productos se ajusta solo a cada pantalla. */
+const CATALOG_ROWS_DESKTOP = 6, CATALOG_ROWS_MOBILE = 15;
+function catalogLimit() {
+  const grid = $('#grid');
+  const cols = grid ? getComputedStyle(grid).gridTemplateColumns.split(' ').filter(Boolean).length : 0;
+  const rows = window.matchMedia('(max-width:700px)').matches ? CATALOG_ROWS_MOBILE : CATALOG_ROWS_DESKTOP;
+  return Math.max(1, cols) * rows;
+}
+function showMoreProducts() { catalogExpanded = true; render(); }
+(function () {
+  let last = null, t;
+  addEventListener('resize', () => {
+    clearTimeout(t);
+    t = setTimeout(() => {
+      const now = catalogLimit();
+      if (last !== null && now !== last && !catalogExpanded && products.length) render();
+      last = now;
+    }, 200);
+  });
+})();
+function wcOpen() { cartOpen(true); $('#wcd').open = true; setTimeout(() => $('#wci').focus(), 50); }
+const setC = id => { catalogExpanded = false; catF = id; featuredFilter = 'all'; render(); };
+const setColor = value => { catalogExpanded = false; colorF = value; render(); };
+const setWeight = value => { catalogExpanded = false; weightF = value; render(); };
+const setSize = value => { catalogExpanded = false; sizeF = sizeF === value ? 'all' : value; render(); };
+const clearFilters = () => { catalogExpanded = false; colorF = 'all'; sizeF = 'all'; weightF = 'all'; catF = 'all'; render(); };
+const pickS = (id, z) => { selS[id] = z; render(); };
+
+function add(id, z) {
+  const p = products.find(x => x.id == id); if (!p || p.sold_out || !z || !stock(p, z)) return;
+  const i = cart.find(c => c.id == id && c.s == z);
+  if (i && i.q >= stock(p, z)) { alert(`Solo hay ${stock(p, z)} unidades disponibles en talla ${z}.`); return cartOpen(true, 'mini'); }
+  i ? i.q++ : cart.push({ id, s: z, q: 1 }); render(); cartOpen(true, 'mini');
+}
+/* Unidades que cuentan para los descuentos %: las de esa referencia (todas las tallas) o el total del pedido */
+function countFor(id) { return cart.reduce((a, c) => a + ((countMode == 'order' || c.id == id) && products.some(x => x.id == c.id) ? c.q : 0), 0); }
+/* Unidades por talla de TODO el pedido (mezclando diseños y categorías) */
+function sizeCounts() { const sz = {}; SZ.forEach(z => sz[z] = 0); cart.forEach(c => { if (products.some(x => x.id == c.id)) sz[c.s] += c.q; }); return sz; }
+const ctxNow = () => ({ sz: sizeCounts(), code: !!wcode });
+function cartCalc() {
+  let n = 0, sub = 0, tot = 0; const lines = [], ctx = ctxNow();
+  cart.forEach(c => {
+    const p = products.find(x => x.id == c.id); if (!p) return;
+    const r = applied(p, catOf(p), tiers, countFor(c.id), ctx), base = eff(p);
+    n += c.q; sub += base * c.q; tot += r.unit * c.q; lines.push({ c, p, base, ...r });
+  });
+  return { n, sub, tot, lines, ctx };
+}
+function renderCart() {
+  const { n, sub, tot, lines, ctx } = cartCalc();
+  $('#wcin').hidden = !!wcode; $('#wcon').hidden = !wcode; $('#wcn').textContent = wname;
+  $('#items').innerHTML = cart.length ? cartGroups(lines).map(G => {
+    const id = String(G.p.id).replace(/'/g, ''), unitTxt = `${fmt(G.unit)} c/u${G.tier ? ` · ${esc(tierLabel(G.tier))}` : ''}`;
+    const steps = SZ.map(z => {
+      const q = G.lines.filter(l => l.c.s == z).reduce((a, l) => a + l.c.q, 0), st = stock(G.p, z), canAdd = !G.p.sold_out && q < st;
+      return `<div class="zr ${q ? 'on' : ''} ${!st && !q ? 'off' : ''}"><span class="zl">${z}</span><div class="zb"><button type="button" aria-label="Restar talla ${z}" ${q ? '' : 'disabled'} onclick="qtySize('${id}','${z}',-1)">−</button><button type="button" aria-label="Sumar talla ${z}" ${canAdd ? '' : 'disabled'} title="${st ? st + ' disponibles' : 'Agotada'}" onclick="qtySize('${id}','${z}',1)">+</button></div><b class="zq" aria-label="Cantidad talla ${z}">${q}</b></div>`;
+    }).join('');
+    return `<div class="cg"><div class="cg-img"><img src="${imgUrl(G.p.image_path)}" alt=""></div><div class="cg-body"><div class="cg-head"><b class="an">${esc(G.p.name)}</b><button type="button" class="chip cg-del" aria-label="Quitar este diseño" onclick="removeDesign('${id}')">Quitar</button></div><span class="note cg-unit">${unitTxt}</span><div class="cg-rows">${steps}</div><div class="cg-total"><span>Total</span><b>${G.q}</b></div></div></div>`;
+  }).join('') : '<p class="note serif">Tu carrito está vacío.</p>';
+  const seen = new Set(), hints = [];
+  if (!wcode) lines.forEach(L => {
+    if (seen.has(L.p.id)) return; seen.add(L.p.id);
+    const o = nextOffer(L.p, catOf(L.p), tiers, countFor(L.p.id), ctx); if (!o) return;
+    hints.push(o.tier.kind == 'pct'
+      ? `Agrega ${o.need} ${o.need == 1 ? 'unidad' : 'unidades'} más de <b>${esc(L.p.name)}</b> y pagas ${fmt(o.unit)} c/u (${esc(tierLabel(o.tier))}).`
+      : `Precio ${esc(o.tier.name)} para <b>${esc(L.p.name)}</b> (${fmt(o.unit)} c/u): te faltan ${o.need} ${o.need == 1 ? 'unidad' : 'unidades'} para completar ${tierReq(tiers, o.tier)} en tu pedido.`);
+  });
+  const resumen = SZ.filter(z => ctx.sz[z]).map(z => `${z}: ${ctx.sz[z]}`).join(' · ');
+  $('#tierinfo').innerHTML = n ? (resumen ? `<div class="note">Tallas del pedido → ${resumen}</div>` : '') + (sub > tot ? `<div class="row"><span>Descuento aplicado</span><b>− ${fmt(sub - tot)}</b></div>` : '') + hints.map(x => `<div class="note serif">${x}</div>`).join('') : '';
+  $('#total').textContent = fmt(tot); $('#subtotal').textContent = fmt(sub); $('#cartUnits').textContent = n; $('#discountRow').hidden = !(sub > tot); $('#discountTotal').textContent = '− ' + fmt(sub - tot); $('#cc').textContent = n;
+  scheduleLeadSave();
+}
+function scheduleLeadSave() { /* Los datos de envío se guardan al confirmar la cotización. */ }
+/* Un diseño = una tarjeta con todas sus tallas (resume pedidos con muchas referencias) */
+function cartGroups(lines) {
+  const g = new Map();
+  lines.forEach(L => { if (!g.has(L.p.id)) g.set(L.p.id, { p: L.p, unit: L.unit, tier: L.tier, q: 0, lines: [] }); const G = g.get(L.p.id); G.q += L.c.q; G.lines.push(L); });
+  return [...g.values()];
+}
+function qtySize(id, z, d) {
+  const p = products.find(x => x.id == id); if (!p) return;
+  const i = cart.findIndex(c => c.id == id && c.s == z);
+  if (d > 0) {
+    const cur = i >= 0 ? cart[i].q : 0;
+    if (p.sold_out || cur >= stock(p, z)) { alert(`Solo hay ${stock(p, z)} unidades disponibles en talla ${z}.`); return; }
+    i >= 0 ? cart[i].q++ : cart.push({ id: p.id, s: z, q: 1 });
+  } else if (i >= 0) { cart[i].q--; if (cart[i].q < 1) cart.splice(i, 1); }
+  renderCart();
+}
+function removeDesign(id) { cart = cart.filter(c => c.id != id); renderCart(); }
+/* mode 'mini' = panel lateral derecho al añadir un diseño · 'full' = pantalla completa con el total (botón Carrito) */
+const cartOpen = (o, mode = 'full') => {
+  const d = $('#drawer'), mini = mode === 'mini';
+  if (o) {
+    if (d.classList.contains('mini') !== mini) { d.style.setProperty('transition', 'none', 'important'); d.classList.toggle('mini', mini); void d.offsetWidth; d.style.removeProperty('transition'); }
+    renderCart();
+  }
+  d.classList.toggle('open', o);
+  document.body.classList.toggle('cart-page-open', o && !mini);
+  document.body.classList.toggle('cart-mini-open', o && mini);
+};
+document.addEventListener('keydown', e => { if (e.key === 'Escape') cartOpen(false); });
+let quoteBlob = null, quoteFile = null, quoteMessage = '';
+async function imageAsDataUrl(url) {
+  if (!url) return null;
+  return new Promise(resolve => {
+    const img = new Image(); img.crossOrigin = 'anonymous';
+    img.onload = () => { try { const canvas = document.createElement('canvas'); canvas.width = img.naturalWidth || 1; canvas.height = img.naturalHeight || 1; canvas.getContext('2d').drawImage(img,0,0); resolve({ data: canvas.toDataURL('image/jpeg',0.9), width: canvas.width, height: canvas.height }); } catch(e) { resolve(null); } };
+    img.onerror = () => resolve(null); img.src = url;
+  });
+}
+let jsPdfPromise = null;
+function loadJsPDF() {
+  if (window.jspdf && window.jspdf.jsPDF) return Promise.resolve();
+  if (!jsPdfPromise) jsPdfPromise = new Promise((ok, fail) => {
+    const sc = document.createElement('script');
+    sc.src = 'https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js';
+    sc.onload = ok; sc.onerror = () => { jsPdfPromise = null; fail(new Error('jsPDF')); };
+    document.head.appendChild(sc);
+  });
+  return jsPdfPromise;
+}
+async function makeQuotePdf() {
+  try { await loadJsPDF(); } catch (e) {}
+  if (!window.jspdf || !window.jspdf.jsPDF) throw new Error('No se pudo cargar el generador PDF. Revisa tu conexión e inténtalo de nuevo.');
+  const { jsPDF } = window.jspdf, { n, sub, tot, lines } = cartCalc();
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const margin = 14, pageW = 210, contentW = pageW - margin * 2;
+  let y = 17;
+  const ensure = h => { if (y + h > 276) { doc.addPage(); y = 17; } };
+  // Encabezado limpio, inspirado en el resumen del carrito
+  doc.setFillColor(52, 51, 57); doc.rect(0, 0, pageW, 34, 'F');
+  doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(21);
+  doc.text('IZAN CLOTHES', margin, 15);
+  doc.setFont('helvetica','normal'); doc.setFontSize(9);
+  doc.text('RESUMEN DE COTIZACIÓN', margin, 23);
+  doc.text(`Fecha: ${new Date().toLocaleDateString('es-CO')}`, pageW-margin, 23, {align:'right'});
+  y = 43; doc.setTextColor(52,51,57);
+  doc.setFont('helvetica','normal'); doc.setFontSize(9);
+  doc.text('Este es el resumen de las prendas seleccionadas y sus valores estimados.', margin, y); y += 9;
+  const shipping = getShippingData();
+  const shippingRows = [
+    ['Nombre completo', shipping.name], ['Cédula', shipping.idNumber], ['Celular', shipping.phone],
+    ['Dirección', shipping.address], ['Ciudad', shipping.city], ['Correo electrónico', shipping.email]
+  ];
+  const shippingLines = shippingRows.map(([label, value]) => `${label}: ${value}`);
+  const shippingHeight = 10 + shippingLines.length * 5;
+  ensure(shippingHeight);
+  doc.setFillColor(245,245,246); doc.roundedRect(margin,y-3,contentW,shippingHeight,2,2,'F');
+  doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(52,51,57);
+  doc.text('DATOS DE ENVÍO',margin+4,y+2);
+  doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(70,70,72);
+  shippingLines.forEach((line,index)=>doc.text(doc.splitTextToSize(line,contentW-8),margin+4,y+7+index*5));
+  y += shippingHeight + 4;
+  // Agrupar por referencia, como en el carrito visual
+  const groups = new Map();
+  lines.forEach(L => {
+    if (!groups.has(L.p.id)) groups.set(L.p.id, {p:L.p, lines:[], qty:0, subtotal:0});
+    const g = groups.get(L.p.id); g.lines.push(L); g.qty += L.c.q; g.subtotal += L.unit * L.c.q;
+  });
+  for (const g of groups.values()) {
+    const sizeRows = g.lines.map(L => `${L.c.s}: ${L.c.q} und. × ${fmt(L.unit)} = ${fmt(L.unit * L.c.q)}`);
+    // Miniatura proporcional: se conserva la relación de aspecto original para evitar deformar la prenda.
+    const photo = await imageAsDataUrl(imgUrl(g.p.image_path));
+    const imageBoxW = 31, imageBoxH = 38, imageX = margin + 3, imageY = y - 1;
+    const textX = margin + 39, textW = contentW - 45;
+    const titleLines = doc.splitTextToSize(String(g.p.name || 'Producto'), textW);
+    const textH = 9 + titleLines.length * 4.5 + sizeRows.length * 5 + 5;
+    const h = Math.max(imageBoxH + 4, textH + 5);
+    ensure(h);
+    // Recalcular la posición si ensure agregó una página.
+    const cardY = y - 4;
+    doc.setFillColor(245,245,246); doc.roundedRect(margin, cardY, contentW, h, 2, 2, 'F');
+    if (photo) {
+      const ratio = Math.min(imageBoxW / photo.width, imageBoxH / photo.height);
+      const drawW = photo.width * ratio, drawH = photo.height * ratio;
+      const drawX = imageX + (imageBoxW - drawW) / 2, drawY = cardY + (h - drawH) / 2;
+      try { doc.addImage(photo.data, 'JPEG', drawX, drawY, drawW, drawH, undefined, 'MEDIUM'); } catch(e) { /* Si el servidor bloquea la imagen, la cotización sigue generándose. */ }
+    }
+    doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(52,51,57);
+    doc.text(titleLines, textX, y+2);
+    let yy = y + titleLines.length*4.5 + 2;
+    doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(90,91,93);
+    sizeRows.forEach(t => { const wrapped = doc.splitTextToSize(t, textW); doc.text(wrapped, textX, yy); yy += Math.max(5, wrapped.length * 4); });
+    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(52,51,57);
+    doc.text(`${g.qty} unidades`, textX, yy+1);
+    doc.text(fmt(g.subtotal), pageW-margin-4, yy+1, {align:'right'});
+    y += h + 3;
+  }
+  ensure(43);
+  y += 2; doc.setDrawColor(190); doc.line(margin, y, pageW-margin, y); y += 8;
+  doc.setFont('helvetica','normal'); doc.setFontSize(10);
+  doc.text('Total de unidades', margin, y); doc.text(String(n), pageW-margin, y, {align:'right'}); y += 7;
+  doc.text('Subtotal', margin, y); doc.text(fmt(sub), pageW-margin, y, {align:'right'}); y += 7;
+  if (sub > tot) { doc.text('Descuento aplicado', margin, y); doc.text(`− ${fmt(sub-tot)}`, pageW-margin, y, {align:'right'}); y += 7; }
+  doc.setFillColor(52,51,57); doc.roundedRect(margin, y-5, contentW, 15, 2, 2, 'F');
+  doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(12);
+  doc.text('TOTAL ESTIMADO', margin+4, y+4); doc.text(fmt(tot), pageW-margin-4, y+4, {align:'right'}); y += 18;
+  doc.setTextColor(90,91,93); doc.setFont('helvetica','normal'); doc.setFontSize(8.5);
+  if (wcode) { ensure(9); doc.text(`Código mayorista: ${wcode}${wname ? ` (${wname})` : ''}`, margin, y); y += 6; }
+  const foot = doc.splitTextToSize('Cotización sujeta a confirmación de inventario y cierre de venta por WhatsApp.', contentW);
+  ensure(foot.length*4+4); doc.text(foot, margin, y+2);
+  quoteBlob = doc.output('blob');
+  quoteFile = new File([quoteBlob], `Cotizacion-IZAN-${new Date().toISOString().slice(0,10)}.pdf`, { type: 'application/pdf' });
+  const txt = lines.map(L => `• ${L.p.name} | Talla ${L.c.s}: ${L.c.q} und. × ${fmt(L.unit)} = ${fmt(L.unit * L.c.q)}`);
+  quoteMessage = `Hola IZAN, quiero cerrar esta cotización:\n${txt.join('\n')}\nUnidades: ${n}${wcode ? `\nCódigo mayorista: ${wcode} (${wname})` : ''}\nTotal estimado: ${fmt(tot)}\n\nDATOS DE ENVÍO\nNombre completo: ${shipping.name}\nCédula: ${shipping.idNumber}\nCelular: ${shipping.phone}\nDirección: ${shipping.address}\nCiudad: ${shipping.city}\nCorreo electrónico: ${shipping.email}\nAdjunto la cotización en PDF.`;
+}
+function getShippingData() {
+  const value = id => (document.getElementById(id)?.value || '').trim();
+  return { name:value('customerName'), idNumber:value('customerIdNumber'), phone:value('customerPhone'), address:value('customerAddress'), city:value('customerCity'), email:value('customerEmail') };
+}
+function showQuoteStep(step) {
+  const form = step === 'form';
+  $('#quoteForm').hidden = !form; $('#quoteActions').hidden = form;
+  $('#quoteTitle').textContent = form ? 'Datos de envío' : 'Cotización lista';
+}
+/* Paso 1: al pulsar "Pedir por WhatsApp" se piden los datos de envío */
+function checkout() {
+  const { lines } = cartCalc();
+  if (!lines.some(L => !L.p.sold_out && stock(L.p, L.c.s))) return;
+  say('customerSaveHint', '');
+  showQuoteStep('form');
+  $('#quoteModal').style.display = 'flex';
+  setTimeout(() => { const f = $('#customerName'); if (f && !f.value) f.focus(); }, 60);
+}
+/* Paso 2: al guardar se valida, se genera la cotización y aparecen los botones para seguir */
+async function saveShipping() {
+  const { lines } = cartCalc();
+  const shipping = getShippingData(), hint = $('#quoteHint'), btn = $('#saveShippingBtn');
+  const fields = [['Nombre completo', shipping.name, '#customerName'], ['Cédula', shipping.idNumber, '#customerIdNumber'], ['Celular', shipping.phone, '#customerPhone'], ['Dirección', shipping.address, '#customerAddress'], ['Ciudad', shipping.city, '#customerCity'], ['Correo electrónico', shipping.email, '#customerEmail']];
+  const missing = fields.find(([, v]) => !v);
+  if (missing) { say('customerSaveHint', `Completa el campo obligatorio: ${missing[0]}.`); document.querySelector(missing[2])?.focus(); return; }
+  const emailInput = $('#customerEmail');
+  if (!emailInput.checkValidity()) { say('customerSaveHint', 'Ingresa un correo electrónico válido.'); emailInput.focus(); return; }
+  if (!lines.some(L => !L.p.sold_out && stock(L.p, L.c.s))) { say('customerSaveHint', 'Tu pedido no tiene productos disponibles.'); return; }
+  btn.disabled = true; say('customerSaveHint', 'Guardando…');
+  try {
+    await makeQuotePdf();
+  } catch (e) {
+    btn.disabled = false; say('customerSaveHint', e.message || 'No fue posible generar el PDF. Intenta nuevamente.'); return;
+  }
+  btn.disabled = false; say('customerSaveHint', '');
+  showQuoteStep('actions');
+  hint.textContent = 'Tu cotización está lista. Puedes compartir el PDF, descargarlo o continuar a WhatsApp.';
+  try {
+    const { n, tot } = cartCalc();
+    const items = lines.map(L => ({ product_id: L.p.id, product_name: L.p.name, image_url: imgUrl(L.p.image_path), size: L.c.s, quantity: L.c.q, unit_price: L.unit, subtotal: L.unit * L.c.q }));
+    const { error } = await sb.from('orders').insert({ status: 'pending', total: tot, units: n, items, wholesale_code: wcode || null, wholesale_name: wname || null, customer_name: shipping.name, customer_id_number: shipping.idNumber, customer_phone: shipping.phone, customer_address: shipping.address, customer_city: shipping.city, customer_email: shipping.email });
+    if (error) throw error;
+    savedQuoteId = null;
+    hint.textContent = 'Cotización generada y registrada en Pedidos. Ahora puedes compartir el PDF o continuar a WhatsApp.';
+  } catch (e) {
+    hint.textContent = 'La cotización está lista, pero no se pudo guardar en Administración. Puedes compartir o descargar el PDF y continuar a WhatsApp.';
+  }
+}
+function quoteClose() { $('#quoteModal').style.display = 'none'; }
+function downloadQuotePdf() {
+  if (!quoteBlob) return;
+  const url = URL.createObjectURL(quoteBlob), a = document.createElement('a');
+  a.href = url; a.download = quoteFile ? quoteFile.name : 'Cotizacion-IZAN.pdf'; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
+}
+async function shareQuotePdf() {
+  if (!quoteFile) return;
+  try {
+    if (navigator.canShare && navigator.canShare({ files: [quoteFile] }) && navigator.share) {
+      await navigator.share({ files: [quoteFile], title: 'Cotización IZAN Clothes', text: quoteMessage });
+    } else {
+      downloadQuotePdf();
+      $('#quoteHint').textContent = 'PDF descargado. En este navegador no está disponible compartir archivos directamente: abre WhatsApp y adjunta el PDF descargado.';
+    }
+  } catch (e) {
+    if (e.name !== 'AbortError') $('#quoteHint').textContent = 'No se pudo abrir el menú de compartir. Descarga el PDF y continúa a WhatsApp para adjuntarlo.';
+  }
+}
+function openQuoteWhatsApp() {
+  const w = (waDest || '').trim();
+  const url = /^https?:/.test(w) ? w : `https://wa.me/${w.replace(/\D/g, '')}?text=${encodeURIComponent(quoteMessage)}`;
+  window.open(url, '_blank', 'noopener');
+  $('#quoteHint').textContent = 'Se abrió WhatsApp con el mensaje de la cotización. Adjunta el PDF descargado para enviar el documento al cliente/asesor.';
+}
+render(); load();
+
+/* Pantallas táctiles (celular/tablet): no existe "pasar el mouse". La foto trasera se muestra sola en el producto
+   que queda más cerca del centro de la pantalla mientras haces scroll (en la grilla se activa toda la fila central;
+   en el carrusel de favoritos, la tarjeta central). El cambio usa el mismo desvanecido que el hover del computador. */
+(function(){
+  if (!window.matchMedia || !window.matchMedia('(hover: none)').matches) return;
+  let on = [], queued = false;
+  /* Toque en un producto: ese producto es el ÚNICO que alterna frontal/trasera, cada 1,5 s.
+     Tocarlo otra vez lo detiene y se vuelve al cambio por scroll. Tocar otro producto le pasa el control. */
+  const FLIP_MS = 1500; let tap = null, timer = null;   /* tap = { id, box } */
+  const tapCard = () => tap ? document.querySelector('#' + tap.box + ' .card[data-id="' + String(tap.id).replace(/["\\]/g, '') + '"]') : null;
+  function tapStop() { clearInterval(timer); timer = null; const c = tapCard(); if (c) c.classList.remove('peek'); tap = null; queue(); }
+  function tapApply() { const c = tapCard(); document.querySelectorAll('.card.peek').forEach(k => { if (k !== c) k.classList.remove('peek'); }); if (c) c.classList.toggle('peek', tap.back); }
+  function tapStart(card) {
+    clearInterval(timer); on.forEach(im => { const k = im.closest('.card'); if (k) k.classList.remove('peek'); }); on = [];
+    tap = { id: card.dataset.id, box: card.closest('#grid') ? 'grid' : (card.closest('.featured-carousel')?.id || 'bestSellersCarousel'), back: true }; tapApply();
+    timer = setInterval(() => { tap.back = !tap.back; tapApply(); }, FLIP_MS);
+  }
+  function update(){
+    queued = false;
+    if (tap) { tapApply(); return; }   /* mientras hay un producto tocado, el scroll no cambia fotos */
+    const vw = innerWidth, vh = innerHeight, cx = vw / 2, cy = vh / 2, cand = [];
+    document.querySelectorAll('.card .im.has-back').forEach(im => {
+      const r = im.getBoundingClientRect(), mx = r.left + r.width / 2, my = r.top + r.height / 2;
+      if (!r.width || mx < 0 || mx > vw || my < 0 || my > vh) return;      /* solo tarjetas cuyo centro está en pantalla */
+      cand.push({ im, mx, my, d: Math.hypot(mx - cx, my - cy) });
+    });
+    let best = null; cand.forEach(c => { if (!best || c.d < best.d) best = c; });
+    /* Estabilidad: la tarjeta activa se mantiene salvo que otra esté claramente más cerca del centro. */
+    const keep = best && cand.find(c => on.includes(c.im) && c.d - best.d < 24);
+    if (keep) best = keep;
+    const next = !best ? [] : cand.filter(c => c === best || (c.im.closest('#grid') && best.im.closest('#grid') && Math.abs(c.my - best.my) < 12)).map(c => c.im);
+    on.forEach(im => { if (!next.includes(im)) { const k = im.closest('.card'); if (k) k.classList.remove('peek'); } });
+    next.forEach(im => { const k = im.closest('.card'); if (k) k.classList.add('peek'); });
+    on = next;
+  }
+  const queue = () => { if (!queued) { queued = true; requestAnimationFrame(update); } };
+  addEventListener('scroll', queue, { passive: true, capture: true });      /* capture: también el scroll horizontal del carrusel */
+  addEventListener('resize', queue); addEventListener('orientationchange', queue); addEventListener('load', queue);
+  const mo = new MutationObserver(queue);
+  ['grid', 'bestSellersCarousel', 'newArrivalsCarousel'].forEach(id => { const el = document.getElementById(id); if (el) mo.observe(el, { childList: true }); });
+  queue();
+})();
+
+/* Carruseles automáticos (Best sellers y Lo más nuevo): avanzan solos una tarjeta cada pocos segundos
+   y vuelven al inicio al llegar al final. Se detienen cuando el cliente interactúa (mouse encima, toque,
+   rueda, teclado, flechas o una talla/botón enfocado), cuando el carrusel no está en pantalla, cuando la
+   pestaña está en segundo plano o si el dispositivo pide menos animación. */
+(function () {
+  const IDS = ['bestSellersCarousel', 'newArrivalsCarousel'];
+  const STEP_MS = 3500;      /* cada cuántos milisegundos avanza (más alto = más lento) */
+  const HOLD_MS = 8000;      /* pausa tras una interacción del cliente */
+  if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const hold = h => { h._hold = Date.now() + HOLD_MS; };
+  const hosts = IDS.map(id => document.getElementById(id)).filter(Boolean);
+  const io = 'IntersectionObserver' in window ? new IntersectionObserver(es => es.forEach(e => { e.target._vis = e.isIntersecting; }), { threshold: .15 }) : null;
+  hosts.forEach(h => {
+    h._vis = !io; h._hover = false; h._hold = 0;
+    if (io) io.observe(h);
+    h.addEventListener('mouseenter', () => { h._hover = true; });
+    h.addEventListener('mouseleave', () => { h._hover = false; hold(h); });
+    ['touchstart', 'pointerdown', 'wheel', 'keydown'].forEach(ev => h.addEventListener(ev, () => hold(h), { passive: true }));
+  });
+  function advance(h) {
+    if (!h._vis || h._hover || document.hidden || Date.now() < h._hold || document.body.classList.contains('guide-open')) return;
+    if (h.contains(document.activeElement)) return;                 /* eligiendo talla o botón */
+    if (h.querySelector('.card.peek')) return;                      /* foto trasera abierta con un toque */
+    const max = h.scrollWidth - h.clientWidth; if (max < 8) return; /* caben todas: no hay nada que mover */
+    const first = h.querySelector('.featured-card');
+    const gap = parseFloat(getComputedStyle(h).columnGap) || 16;
+    const stepPx = first ? first.getBoundingClientRect().width + gap : h.clientWidth * .75;
+    const atEnd = h.scrollLeft >= max - 6;
+    h.scrollTo({ left: atEnd ? 0 : Math.min(max, h.scrollLeft + stepPx), behavior: 'smooth' });
+  }
+  hosts.forEach((h, i) => setTimeout(() => setInterval(() => advance(h), STEP_MS), i * 1200));  /* desfasados para que no se muevan a la vez */
+})();
+
+/* Color del menú flotante: blanco cuando pasa sobre la campaña, oscuro sobre el fondo claro. */
+(function(){
+  const h=document.querySelector('header'); if(!h) return;
+  function upd(){ const c=document.getElementById('campaign'); if(!c) return; const hr=h.getBoundingClientRect(), mid=hr.top+hr.height/2, cr=c.getBoundingClientRect();
+    h.classList.toggle('on-light', !(cr.top<mid && cr.bottom>mid)); }
+  addEventListener('scroll',upd,{passive:true}); addEventListener('resize',upd); addEventListener('load',upd); upd();
+})();
+</script>
+</body>
+</html>
