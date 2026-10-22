@@ -172,12 +172,15 @@ const ICON = {
 };
 const ic = n => `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[n]}</svg>`;
 
+/* Agotado = marcado manualmente o sin unidades en ninguna talla. Estas referencias salen de la tienda y de Venta física. */
+const isAgotado = p => !!p.sold_out || !sizes(p).some(z => stock(p, z) > 0);
 const VIEWS = [
   // Menú agrupado por tareas, manteniendo las pantallas y funciones existentes.
   { id: 'resumen', group: 'Resumen', ico: 'home', name: 'Resumen', desc: 'Una mirada rápida a cómo va tu tienda.' },
   { id: 'pedidos', group: 'Pedidos y cotizaciones', ico: 'mail', name: 'Pedidos y cotizaciones', desc: 'Revisa las cotizaciones que llegan desde el carrito y marca como vendidos los pedidos confirmados.' },
   { id: 'ventafisica', group: 'Pedidos y cotizaciones', ico: 'cart', name: 'Venta física', desc: 'Arma el ticket en el mostrador: toca un diseño, suma las tallas, aplica descuentos y mayoristas automáticamente y entrega el valor final al cliente.' },
   { id: 'catalogo', group: 'Productos e inventario', ico: 'grid', name: 'Catálogo', desc: 'Edita precios, fotos, inventario y estado de cada producto cargado.' },
+  { id: 'agotados', group: 'Productos e inventario', ico: 'layers', name: 'Agotados', desc: 'Referencias sin inventario: no se ven en la tienda ni en Venta física. Cuando lleguen más unidades, repónlas y se reactivan.' },
   { id: 'destacados', group: 'Productos e inventario', ico: 'tag', name: 'Best sellers y Lo más nuevo', desc: 'Agrega o quita productos de Best sellers y Lo más nuevo con un solo clic.' },
   { id: 'nuevo', group: 'Productos e inventario', ico: 'plus', name: 'Nuevo producto', desc: 'Crea una referencia nueva con fotos, precios e inventario por talla.' },
   { id: 'categorias', group: 'Productos e inventario', ico: 'tag', name: 'Categorías', desc: 'Organiza el catálogo y define qué descuentos usa cada categoría.' },
@@ -213,8 +216,8 @@ const shortId = o => o.label || String(o.id).slice(0, 8).toUpperCase();
 /* ================= SHELL ================= */
 let catState = { q: '', c: 'all' }, lastRendered = null;
 function renderPanel() {
-  const cur = VIEWS.find(v => v.id === view) || VIEWS[0], pend = orders.filter(o => o.status === 'pending' || !o.status).length;
-  const body = { resumen: vResumen, pedidos: vPedidos, ventafisica: vVentaFisica, campanas: vCampanas, visual: vVisual, pie: vPie, categorias: vCategorias, guias: vGuias, gramajes: vGramajes, nuevo: vNuevo, destacados: vDestacados, catalogo: vCatalogo, reglas: vReglas, codigos: vCodigos, ajustes: vAjustes, herramientas: vHerramientas }[cur.id]();
+  const cur = VIEWS.find(v => v.id === view) || VIEWS[0], pend = orders.filter(o => o.status === 'pending' || !o.status).length, nAgot = products.filter(isAgotado).length;
+  const body = { resumen: vResumen, pedidos: vPedidos, ventafisica: vVentaFisica, campanas: vCampanas, visual: vVisual, pie: vPie, categorias: vCategorias, guias: vGuias, gramajes: vGramajes, nuevo: vNuevo, destacados: vDestacados, catalogo: vCatalogo, agotados: vAgotados, reglas: vReglas, codigos: vCodigos, ajustes: vAjustes, herramientas: vHerramientas }[cur.id]();
   document.title = cur.name + ' · Administrar · IZAN Clothes';
   /* Si se vuelve a dibujar la MISMA sección (tras guardar un cambio), se conserva la posición de la página. */
   const keepY = lastRendered === cur.id ? window.scrollY : null, pnl = $('#panel');
@@ -223,7 +226,7 @@ function renderPanel() {
   /* Menú con desplegables: Resumen va suelto; el resto se agrupa. Abiertos: los que el usuario abrió + el de la sección actual. */
   navOpen.add(cur.group);
   const mobile = window.matchMedia('(max-width:900px)').matches;
-  const link = v => `<button class="adm-link ${v.id === cur.id ? 'on' : ''}" onclick="go('${v.id}')" ${v.id === cur.id ? 'aria-current="page"' : ''}><span class="ico">${ic(v.ico)}</span><span class="lbl2">${v.name}</span>${v.id === 'pedidos' && pend ? `<em>${pend}</em>` : ''}</button>`;
+  const link = v => `<button class="adm-link ${v.id === cur.id ? 'on' : ''}" onclick="go('${v.id}')" ${v.id === cur.id ? 'aria-current="page"' : ''}><span class="ico">${ic(v.ico)}</span><span class="lbl2">${v.name}</span>${v.id === 'pedidos' && pend ? `<em>${pend}</em>` : ''}${v.id === 'agotados' && nAgot ? `<em>${nAgot}</em>` : ''}</button>`;
   const groups = []; VIEWS.forEach(v => { if (v.group === 'Resumen') return; let g = groups.find(x => x.name === v.group); if (!g) groups.push(g = { name: v.group, items: [] }); g.items.push(v); });
   const nav = VIEWS.filter(v => v.group === 'Resumen').map(link).join('') + groups.map(g => `<details class="adm-grp" data-g="${esc(g.name)}" ${mobile || navOpen.has(g.name) ? 'open' : ''} ontoggle="navToggle(this)"><summary class="adm-group"><span>${g.name}</span>${g.name === 'Pedidos y cotizaciones' && pend ? `<em class="adm-dot">${pend}</em>` : ''}</summary>${g.items.map(link).join('')}</details>`).join('');
   const popNav = `<div class="adm-col"><p class="adm-pop-g">Inicio</p>${VIEWS.filter(v => v.group === 'Resumen').map(link).join('')}</div>` +
@@ -253,7 +256,7 @@ function renderPanel() {
 
 /* ================= VISTAS ================= */
 function vResumen() {
-  const pend = orders.filter(o => o.status === 'pending' || !o.status), agotados = products.filter(p => p.sold_out || !SZ.some(z => stock(p, z))), lowStock = products.filter(p => !p.sold_out && SZ.some(z => stock(p,z)>0 && stock(p,z)<=3));
+  const pend = orders.filter(o => o.status === 'pending' || !o.status), agotados = products.filter(isAgotado), lowStock = products.filter(p => !p.sold_out && SZ.some(z => stock(p,z)>0 && stock(p,z)<=3));
   const camp = (settings.hero_banners || []).filter(b => b.active !== false).length, cods = codes.filter(k => k.active).length;
   const stat = (v, n, label, cls) => `<button class="stat ${cls}" onclick="go('${v}')"><b>${n}</b><span>${label}</span><i aria-hidden="true">↗</i></button>`;
   const mini = o => `<button class="mini" onclick="go('pedidos')"><span><b>#${esc(shortId(o))}</b><small>${new Date(o.created_at).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' })}</small></span><span class="mini-t">${fmt(o.total)}</span><span class="pill ${isSold(o) ? 'ok' : 'wait'}">${isSold(o) ? 'Vendido' : isReserved(o) ? 'Apartado' : isCancelled(o) ? 'Cancelado' : 'Pendiente'}</span></button>`;
@@ -264,7 +267,7 @@ function vResumen() {
       ${stat('categorias', cats.length, cats.length == 1 ? 'Categoría' : 'Categorías', 's-lilac')}
       ${stat('campanas', camp, camp == 1 ? 'Campaña activa' : 'Campañas activas', 's-lime')}
       ${stat('codigos', cods, 'Códigos mayorista activos', 's-ink')}
-      ${stat('catalogo', agotados.length, 'Referencias agotadas', 's-soft')}
+      ${stat('agotados', agotados.length, 'Referencias agotadas', 's-soft')}
       ${stat('herramientas', lowStock.length, 'Referencias con stock bajo (1–3)', 's-orange')}
     </div>
     <div class="split">
@@ -690,10 +693,46 @@ function vCatalogo() {
   if (!cats.length) return `<section class="panel"><div class="empty-box">Todavía no hay categorías ni productos.<br><button class="btn acc" style="margin-top:14px" onclick="go('categorias')">Crear una categoría</button></div></section>`;
   return `<section class="panel">
     <div class="toolbar"><input id="catq" type="search" value="${esc(catState.q)}" placeholder="Buscar producto por nombre…" oninput="filterCatalog()" aria-label="Buscar producto"><select id="catf" onchange="filterCatalog()" aria-label="Filtrar por categoría"><option value="all">Todas las categorías</option>${cats.map(c => `<option value="${c.id}" ${String(catState.c) === String(c.id) ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select><button class="btn acc" onclick="go('nuevo')">+ Nuevo producto</button></div>
-    <p class="note">Cada tarjeta muestra el inventario por talla. Los precios (detal, promoción, distribuidor y mayorista), el nombre, el color, la descripción, la categoría y los descuentos se editan con ✎ Editar. En Más ▾ están las fotos, duplicar, agotado y eliminar.</p>
-    ${cats.map(c => { const l = products.filter(p => p.category_id == c.id);
+    <p class="note">Cada tarjeta muestra el inventario por talla. Los precios (detal, promoción, distribuidor y mayorista), el nombre, el color, la descripción, la categoría y los descuentos se editan con ✎ Editar. En Más ▾ están las fotos, duplicar, agotado y eliminar. Las referencias agotadas no aparecen aquí: están en la sección <a href="#agotados" onclick="go('agotados');return false">Agotados</a>.</p>
+    ${cats.map(c => { const l = products.filter(p => p.category_id == c.id && !isAgotado(p));
       return `<div class="cat-block"><div class="ch"><b>${esc(c.name)}</b><span class="pill">${l.length}</span><span class="grow"></span><button class="chip" onclick="editCat('${c.id}')">✎ Editar categoría</button></div>${l.length ? `<div class="product-grid">${l.map(productRow).join('')}</div>` : '<p class="note">Sin productos.</p>'}</div>`; }).join('')}
   </section>`;
+}
+
+function vAgotados() {
+  const list = products.filter(isAgotado);
+  if (!list.length) return `<section class="panel"><div class="empty-box">No hay referencias agotadas.<br>Cuando un diseño se quede sin inventario aparecerá aquí y dejará de verse en la tienda y en Venta física.</div></section>`;
+  return `<section class="panel">
+    <p class="note">Estas referencias <b>no se ven en la tienda ni en Venta física</b>. Cuando lleguen más unidades, escribe cuántas llegaron por talla y pulsa <b>Reponer y reactivar</b>: el diseño vuelve a aparecer solo.</p>
+    <div class="product-grid agot-grid">${list.map(p => `<div class="agot-item">${productRow(p)}${restockBox(p)}</div>`).join('')}</div>
+  </section>`;
+}
+function restockBox(p) {
+  const hasStock = SZ.some(z => stock(p, z) > 0);
+  return `<div class="restock" id="rs-${p.id}">
+    <b>${hasStock ? 'Marcado como agotado, pero tiene inventario' : 'Llegaron unidades'}</b>
+    <div class="restock-sz">${sizes(p).map(z => `<div><label for="rs-${p.id}-${z}">${z}</label><input id="rs-${p.id}-${z}" type="number" min="0" step="1" inputmode="numeric" placeholder="0"></div>`).join('')}</div>
+    <button type="button" class="btn acc" onclick="restockSold('${p.id}')">${hasStock ? 'Reactivar' : 'Reponer y reactivar'}</button>
+  </div>`;
+}
+async function restockSold(id) {
+  const p = products.find(x => x.id == id); if (!p) return;
+  const add = {}; let total = 0;
+  sizes(p).forEach(z => { const el = document.getElementById(`rs-${id}-${z}`), n = Math.max(0, parseInt(el && el.value) || 0); if (n) { add[z] = n; total += n; } });
+  const hasStock = SZ.some(z => stock(p, z) > 0);
+  if (!total && !hasStock) return alert('Escribe cuántas unidades llegaron en al menos una talla.');
+  const resumen = total ? Object.entries(add).map(([z, n]) => `${z}: +${n}`).join(', ') : 'sin cambios de inventario';
+  if (!await ask(`¿Reactivar “${p.name}”? (${resumen}). Volverá a verse en la tienda y en Venta física.`)) return;
+  const update = { sold_out: false };
+  Object.entries(add).forEach(([z, n]) => update['stock_' + z.toLowerCase()] = stock(p, z) + n);
+  const { error } = await sb.from('products').update(update).eq('id', id);
+  if (error) return alert('No se pudo reactivar: ' + error.message);
+  if (total) {
+    const rows = Object.entries(add).map(([z, n]) => ({ product_id: id, product_name: p.name, size: z, delta: n, before_stock: stock(p, z), after_stock: stock(p, z) + n, reason: 'Reposición (reactivado desde Agotados)', source: 'manual' }));
+    const { error: logError } = await sb.from('inventory_movements').insert(rows);
+    if (logError) console.warn('No se guardó el historial de inventario:', logError.message);
+  }
+  await loadAll();
 }
 
 function vReglas() {
@@ -1169,7 +1208,7 @@ function posRenderAll() { posRenderGrid(); posRenderTicket(); }
 
 function posFiltered() {
   const q = posNorm(pos.q).trim();
-  return products.filter(p => (pos.cat === 'all' || String(p.category_id) === String(pos.cat)) &&
+  return products.filter(p => !(p.sold_out || !sizes(p).some(z => posStock(p, z) > 0)) && (pos.cat === 'all' || String(p.category_id) === String(pos.cat)) &&
     (!q || posNorm(`${p.name} ${p.color || ''} ${posCatName(p)} ${p.description || ''}`).includes(q)));
 }
 function posRenderGrid() {
@@ -1547,7 +1586,7 @@ async function importLegacyTiles() {
 
 /* Después de guardar: deja la referencia a la vista (aunque haya cambiado de categoría o de nombre) y la resalta. */
 function focusProduct(id) {
-  if (view !== 'catalogo') return;
+  if (view !== 'catalogo' && view !== 'agotados') return;
   let r = document.getElementById('prod-' + id); if (!r) return;
   if (r.hidden) { catState = { q: '', c: 'all' }; const qi = $('#catq'), ci = $('#catf'); if (qi) qi.value = ''; if (ci) ci.value = 'all'; filterCatalog(); r = document.getElementById('prod-' + id); }
   r.scrollIntoView({ block: 'center' });
@@ -1582,6 +1621,7 @@ function editProduct(id) {
     if (guidesOk) update.size_guide_id = $('#epgu').value || null;
     if (weightsOk) update.fabric_weight_id = $('#epwt').value || null;
     SZ.forEach(z => update['stock_' + z.toLowerCase()] = Math.max(0, parseInt($('#es' + z).value) || 0));
+    if (p.sold_out && !SZ.some(z => stock(p, z) > 0) && SZ.some(z => update['stock_' + z.toLowerCase()] > 0)) update.sold_out = false;
     if (!update.name) { alert('El nombre es obligatorio.'); return false; }
     if (update.price_promo && update.price_promo >= update.price) { alert('El precio de promoción debe ser menor al precio detal (o déjalo en 0).'); return false; }
     const { error } = await sb.from('products').update(update).eq('id', id);
