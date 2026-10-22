@@ -1540,3 +1540,9 @@ body.guide-open .category-dropdown {
   header .mobile-filter-toggle .mf-count{background:var(--mc,#fff);color:#171717;text-shadow:none;letter-spacing:0}
   header.on-light .mobile-filter-toggle .mf-count{background:#171717;color:#fff}
 }
+
+/* IZAN: en escritorio se elimina el panel lateral; se conservan los filtros flotantes de la cabecera. */
+@media (min-width: 701px) {
+  #catalogo .catalog-layout { grid-template-columns: minmax(0, 1fr) !important; }
+  #catalogo .catalog-layout > .filters { display: none !important; }
+}
