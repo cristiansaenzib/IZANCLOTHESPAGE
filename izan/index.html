@@ -11,7 +11,12 @@
 <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png">
 <link rel="icon" type="image/png" sizes="192x192" href="img/favicon-192.png">
 <link rel="apple-touch-icon" href="img/apple-touch-icon.png">
-<link href="https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=Oswald:wght@400;600&family=Montserrat:wght@500;700;800&family=Space+Grotesk:wght@500;700&family=Syncopate:wght@400;700&family=Playfair+Display:ital@1&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://gtficbaikhospnqkubqi.supabase.co" crossorigin>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Syncopate:wght@400;700&family=Playfair+Display:ital@1&family=Inter:wght@400;500;600&display=swap" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Syncopate:wght@400;700&family=Playfair+Display:ital@1&family=Inter:wght@400;500;600&display=swap"></noscript>
 <link rel="stylesheet" href="styles.css">
 <script>try{var pc=localStorage.getItem('izan_palette_css');if(pc&&/^[-a-z0-9:#;,.() %]+$/i.test(pc))document.documentElement.style.cssText+=pc}catch(e){}</script>
 </head>
@@ -137,7 +142,6 @@
 </aside>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
 <script src="config.js"></script>
 <script src="shared.js"></script>
 <script>
@@ -146,39 +150,70 @@ let wcode = '', wname = '';   /* código de mayorista validado */
 
 const catOf = p => cats.find(c => c.id == p.category_id);
 
+const CATALOG_CACHE = 'izan_catalog_v1';
+let firstApply = true;
+function applyCatalog(d) {
+  cats = d.cats || []; products = (d.products || []).map(x => Object.assign({}, x));
+  // El catálogo público muestra existencias disponibles: inventario físico menos unidades apartadas.
+  // El inventario real permanece intacto hasta que el administrador confirme la venta.
+  if (Array.isArray(d.reserved)) {
+    for (const r of d.reserved) {
+      const product = products.find(x => String(x.id) === String(r.product_id));
+      const size = String(r.size || '').toLowerCase();
+      if (product && ['s','m','l','xl','xxl'].includes(size)) product['stock_' + size] = Math.max(0, (Number(product['stock_' + size]) || 0) - (Number(r.quantity) || 0));
+    }
+  }
+  guides = d.guides || []; weights = d.weights || [];
+  const rows = d.settings || [];
+  const w = rows.find(r => r.key === 'whatsapp'); if (w && w.value) waDest = w.value;
+  const hb = rows.find(r => r.key === 'hero_banners'), ht = rows.find(r => r.key === 'home_tiles');
+  heroAll = pickCampaigns(hb && hb.value, ht && ht.value); showHero();
+  const vc = rows.find(r => r.key === 'visual_content'); applyVisualContent(parseVisualContent(vc && vc.value));
+  tiers = parseTiers(d.settings); countMode = parseCountMode(d.settings);
+  render();
+  if (firstApply) {
+    firstApply = false;
+    let saved = ''; try { saved = localStorage.getItem('izan_wcode') || ''; } catch (e) {}
+    if (saved) wcCheck(saved, true);
+  }
+}
+
 async function load() {
   renderCampaigns(DEFAULT_HERO);
   { const ft=$('#siteFooter'); if(ft) ft.innerHTML=footerHTML(parseFooter(null)); }
   if (!sb) { $('#grid').innerHTML = '<div class="empty serif">Falta configurar config.js con los datos de Supabase.</div>'; return; }
-  const [c, p, s] = await Promise.all([
-    sb.from('categories').select('*').order('created_at'),
-    sb.from('products').select('*').order('created_at', { ascending: false }),
-    sb.from('settings').select('*')
-  ]);
-  if (c.error || p.error) { $('#grid').innerHTML = '<div class="empty serif">No pudimos cargar el catálogo. Intenta de nuevo en un momento.</div>'; return; }
-  cats = c.data || []; products = p.data || [];
-  // El catálogo público muestra existencias disponibles: inventario físico menos unidades apartadas.
-  // El inventario real permanece intacto hasta que el administrador confirme la venta.
+  // Visita repetida: se pinta al instante lo último que se vio y se actualiza en segundo plano.
+  let cachedRaw = null;
   try {
-    const reservedResult = await sb.rpc('get_reserved_stock');
-    if (!reservedResult.error && Array.isArray(reservedResult.data)) {
-      for (const r of reservedResult.data) {
-        const product = products.find(x => String(x.id) === String(r.product_id));
-        const size = String(r.size || '').toLowerCase();
-        if (product && ['s','m','l','xl','xxl'].includes(size)) product['stock_' + size] = Math.max(0, (Number(product['stock_' + size]) || 0) - (Number(r.quantity) || 0));
-      }
-    }
-  } catch (e) { console.warn('No se pudieron cargar las reservas; ejecuta migracion_estados_pedidos.sql en Supabase.', e); }
-  try { const g = await sb.from('size_guides').select('*'); guides = g.error ? [] : (g.data || []); } catch (e) { guides = []; }
-  try { const fw = await sb.from('fabric_weights').select('*'); weights = fw.error ? [] : (fw.data || []); } catch (e) { weights = []; }
-  const w = (s.data || []).find(r => r.key === 'whatsapp'); if (w && w.value) waDest = w.value;
-  const hb = (s.data || []).find(r => r.key === 'hero_banners'), ht = (s.data || []).find(r => r.key === 'home_tiles');
-  heroAll = pickCampaigns(hb && hb.value, ht && ht.value); showHero();
-  const vc = (s.data || []).find(r => r.key === 'visual_content'); applyVisualContent(parseVisualContent(vc && vc.value));
-  tiers = parseTiers(s.data); countMode = parseCountMode(s.data);
-  render();
-  let saved = ''; try { saved = localStorage.getItem('izan_wcode') || ''; } catch (e) {}
-  if (saved) wcCheck(saved, true);
+    cachedRaw = localStorage.getItem(CATALOG_CACHE);
+    if (cachedRaw) applyCatalog(JSON.parse(cachedRaw));
+  } catch (e) { cachedRaw = null; }
+  const q = fn => (async () => fn())().catch(e => ({ error: e, data: null }));
+  const [c, p, s, rs, g, fw] = await Promise.all([
+    q(() => sb.from('categories').select('*').order('created_at')),
+    q(() => sb.from('products').select('*').order('created_at', { ascending: false })),
+    q(() => sb.from('settings').select('*')),
+    q(() => sb.rpc('get_reserved_stock')),
+    q(() => sb.from('size_guides').select('*')),
+    q(() => sb.from('fabric_weights').select('*'))
+  ]);
+  if (c.error || p.error) {
+    if (!cachedRaw) $('#grid').innerHTML = '<div class="empty serif">No pudimos cargar el catálogo. Intenta de nuevo en un momento.</div>';
+    return;
+  }
+  if (rs.error) console.warn('No se pudieron cargar las reservas; ejecuta migracion_estados_pedidos.sql en Supabase.', rs.error);
+  const data = {
+    cats: c.data || [], products: p.data || [], settings: s.data || null,
+    reserved: !rs.error && Array.isArray(rs.data) ? rs.data : null,
+    guides: g.error ? [] : (g.data || []), weights: fw.error ? [] : (fw.data || [])
+  };
+  const fresh = JSON.stringify(data);
+  if (fresh !== cachedRaw) {
+    applyCatalog(data);
+    try { localStorage.setItem(CATALOG_CACHE, fresh); } catch (e) {}
+  }
+  // jsPDF se descarga en segundo plano, cuando la tienda ya está visible.
+  setTimeout(() => { loadJsPDF().catch(() => {}); }, 4000);
 }
 
 /* ===== Campañas: una sola imagen o tres imágenes simétricas (mismo tamaño) ===== */
@@ -635,7 +670,19 @@ async function imageAsDataUrl(url) {
     img.onerror = () => resolve(null); img.src = url;
   });
 }
+let jsPdfPromise = null;
+function loadJsPDF() {
+  if (window.jspdf && window.jspdf.jsPDF) return Promise.resolve();
+  if (!jsPdfPromise) jsPdfPromise = new Promise((ok, fail) => {
+    const sc = document.createElement('script');
+    sc.src = 'https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js';
+    sc.onload = ok; sc.onerror = () => { jsPdfPromise = null; fail(new Error('jsPDF')); };
+    document.head.appendChild(sc);
+  });
+  return jsPdfPromise;
+}
 async function makeQuotePdf() {
+  try { await loadJsPDF(); } catch (e) {}
   if (!window.jspdf || !window.jspdf.jsPDF) throw new Error('No se pudo cargar el generador PDF. Revisa tu conexión e inténtalo de nuevo.');
   const { jsPDF } = window.jspdf, { n, sub, tot, lines } = cartCalc();
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });

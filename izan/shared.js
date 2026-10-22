@@ -306,6 +306,13 @@ const CAMP_FONTS = {
   playfair:   { n: 'Playfair · elegante cursiva', css: "'Playfair Display',Georgia,serif" },
   georgia:    { n: 'Georgia · clásica',           css: "Georgia,'Times New Roman',serif" }
 };
+/* Bebas, Oswald, Montserrat y Space Grotesk ya no se cargan en toda visita: solo si una campaña las usa. */
+const EXTRA_FONTS_URL = 'https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@400;600&family=Montserrat:wght@500;700;800&family=Space+Grotesk:wght@500;700&display=swap';
+const EXTRA_FONT_KEYS = ['bebas', 'oswald', 'montserrat', 'space'];
+function ensureCampFont(key) {
+  if (!EXTRA_FONT_KEYS.includes(key) || document.querySelector('link[href*="Bebas"]')) return;
+  const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = EXTRA_FONTS_URL; document.head.appendChild(l);
+}
 const CAMP_EL = ['eyebrow', 'title', 'subtitle', 'button'];
 const CAMP_EL_NAME = { eyebrow: 'Etiqueta superior', title: 'Título', subtitle: 'Descripción', button: 'Botón' };
 const CAMP_DEF = {
@@ -339,6 +346,7 @@ function campDesign(raw) {
   return out;
 }
 function campElStyle(c) {
+  ensureCampFont(c.f);
   return `left:${c.x}%;top:${c.y}%;transform:translate(-${c.x}%,-${c.y}%);font-size:calc(${c.s} * var(--u));color:${c.c};font-family:${CAMP_FONTS[c.f].css};text-align:${c.a};${c.w ? `width:${c.w}%;` : ''}`;
 }
 /* HTML de la campaña con diseño libre. dev = 'd' (computador) o 'm' (celular). o.preview = vista previa del administrador. */
