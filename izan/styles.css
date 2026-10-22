@@ -1441,3 +1441,17 @@ header .nav .fire-best:hover{transform:translateY(-2px)!important;box-shadow:0 0
     bottom: calc(10px + env(safe-area-inset-bottom, 0px)) !important;
   }
 }
+
+/* Ocultar el menú principal mientras cualquier ventana de detalle/imagen está abierta.
+   Evita que la navegación fija se superponga con los controles del modal en PC y móvil. */
+body.guide-open > header,
+body.guide-open header {
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+body.guide-open .mobile-nav-toggle,
+body.guide-open .shop-nav,
+body.guide-open .category-dropdown {
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
