@@ -1383,3 +1383,61 @@ header .nav .fire-best:hover{transform:translateY(-2px)!important;box-shadow:0 0
     object-position: center center !important;
   }
 }
+
+
+/* IZAN: ajuste definitivo de portada móvil para creatividades verticales 9:16.
+   La sección conserva la proporción de la imagen y elimina las franjas negras
+   que aparecían al forzar una altura igual a la pantalla completa. */
+@media (max-width: 700px) {
+  .campaign {
+    width: 100% !important;
+    max-width: 100vw !important;
+    height: auto !important;
+    min-height: 0 !important;
+    aspect-ratio: 9 / 16 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    background: transparent !important;
+  }
+  .campaign-stage {
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 0 !important;
+  }
+  .camp-slide,
+  .camp-single {
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+  }
+  .camp-single picture.camp-bg {
+    position: absolute !important;
+    inset: 0 !important;
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+  }
+  .camp-single picture.camp-bg > img,
+  .camp-single .camp-bg > img,
+  .camp-single img.camp-bg {
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    max-width: none !important;
+    max-height: none !important;
+    object-fit: cover !important;
+    object-position: center center !important;
+  }
+  .hero-controls {
+    bottom: calc(10px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
