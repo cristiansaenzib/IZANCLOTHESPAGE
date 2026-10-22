@@ -714,6 +714,7 @@ const cartOpen = (o, mode = 'full') => {
     if (d.classList.contains('mini') !== mini) { d.style.setProperty('transition', 'none', 'important'); d.classList.toggle('mini', mini); void d.offsetWidth; d.style.removeProperty('transition'); }
     renderCart();
   }
+  if (o) { if (typeof toggleMobileNavigation === 'function') toggleMobileNavigation(false); if (typeof toggleMobileFilters === 'function') toggleMobileFilters(false); }
   d.classList.toggle('open', o);
   document.body.classList.toggle('cart-page-open', o && !mini);
   document.body.classList.toggle('cart-mini-open', o && mini);

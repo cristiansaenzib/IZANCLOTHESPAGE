@@ -1546,3 +1546,13 @@ body.guide-open .category-dropdown {
   #catalogo .catalog-layout { grid-template-columns: minmax(0, 1fr) !important; }
   #catalogo .catalog-layout > .filters { display: none !important; }
 }
+
+/* ===== Pedido rápido / carrito abierto: se oculta el menú flotante para que no tape los botones del panel ===== */
+body.cart-mini-open > header,
+body.cart-page-open > header {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  transform: translateY(-12px);
+  transition: opacity .2s ease, visibility 0s linear .2s, transform .2s ease;
+}
