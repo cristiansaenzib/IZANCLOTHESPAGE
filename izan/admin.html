@@ -311,13 +311,13 @@ function stockConflictPanel() {
 }
 
 function vPedidos() {
-  const states = { pending: o => o.status === 'pending' || !o.status, reserved: isReserved, sold: isSold };
+  const states = { pending: o => o.status === 'pending' || !o.status, reserved: isReserved, sold: isSold, cancelled: isCancelled };
   const cnt = k => k === 'all' ? orders.length : (states[k] ? orders.filter(states[k]).length : 0);
   const list = orders.filter(o => orderFilter === 'all' || (states[orderFilter] && states[orderFilter](o)) || (orderFilter === 'pending' && (!o.status || o.status === 'pending')));
   const f = (k, t) => `<button class="chip ${orderFilter === k ? 'on' : ''}" onclick="setOrderFilter('${k}')">${t} <small>${cnt(k)}</small></button>`;
   return `${stockConflictPanel()}<section class="panel">
-    <div class="panel-h"><div class="chips-row">${f('pending', 'Pendiente')}${f('reserved', 'Apartado')}${f('sold', 'Vendido')}${f('all', 'Todos')}</div><button class="chip" onclick="loadAll()">↻ Actualizar</button></div>
-    <p class="note">Pendiente: cotizaciones nuevas sin reserva. Apartado: unidades bloqueadas para otros clientes. Vendido: salida definitiva del inventario. En Apartados puedes cancelar la cotización para liberar las unidades.</p>
+    <div class="panel-h"><div class="chips-row">${f('pending', 'Pendiente')}${f('reserved', 'Apartado')}${f('sold', 'Vendido')}${f('cancelled', 'Cancelado')}${f('all', 'Todos')}</div><button class="chip" onclick="loadAll()">↻ Actualizar</button></div>
+    <p class="note">Pendiente: cotizaciones nuevas sin reserva. Apartado: unidades bloqueadas para otros clientes. Vendido: salida definitiva del inventario. En Apartados puedes cancelar la cotización para liberar las unidades. Las cotizaciones pendientes, vendidas y canceladas se pueden eliminar para que su registro desaparezca.</p>
     ${ordersErr ? '<p class="note">No se pudo cargar Pedidos. Ejecuta el archivo <b>migracion_estados_pedidos.sql</b> en Supabase y vuelve a cargar.</p>' : list.length ? `<div class="orders">${list.map(orderCard).join('')}</div>` : `<div class="empty-box">No hay cotizaciones en esta lista.</div>`}
   </section>`;
 }
@@ -869,7 +869,7 @@ function orderCard(o) {
   if (reserved) actions += `<button class="chip danger" onclick="cancelReservation('${o.id}')">Cancelar cotización</button>`;
   if (sold) actions += '<span class="chip on">Inventario descontado</span>';
   if (cancelled) actions += '<span class="chip">Reserva liberada</span>';
-  if (!reserved && !sold && !cancelled) actions += `<button class="chip danger" onclick="deleteOrder('${o.id}')">Eliminar cotización</button>`;
+  if (!reserved) actions += `<button class="chip danger" onclick="deleteOrder('${o.id}')">Eliminar cotización</button>`;
   return `<article class="order-card ${sold ? 'is-sold' : ''}" style="padding:12px 14px;margin-bottom:10px">
     <div class="order-top" style="margin-bottom:8px"><div><b>Pedido #${esc(shortId(o))}</b><small>${esc(customer)} · ${phone}</small><small>${new Date(o.created_at).toLocaleString('es-CO')}</small></div><span class="pill ${statusClass}">${statusText}</span></div>
     <div class="order-total" style="margin:6px 0 8px;padding-top:8px"><span>${fmt(o.total)}</span><b>${esc(units)} unidades</b></div>
@@ -1133,8 +1133,15 @@ async function sellOrder(o) {
   return true;
 }
 async function deleteOrder(id) {
-  if (!await ask('¿Eliminar esta cotización? Esta acción no modifica el inventario.')) return;
-  const { error } = await sb.from('orders').delete().eq('id', id);
+  const o = orders.find(x => String(x.id) === String(id));
+  if (!o || isReserved(o)) return;
+  const msg = isSold(o)
+    ? '¿Eliminar esta cotización VENDIDA? Su registro desaparecerá de la lista. El inventario ya descontado NO se devolverá. Esta acción no se puede deshacer.'
+    : isCancelled(o)
+      ? '¿Eliminar esta cotización cancelada? Su registro desaparecerá de la lista. Esta acción no se puede deshacer.'
+      : '¿Eliminar esta cotización? Esta acción no modifica el inventario.';
+  if (!await confirmAs(msg, 'Sí, eliminar')) return;
+  const { error } = await sb.from('orders').delete().eq('id', id).neq('status', 'reserved');
   if (error) { alert('No se pudo eliminar el pedido: ' + error.message); return; }
   await loadAll();
 }
