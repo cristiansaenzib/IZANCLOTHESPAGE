@@ -81,13 +81,21 @@
         <p class="serif" style="line-height:1.5;margin:10px 0 14px">Escribe tus datos de envío. Los incluiremos en tu cotización.</p>
         <div class="customer-contact-fields shipping-fields">
           <input id="customerName" class="sf-wide" type="text" autocomplete="name" maxlength="120" placeholder="Nombre completo *" aria-label="Nombre completo" required>
+          <select id="customerCountry" class="sf-wide" aria-label="País" onchange="onShipCountryChange()"></select>
+          <input id="customerCountryOther" class="sf-wide" type="text" maxlength="60" placeholder="Escribe tu país *" aria-label="País" hidden>
           <input id="customerIdNumber" type="text" inputmode="numeric" maxlength="30" placeholder="Cédula *" aria-label="Cédula" required>
-          <input id="customerPhone" type="tel" autocomplete="tel" inputmode="tel" maxlength="25" placeholder="Celular *" aria-label="Celular" required>
+          <select id="customerCity" aria-label="Ciudad" onchange="onShipCityChange()"></select>
+          <input id="customerCityOther" class="sf-wide" type="text" autocomplete="address-level2" maxlength="100" placeholder="Escribe tu ciudad *" aria-label="Ciudad" hidden>
+          <div class="sf-wide sf-phone">
+            <select id="customerDial" aria-label="Indicativo del país" onchange="onShipDialChange()"></select>
+            <input id="customerDialOther" type="text" inputmode="numeric" maxlength="5" placeholder="+ Código" aria-label="Indicativo" hidden>
+            <input id="customerPhone" type="tel" autocomplete="tel-national" inputmode="tel" maxlength="20" placeholder="Celular *" aria-label="Celular (sin indicativo)" required>
+          </div>
           <input id="customerAddress" class="sf-wide" type="text" autocomplete="street-address" maxlength="180" placeholder="Dirección *" aria-label="Dirección" required>
-          <input id="customerCity" type="text" autocomplete="address-level2" maxlength="100" placeholder="Ciudad *" aria-label="Ciudad" required>
-          <input id="customerEmail" type="email" autocomplete="email" maxlength="150" placeholder="Correo electrónico *" aria-label="Correo electrónico" required>
+          <input id="customerEmail" class="sf-wide" type="email" autocomplete="email" maxlength="150" placeholder="Correo electrónico *" aria-label="Correo electrónico" required>
         </div>
-        <small class="sf-note">Consulta nuestra <a href="politica-tratamiento-datos.html" target="_blank" rel="noopener">política de tratamiento de datos</a>.</small>
+        <label class="sf-consent"><input id="customerMarketing" type="checkbox"><span>Autorizo a IZAN Clothes a usar mis datos de contacto para enviarme promociones, novedades y anuncios (WhatsApp, correo y plataformas como Meta o Google). Es opcional y puedo revocarlo cuando quiera.</span></label>
+        <small class="sf-note">Usamos tus datos para gestionar tu pedido y envío. Consulta nuestra <a href="politica-tratamiento-datos.html" target="_blank" rel="noopener">política de tratamiento de datos</a>.</small>
         <small id="customerSaveHint" class="customer-save-hint sf-hint" aria-live="polite"></small>
         <button type="submit" class="btn acc sf-save" id="saveShippingBtn">Guardar datos</button>
       </form>
@@ -760,8 +768,8 @@ async function makeQuotePdf() {
   doc.text('Este es el resumen de las prendas seleccionadas y sus valores estimados.', margin, y); y += 9;
   const shipping = getShippingData();
   const shippingRows = [
-    ['Nombre completo', shipping.name], ['Cédula', shipping.idNumber], ['Celular', shipping.phone],
-    ['Dirección', shipping.address], ['Ciudad', shipping.city], ['Correo electrónico', shipping.email]
+    ['Nombre completo', shipping.name], ['Documento', shipping.idNumber || '—'], ['Celular', shipping.phone],
+    ['País', shipping.country], ['Ciudad', shipping.city], ['Dirección', shipping.address], ['Correo electrónico', shipping.email]
   ];
   const shippingLines = shippingRows.map(([label, value]) => `${label}: ${value}`);
   const shippingHeight = 10 + shippingLines.length * 5;
@@ -823,11 +831,47 @@ async function makeQuotePdf() {
   quoteBlob = doc.output('blob');
   quoteFile = new File([quoteBlob], `Cotizacion-IZAN-${new Date().toISOString().slice(0,10)}.pdf`, { type: 'application/pdf' });
   const txt = lines.map(L => `• ${L.p.name} | Talla ${L.c.s}: ${L.c.q} und. × ${fmt(L.unit)} = ${fmt(L.unit * L.c.q)}`);
-  quoteMessage = `Hola IZAN, quiero cerrar esta cotización:\n${txt.join('\n')}\nUnidades: ${n}${wcode ? `\nCódigo mayorista: ${wcode} (${wname})` : ''}\nTotal estimado: ${fmt(tot)}\n\nDATOS DE ENVÍO\nNombre completo: ${shipping.name}\nCédula: ${shipping.idNumber}\nCelular: ${shipping.phone}\nDirección: ${shipping.address}\nCiudad: ${shipping.city}\nCorreo electrónico: ${shipping.email}\nAdjunto la cotización en PDF.`;
+  quoteMessage = `Hola IZAN, quiero cerrar esta cotización:\n${txt.join('\n')}\nUnidades: ${n}${wcode ? `\nCódigo mayorista: ${wcode} (${wname})` : ''}\nTotal estimado: ${fmt(tot)}\n\nDATOS DE ENVÍO\nNombre completo: ${shipping.name}\nDocumento: ${shipping.idNumber || '—'}\nCelular: ${shipping.phone}\nPaís: ${shipping.country}\nCiudad: ${shipping.city}\nDirección: ${shipping.address}\nCorreo electrónico: ${shipping.email}\nAdjunto la cotización en PDF.`;
+}
+/* ===== Formulario de envío: país, indicativo y ciudades ===== */
+let shipReady = false;
+const shipByCode = code => SHIP_COUNTRIES.find(c => c.code === code) || SHIP_COUNTRIES[0];
+function initShippingForm() {
+  if (shipReady) return; shipReady = true;
+  $('#customerCountry').innerHTML = SHIP_COUNTRIES.map(c => `<option value="${c.code}">${c.name}</option>`).join('');
+  $('#customerDial').innerHTML = SHIP_COUNTRIES.map(c => `<option value="${c.code}">${c.code === 'OTHER' ? 'Otro código' : `${c.iso.toUpperCase()} +${c.dial}`}</option>`).join('');
+  onShipCountryChange();
+}
+function onShipCountryChange() {
+  const c = shipByCode($('#customerCountry').value), other = c.code === 'OTHER';
+  $('#customerCity').innerHTML = other ? '<option value="__other">Escribe tu ciudad</option>' : '<option value="">Ciudad *</option>' + c.cities.map(x => `<option>${esc(x)}</option>`).join('') + '<option value="__other">Otra ciudad…</option>';
+  $('#customerCountryOther').hidden = !other;
+  $('#customerDial').value = c.code; onShipDialChange();
+  const id = $('#customerIdNumber'); id.placeholder = c.idRequired ? `${c.idLabel} *` : c.idLabel; id.setAttribute('aria-label', c.idLabel); id.required = c.idRequired;
+  id.inputMode = c.code === 'US' || other ? 'text' : 'numeric';
+  onShipCityChange();
+}
+function onShipCityChange() { const o = $('#customerCity').value === '__other'; $('#customerCityOther').hidden = !o; if (o) setTimeout(() => $('#customerCityOther').focus(), 30); }
+function onShipDialChange() {
+  const c = shipByCode($('#customerDial').value); $('#customerDialOther').hidden = c.code !== 'OTHER';
+  $('#customerPhone').placeholder = c.code === 'OTHER' ? 'Celular *' : `Celular * (${c.ph})`;
+}
+/* Devuelve { dial, national, error } con el celular normalizado (sin ceros iniciales ni indicativo repetido). */
+function shipPhone() {
+  const c = shipByCode($('#customerDial').value), v = id => (document.getElementById(id)?.value || '').trim();
+  const dial = c.code === 'OTHER' ? v('customerDialOther').replace(/\D/g, '') : c.dial;
+  if (!dial) return { error: 'Escribe el código de tu país (por ejemplo 52).', field: '#customerDialOther' };
+  let n = v('customerPhone').replace(/\D/g, '');
+  if (n.startsWith(dial) && n.length >= dial.length + c.len[0]) n = n.slice(dial.length);
+  if (c.stripZero) n = n.replace(/^0/, '');
+  if (n.length < c.len[0] || n.length > c.len[1]) return { error: c.len[0] === c.len[1] ? `El celular debe tener ${c.len[0]} dígitos, sin el indicativo.` : 'Revisa tu número de celular.', field: '#customerPhone' };
+  return { dial, national: n };
 }
 function getShippingData() {
   const value = id => (document.getElementById(id)?.value || '').trim();
-  return { name:value('customerName'), idNumber:value('customerIdNumber'), phone:value('customerPhone'), address:value('customerAddress'), city:value('customerCity'), email:value('customerEmail') };
+  const c = shipByCode($('#customerCountry').value), p = shipPhone();
+  const city = $('#customerCity').value === '__other' ? value('customerCityOther') : $('#customerCity').value;
+  return { name:value('customerName'), idNumber:value('customerIdNumber'), phone: p.error ? '' : `+${p.dial} ${p.national}`, address:value('customerAddress'), city, country: c.code === 'OTHER' ? value('customerCountryOther') : c.name, email:value('customerEmail') };
 }
 function showQuoteStep(step) {
   const form = step === 'form';
@@ -836,6 +880,7 @@ function showQuoteStep(step) {
 }
 /* Paso 1: al pulsar "Pedir por WhatsApp" se piden los datos de envío */
 function checkout() {
+  initShippingForm();
   const { lines } = cartCalc();
   if (!lines.some(L => !L.p.sold_out && stock(L.p, L.c.s))) return;
   say('customerSaveHint', '');
@@ -847,9 +892,14 @@ function checkout() {
 async function saveShipping() {
   const { lines } = cartCalc();
   const shipping = getShippingData(), hint = $('#quoteHint'), btn = $('#saveShippingBtn');
-  const fields = [['Nombre completo', shipping.name, '#customerName'], ['Cédula', shipping.idNumber, '#customerIdNumber'], ['Celular', shipping.phone, '#customerPhone'], ['Dirección', shipping.address, '#customerAddress'], ['Ciudad', shipping.city, '#customerCity'], ['Correo electrónico', shipping.email, '#customerEmail']];
+  const c = shipByCode($('#customerCountry').value), ph = shipPhone();
+  const cityOther = $('#customerCity').value === '__other';
+  const fields = [['Nombre completo', shipping.name, '#customerName'], ['País', shipping.country, c.code === 'OTHER' ? '#customerCountryOther' : '#customerCountry'],
+    ...(c.idRequired ? [[c.idLabel, shipping.idNumber, '#customerIdNumber']] : []), ['Ciudad', shipping.city, cityOther ? '#customerCityOther' : '#customerCity'],
+    ['Celular', $('#customerPhone').value.trim(), '#customerPhone'], ['Dirección', shipping.address, '#customerAddress'], ['Correo electrónico', shipping.email, '#customerEmail']];
   const missing = fields.find(([, v]) => !v);
   if (missing) { say('customerSaveHint', `Completa el campo obligatorio: ${missing[0]}.`); document.querySelector(missing[2])?.focus(); return; }
+  if (ph.error) { say('customerSaveHint', ph.error); document.querySelector(ph.field)?.focus(); return; }
   const emailInput = $('#customerEmail');
   if (!emailInput.checkValidity()) { say('customerSaveHint', 'Ingresa un correo electrónico válido.'); emailInput.focus(); return; }
   if (!lines.some(L => !L.p.sold_out && stock(L.p, L.c.s))) { say('customerSaveHint', 'Tu pedido no tiene productos disponibles.'); return; }
@@ -865,13 +915,21 @@ async function saveShipping() {
   try {
     const { n, tot } = cartCalc();
     const items = lines.map(L => ({ product_id: L.p.id, product_name: L.p.name, image_url: imgUrl(L.p.image_path), size: L.c.s, quantity: L.c.q, unit_price: L.unit, subtotal: L.unit * L.c.q }));
-    const { error } = await sb.from('orders').insert({ status: 'pending', total: tot, units: n, items, wholesale_code: wcode || null, wholesale_name: wname || null, customer_name: shipping.name, customer_id_number: shipping.idNumber, customer_phone: shipping.phone, customer_address: shipping.address, customer_city: shipping.city, customer_email: shipping.email });
+    const { error } = await sb.from('orders').insert({ status: 'pending', total: tot, units: n, items, wholesale_code: wcode || null, wholesale_name: wname || null, customer_name: shipping.name, customer_id_number: shipping.idNumber, customer_phone: shipping.phone, customer_address: shipping.address, customer_city: shipping.city, customer_country: shipping.country, customer_email: shipping.email });
     if (error) throw error;
     savedQuoteId = null;
     hint.textContent = 'Cotización generada y registrada en Pedidos. Ahora puedes compartir el PDF o continuar a WhatsApp.';
   } catch (e) {
     hint.textContent = 'La cotización está lista, pero no se pudo guardar en Administración. Puedes compartir o descargar el PDF y continuar a WhatsApp.';
   }
+  saveCustomerRecord(shipping);
+}
+/* Base de clientes: se guarda aparte del pedido; si falla, el cliente no lo nota. La autorización solo es true si marcó la casilla. */
+async function saveCustomerRecord(shipping) {
+  try {
+    const box = $('#customerMarketing'), consent = !!(box && box.checked), consentText = consent ? ($('.sf-consent span')?.textContent || '').trim() : null;
+    await sb.rpc('save_customer', { p_email: shipping.email, p_name: shipping.name, p_id_number: shipping.idNumber, p_phone: shipping.phone, p_address: shipping.address, p_city: shipping.city, p_country: shipping.country, p_marketing_consent: consent, p_consent_text: consentText });
+  } catch (e) { /* silencioso */ }
 }
 function quoteClose() { $('#quoteModal').style.display = 'none'; }
 function downloadQuotePdf() {

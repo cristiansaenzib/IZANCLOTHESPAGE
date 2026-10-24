@@ -39,6 +39,7 @@
 <script src="shared.js"></script>
 <script>
 let backOk = false, guides = [], guidesOk = false, guidesErr = null, gDraft = null, weights = [], weightsOk = false, weightsErr = null, wDraft = null, movements = [], movementsErr = null;
+let customers = [], customersErr = null, custState = { q: '', f: 'consent' };
 let cats = [], products = [], codes = [], orders = [], ordersErr = null, codesErr = null, tiers = parseTiers(), countMode = 'ref', settings = { whatsapp: C.WHATSAPP, hero_banners: [], home_tiles: [], visual_content: {} }, lastCat = '', logged = null, busy = false;
 const MODAL_OK = 'Sí, eliminar';
 
@@ -142,6 +143,7 @@ async function logout() { if (sb && !LOCAL) await sb.auth.signOut(); }
 let deletedRules = [];
 async function loadAll() {
   const [c, p, s, k, o, mv] = await Promise.all([sb.from('categories').select('*').order('created_at'), sb.from('products').select('*').order('created_at', { ascending: false }), sb.from('settings').select('*'), sb.from('wholesale_codes').select('*').order('created_at', { ascending: false }), sb.from('orders').select('*').order('created_at', { ascending: false }), sb.from('inventory_movements').select('*').order('created_at', { ascending: false })]);
+  const cu = await sb.from('customers').select('*').order('created_at', { ascending: false }); customers = cu.data || []; customersErr = cu.error;
   codes = k.data || []; codesErr = k.error; orders = o.data || []; ordersErr = o.error; movements = mv.data || []; movementsErr = mv.error;
   cats = c.data || []; products = p.data || [];
   const g = await sb.from('size_guides').select('*').order('created_at'); guides = g.data || []; guidesOk = !g.error; guidesErr = g.error;
@@ -168,6 +170,7 @@ const ICON = {
   layers: '<path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/>',
   ruler: '<rect x="2" y="8" width="20" height="8" rx="1.5"/><path d="M6 8v3M10 8v4M14 8v3M18 8v4"/>',
   cart: '<circle cx="9" cy="20" r="1.6"/><circle cx="18" cy="20" r="1.6"/><path d="M2 3h3l2.4 12h11l2-8H6"/>',
+  user: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>',
   cog: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/>'
 };
 const ic = n => `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[n]}</svg>`;
@@ -179,6 +182,7 @@ const VIEWS = [
   { id: 'resumen', group: 'Resumen', ico: 'home', name: 'Resumen', desc: 'Una mirada rápida a cómo va tu tienda.' },
   { id: 'pedidos', group: 'Pedidos y cotizaciones', ico: 'mail', name: 'Pedidos y cotizaciones', desc: 'Revisa las cotizaciones que llegan desde el carrito y marca como vendidos los pedidos confirmados.' },
   { id: 'ventafisica', group: 'Pedidos y cotizaciones', ico: 'cart', name: 'Venta física', desc: 'Arma el ticket en el mostrador: toca un diseño, suma las tallas, aplica descuentos y mayoristas automáticamente y entrega el valor final al cliente.' },
+  { id: 'clientes', group: 'Clientes', ico: 'user', name: 'Clientes', desc: 'Base de datos de clientes con sus datos de envío. Descarga la lista completa o la audiencia autorizada para tus anuncios.' },
   { id: 'catalogo', group: 'Productos e inventario', ico: 'grid', name: 'Catálogo', desc: 'Edita precios, fotos, inventario y estado de cada producto cargado.' },
   { id: 'agotados', group: 'Productos e inventario', ico: 'layers', name: 'Agotados', desc: 'Referencias sin inventario: no se ven en la tienda ni en Venta física. Cuando lleguen más unidades, repónlas y se reactivan.' },
   { id: 'destacados', group: 'Productos e inventario', ico: 'tag', name: 'Best sellers y Lo más nuevo', desc: 'Agrega o quita productos de Best sellers y Lo más nuevo con un solo clic.' },
@@ -217,7 +221,7 @@ const shortId = o => o.label || String(o.id).slice(0, 8).toUpperCase();
 let catState = { q: '', c: 'all' }, lastRendered = null;
 function renderPanel() {
   const cur = VIEWS.find(v => v.id === view) || VIEWS[0], pend = orders.filter(o => o.status === 'pending' || !o.status).length, nAgot = products.filter(isAgotado).length;
-  const body = { resumen: vResumen, pedidos: vPedidos, ventafisica: vVentaFisica, campanas: vCampanas, visual: vVisual, pie: vPie, categorias: vCategorias, guias: vGuias, gramajes: vGramajes, nuevo: vNuevo, destacados: vDestacados, catalogo: vCatalogo, agotados: vAgotados, reglas: vReglas, codigos: vCodigos, ajustes: vAjustes, herramientas: vHerramientas }[cur.id]();
+  const body = { resumen: vResumen, pedidos: vPedidos, clientes: vClientes, ventafisica: vVentaFisica, campanas: vCampanas, visual: vVisual, pie: vPie, categorias: vCategorias, guias: vGuias, gramajes: vGramajes, nuevo: vNuevo, destacados: vDestacados, catalogo: vCatalogo, agotados: vAgotados, reglas: vReglas, codigos: vCodigos, ajustes: vAjustes, herramientas: vHerramientas }[cur.id]();
   document.title = cur.name + ' · Administrar · IZAN Clothes';
   /* Si se vuelve a dibujar la MISMA sección (tras guardar un cambio), se conserva la posición de la página. */
   const keepY = lastRendered === cur.id ? window.scrollY : null, pnl = $('#panel');
@@ -850,8 +854,97 @@ async function importProductsCsv(file) {
   } catch(e){say('csvmsg','No se pudo importar: '+(e.message||e));}
 }
 function exportOrdersCsv() {
-  const cols=['id','created_at','status','total','customer_name','customer_phone','customer_city','customer_address','customer_email','items'];
+  const cols=['id','created_at','status','total','customer_name','customer_phone','customer_country','customer_city','customer_address','customer_email','items'];
   downloadText('izan-cotizaciones-'+new Date().toISOString().slice(0,10)+'.csv',[cols.join(','),...orders.map(o=>cols.map(k=>csvCell(k==='items'?JSON.stringify(o[k]||[]):o[k])).join(','))].join('\r\n'));
+}
+
+/* ================= CLIENTES (base de datos para anuncios) ================= */
+const normEmail = e => String(e || '').trim().toLowerCase();
+const custPhoneIntl = ph => { let d = String(ph || '').replace(/\D/g, ''); if (String(ph || '').trim().startsWith('+')) return d; if (d.startsWith('00')) d = d.slice(2); if (d.length === 10 && d[0] === '3') d = '57' + d; return d; };
+const custIso = c => { const k = String(c.country || '').trim().toLowerCase(), f = SHIP_COUNTRIES.find(x => x.name.toLowerCase() === k); return f ? f.iso : ''; };
+const custNames = n => { const parts = String(n || '').trim().split(/\s+/); return { first: parts[0] || '', last: parts.slice(1).join(' ') }; };
+function custStats(c) {
+  const mine = orders.filter(o => normEmail(o.customer_email) === normEmail(c.email));
+  const sold = mine.filter(isSold);
+  const last = mine.reduce((m, o) => (!m || o.created_at > m ? o.created_at : m), null);
+  return { quotes: mine.length, buys: sold.length, spent: sold.reduce((a, o) => a + (+o.total || 0), 0), last };
+}
+function custFiltered() {
+  const q = custState.q.trim().toLowerCase();
+  return customers.filter(c => (custState.f === 'all' || (custState.f === 'consent' ? c.marketing_consent : !c.marketing_consent)) &&
+    (!q || [c.name, c.email, c.phone, c.city, c.id_number].some(v => String(v || '').toLowerCase().includes(q))));
+}
+const setCustFilter = f => { custState.f = f; renderPanel(); };
+const setCustQuery = v => { custState.q = v; renderCustList(); };
+const custDate = d => d ? new Date(d).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+function custRow(c) {
+  const st = custStats(c), wa = custPhoneIntl(c.phone);
+  return `<div class="code-row ${c.marketing_consent ? '' : 'off'}" style="flex-wrap:wrap;align-items:flex-start;gap:10px">
+    <div class="grow" style="min-width:230px">
+      <b>${esc(c.name)}</b> <span class="chip ${c.marketing_consent ? 'ok on' : ''}" style="pointer-events:none">${c.marketing_consent ? 'Autoriza anuncios' : 'Sin autorización'}</span>
+      <p class="note" style="margin:4px 0 0">${esc(c.email)}${c.phone ? ` · ${wa ? `<a href="https://wa.me/${wa}" target="_blank" rel="noopener">${esc(c.phone)}</a>` : esc(c.phone)}` : ''}</p>
+      <p class="note" style="margin:2px 0 0">${esc([c.address, c.city, c.country].filter(Boolean).join(', ') || 'Sin dirección')}${c.id_number ? ` · C.C. ${esc(c.id_number)}` : ''}</p>
+      <p class="note" style="margin:2px 0 0">${st.quotes} cotización(es) · ${st.buys} compra(s) · ${fmt(st.spent)} comprado · última: ${custDate(st.last)}${c.marketing_consent ? ` · autorizó el ${custDate(c.consent_at)}` : ''}</p>
+    </div>
+    <div class="code-actions">
+      ${c.marketing_consent ? `<button class="chip" onclick="revokeCustConsent('${c.id}')">Revocar autorización</button>` : ''}
+      <button class="chip danger" onclick="delCustomer('${c.id}')">Eliminar</button>
+    </div>
+  </div>`;
+}
+function renderCustList() {
+  const box = $('#custList'), list = custFiltered(); if (!box) return;
+  box.innerHTML = list.slice(0, 200).map(custRow).join('') || '<div class="empty-box">No hay clientes en esta lista.</div>';
+  const more = $('#custMore'); if (more) more.textContent = list.length > 200 ? `Mostrando 200 de ${list.length}. Usa el buscador o descarga el CSV para ver todos.` : `${list.length} cliente(s) en esta lista.`;
+}
+function vClientes() {
+  const total = customers.length, ok = customers.filter(c => c.marketing_consent).length, since = Date.now() - 30 * 864e5;
+  const fresh = customers.filter(c => new Date(c.created_at).getTime() >= since).length;
+  const f = (k, t, n) => `<button class="chip ${custState.f === k ? 'on' : ''}" onclick="setCustFilter('${k}')">${t} <small>${n}</small></button>`;
+  setTimeout(renderCustList, 0);
+  return `<section class="panel">
+    <div class="panel-h"><div class="chips-row">${f('consent', 'Autorizan anuncios', ok)}${f('none', 'Sin autorización', total - ok)}${f('all', 'Todos', total)}</div><button class="chip" onclick="loadAll()">↻ Actualizar</button></div>
+    <p class="note">Cada vez que un cliente guarda sus datos de envío en la tienda se crea o actualiza su ficha (un registro por correo). <b>Solo los clientes que marcaron la casilla de autorización</b> pueden usarse para anuncios y promociones; los demás se conservan únicamente para gestionar pedidos. Nuevos en los últimos 30 días: <b>${fresh}</b>.</p>
+    ${customersErr ? '<p class="note">No se pudo cargar Clientes. Ejecuta el archivo <b>migracion_clientes.sql</b> en Supabase → SQL Editor y vuelve a cargar.</p>' : `
+    <div class="row-actions">
+      <button class="btn acc" onclick="exportCustomersCsv('meta')">↓ Audiencia para Meta (Facebook / Instagram)</button>
+      <button class="chip" onclick="exportCustomersCsv('google')">↓ Audiencia para Google Ads</button>
+      <button class="chip" onclick="exportCustomersCsv('full')">↓ Lista completa (lo que ves abajo)</button>
+    </div>
+    <p class="note" id="custmsg">Las audiencias para anuncios incluyen solo clientes con autorización y solo correo, celular, nombre y ciudad (sin cédula ni dirección).</p>
+    <div class="fg"><div style="grid-column:1/-1"><label for="custq">Buscar</label><input id="custq" type="search" placeholder="Nombre, correo, celular, ciudad o cédula" value="${esc(custState.q)}" oninput="setCustQuery(this.value)"></div></div>
+    <p class="note" id="custMore"></p>
+    <div class="code-list" id="custList"></div>`}
+  </section>`;
+}
+function exportCustomersCsv(kind) {
+  const day = new Date().toISOString().slice(0, 10);
+  if (kind === 'full') {
+    const list = custFiltered(); if (!list.length) { say('custmsg', 'No hay clientes en esta lista para descargar.'); return; }
+    const cols = ['nombre', 'cedula', 'correo', 'celular', 'pais', 'ciudad', 'direccion', 'autoriza_anuncios', 'fecha_autorizacion', 'fecha_registro', 'cotizaciones', 'compras', 'total_comprado', 'ultima_cotizacion'];
+    const rows = list.map(c => { const st = custStats(c); return [c.name, c.id_number, c.email, c.phone, c.country, c.city, c.address, c.marketing_consent ? 'Sí' : 'No', c.consent_at || '', c.created_at || '', st.quotes, st.buys, st.spent, st.last || '']; });
+    downloadText(`izan-clientes-${day}.csv`, [cols, ...rows].map(r => r.map(csvCell).join(',')).join('\r\n'));
+    say('custmsg', `Descargados ${list.length} clientes (lista completa, uso interno).`); return;
+  }
+  const list = customers.filter(c => c.marketing_consent && (c.email || c.phone));
+  if (!list.length) { say('custmsg', 'Aún no hay clientes con autorización de anuncios.'); return; }
+  const meta = kind === 'meta';
+  const cols = meta ? ['email', 'phone', 'fn', 'ln', 'ct', 'country'] : ['Email', 'Phone', 'First Name', 'Last Name', 'Country', 'Zip'];
+  const rows = list.map(c => { const n = custNames(c.name), ph = custPhoneIntl(c.phone); return meta ? [normEmail(c.email), ph, n.first, n.last, c.city || '', custIso(c)] : [normEmail(c.email), ph ? '+' + ph : '', n.first, n.last, custIso(c).toUpperCase(), '']; });
+  downloadText(`izan-audiencia-${meta ? 'meta' : 'google'}-${day}.csv`, [cols, ...rows].map(r => r.map(csvCell).join(',')).join('\r\n'));
+  say('custmsg', `Descargados ${list.length} clientes autorizados. Súbelo en ${meta ? 'Meta Ads → Audiencias → Crear audiencia personalizada → Lista de clientes' : 'Google Ads → Biblioteca compartida → Administrador de audiencias → Lista de clientes'}.`);
+}
+async function revokeCustConsent(id) {
+  if (!await ask('¿Revocar la autorización de anuncios de este cliente? Dejará de aparecer en las descargas para anuncios.')) return;
+  const { error } = await sb.from('customers').update({ marketing_consent: false, consent_at: null }).eq('id', id);
+  if (error) { say('custmsg', 'No se pudo actualizar: ' + error.message); return; }
+  await loadAll();
+}
+async function delCustomer(id) {
+  if (!await ask('¿Eliminar este cliente de la base de datos? Sus cotizaciones en Pedidos no se borran.')) return;
+  const { error } = await sb.from('customers').delete().eq('id', id);
+  if (error) { say('custmsg', 'No se pudo eliminar: ' + error.message); return; }
+  await loadAll();
 }
 
 function orderCard(o) {
@@ -874,7 +967,7 @@ function orderCard(o) {
     <div class="order-top" style="margin-bottom:8px"><div><b>Pedido #${esc(shortId(o))}</b><small>${esc(customer)} · ${phone}</small><small>${new Date(o.created_at).toLocaleString('es-CO')}</small></div><span class="pill ${statusClass}">${statusText}</span></div>
     <div class="order-total" style="margin:6px 0 8px;padding-top:8px"><span>${fmt(o.total)}</span><b>${esc(units)} unidades</b></div>
     <details id="${detailsId}" style="margin:6px 0 10px"><summary style="cursor:pointer;font-weight:600;font-size:13px;padding:5px 0">Ver datos del cliente y detalle de prendas</summary>
-      <div class="note" style="margin:8px 0;padding:9px 11px;background:#f5f4f2;line-height:1.7"><b>DATOS DEL CLIENTE</b><br><b>Nombre:</b> ${esc(o.customer_name || '—')}<br><b>Cédula:</b> ${esc(o.customer_id_number || '—')}<br><b>Celular:</b> ${phone}<br><b>Dirección:</b> ${esc(o.customer_address || '—')}<br><b>Ciudad:</b> ${esc(o.customer_city || '—')}<br><b>Correo:</b> ${esc(o.customer_email || '—')}</div>
+      <div class="note" style="margin:8px 0;padding:9px 11px;background:#f5f4f2;line-height:1.7"><b>DATOS DEL CLIENTE</b><br><b>Nombre:</b> ${esc(o.customer_name || '—')}<br><b>Cédula:</b> ${esc(o.customer_id_number || '—')}<br><b>Celular:</b> ${phone}<br><b>País:</b> ${esc(o.customer_country || '—')}<br><b>Ciudad:</b> ${esc(o.customer_city || '—')}<br><b>Dirección:</b> ${esc(o.customer_address || '—')}<br><b>Correo:</b> ${esc(o.customer_email || '—')}</div>
       <ul class="order-items">${items.map(i => `<li><span>${esc(i.quantity)} × ${esc(i.product_name)} <em>talla ${esc(i.size)}</em></span><span>${fmt(i.unit_price)} c/u</span></li>`).join('') || '<li>Sin detalle de prendas</li>'}</ul>
       ${o.wholesale_code ? `<p class="note">Código mayorista: <b>${esc(o.wholesale_code)}</b></p>` : ''}
     </details><div class="row-actions">${actions}</div>
@@ -958,7 +1051,7 @@ async function editOrder(id) {
   </div>`).join('');
   editingOrderSelectedProductId = null;
   modal(`<div style="max-height:65vh;overflow:auto;padding-right:5px"><h3 style="margin-top:0">Editar cotización #${esc(shortId(o))}</h3><p class="note">Puedes corregir los datos del cliente, ajustar cantidades y precios, quitar prendas o agregar otro diseño de cualquier categoría. El cambio se guarda en la misma cotización y se reflejará al descargar el PDF. No descuenta inventario hasta marcar el pedido como vendido.</p>
-  ${field('edit_customer_name','Nombre completo',o.customer_name)}${field('edit_customer_phone','Celular',o.customer_phone,'tel')}${field('edit_customer_id','Cédula',o.customer_id_number)}${field('edit_customer_address','Dirección',o.customer_address)}${field('edit_customer_city','Ciudad',o.customer_city)}${field('edit_customer_email','Correo electrónico',o.customer_email,'email')}
+  ${field('edit_customer_name','Nombre completo',o.customer_name)}${field('edit_customer_phone','Celular',o.customer_phone,'tel')}${field('edit_customer_id','Cédula',o.customer_id_number)}${field('edit_customer_address','Dirección',o.customer_address)}${field('edit_customer_country','País',o.customer_country)}${field('edit_customer_city','Ciudad',o.customer_city)}${field('edit_customer_email','Correo electrónico',o.customer_email,'email')}
   <h4>Prendas actuales (cantidad y precio unitario)</h4><div style="display:grid;grid-template-columns:minmax(90px,2fr) 55px 75px 95px 55px;gap:7px;font-size:11px;font-weight:bold"><span>Producto</span><span>Talla</span><span>Cantidad</span><span>Precio unit.</span><span>Quitar</span></div>${itemRows || '<p>No hay prendas en esta cotización.</p>'}
   <h4 style="margin-bottom:8px">Agregar una prenda de otro diseño o categoría</h4><div style="display:grid;grid-template-columns:minmax(160px,2fr) minmax(110px,1fr);gap:8px;align-items:end"><label style="grid-column:1/-1">Buscar prenda por nombre o categoría<input id="edit_add_product_search" type="search" placeholder="Escribe el nombre de la camiseta o diseño…" autocomplete="off" oninput="editingOrderSelectedProductId=null;searchEditOrderProducts()" style="width:100%;box-sizing:border-box;margin-top:4px"></label><div id="edit_add_product_results" style="grid-column:1/-1;max-height:180px;overflow:auto;border:1px solid #ddd;padding:6px"></div><label>Talla<select id="edit_add_size" style="width:100%;box-sizing:border-box;margin-top:4px"><option value="">Selecciona producto primero</option></select></label><label>Cantidad<input id="edit_add_qty" type="number" min="1" step="1" value="1" style="width:100%;box-sizing:border-box;margin-top:4px"></label><label>Precio unitario<input id="edit_add_price" type="number" min="0" step="1" value="0" style="width:100%;box-sizing:border-box;margin-top:4px"></label><button type="button" class="btn acc" onclick="addEditOrderLine()" style="grid-column:1/-1">＋ Agregar prenda</button></div><div id="edit_added_items" style="margin-top:8px"></div></div>`, 'Guardar cambios', async () => {
     const nextItems = [];
@@ -975,7 +1068,7 @@ async function editOrder(id) {
     const newSubtotal = nextItems.reduce((sum,i)=>sum+(Number(i.quantity)||0)*(Number(i.unit_price)||0),0);
     const discountFactor = oldSubtotal > 0 ? Math.min(1, Math.max(0, Number(o.total || oldSubtotal) / oldSubtotal)) : 1;
     const total = Math.round(newSubtotal * discountFactor);
-    const updates = { items: nextItems, total, units: nextItems.reduce((sum,i)=>sum+(Number(i.quantity)||0),0), customer_name: $('#edit_customer_name').value.trim(), customer_phone: $('#edit_customer_phone').value.trim(), customer_id_number: $('#edit_customer_id').value.trim(), customer_address: $('#edit_customer_address').value.trim(), customer_city: $('#edit_customer_city').value.trim(), customer_email: $('#edit_customer_email').value.trim() };
+    const updates = { items: nextItems, total, units: nextItems.reduce((sum,i)=>sum+(Number(i.quantity)||0),0), customer_name: $('#edit_customer_name').value.trim(), customer_phone: $('#edit_customer_phone').value.trim(), customer_id_number: $('#edit_customer_id').value.trim(), customer_address: $('#edit_customer_address').value.trim(), customer_country: $('#edit_customer_country').value.trim() || null, customer_city: $('#edit_customer_city').value.trim(), customer_email: $('#edit_customer_email').value.trim() };
     if (!await ask('¿Guardar los cambios de esta cotización? El inventario no se modificará.')) return false;
     const {error} = await sb.from('orders').update(updates).eq('id',id).in('status',['pending','reserved']);
     if (error) { alert('No se pudo guardar la cotización: '+error.message); return false; }
@@ -1007,7 +1100,7 @@ async function buildOrderPdf(o) {
   doc.text(`Fecha: ${new Date(o.created_at).toLocaleDateString('es-CO')}`,pageW-margin,23,{align:'right'});
   y=43; doc.setTextColor(52,51,57); doc.setFontSize(9);
   doc.text('Resumen de las prendas seleccionadas y sus valores estimados.',margin,y); y+=8;
-  const customerLines = [['Nombre completo', o.customer_name === STORE_SALE_NAME ? '' : o.customer_name], ['Cédula', o.customer_id_number], ['Celular', o.customer_phone], ['Dirección', o.customer_address], ['Ciudad', o.customer_city], ['Correo electrónico', o.customer_email]]
+  const customerLines = [['Nombre completo', o.customer_name === STORE_SALE_NAME ? '' : o.customer_name], ['Cédula', o.customer_id_number], ['Celular', o.customer_phone], ['País', o.customer_country], ['Ciudad', o.customer_city], ['Dirección', o.customer_address], ['Correo electrónico', o.customer_email]]
     .filter(r => r[1]).map(r => `${r[0]}: ${r[1]}`);
   if (customerLines.length) {
     const blockH = 10 + customerLines.length*5; ensure(blockH);

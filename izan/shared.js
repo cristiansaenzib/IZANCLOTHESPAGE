@@ -55,6 +55,14 @@ function makeLocalClient() {
   return {
     from,
     rpc: async (fn, a) => {
+      if (fn === 'save_customer') {
+        const rows = read('customers'), key = String((a && a.p_email) || '').trim().toLowerCase(), now = new Date().toISOString();
+        const i = rows.findIndex(r => String(r.email).toLowerCase() === key), consent = !!(a && a.p_marketing_consent);
+        const base = { email: key, name: a.p_name, id_number: a.p_id_number, phone: a.p_phone, address: a.p_address, city: a.p_city, country: a.p_country || null, updated_at: now };
+        if (i >= 0) { const was = !!rows[i].marketing_consent; rows[i] = { ...rows[i], ...base, marketing_consent: was || consent, consent_at: was ? rows[i].consent_at : (consent ? now : rows[i].consent_at) }; }
+        else rows.push({ id: uid(), created_at: now, source: 'web', ...base, marketing_consent: consent, consent_at: consent ? now : null });
+        write('customers', rows); return { data: null, error: null };
+      }
       const r = read('wholesale_codes').find(x => x.active && String(x.code).toUpperCase() === String((a && a.p_code) || '').trim().toUpperCase());
       return { data: r ? (r.client_name || 'Mayorista') : null, error: null };
     },
@@ -79,6 +87,23 @@ function localImport(o) {
   Object.keys(localStorage).filter(k => k.startsWith('izan_local_')).forEach(k => localStorage.removeItem(k));
   Object.keys(o).forEach(k => { if (k.startsWith('izan_local_')) localStorage.setItem(k, o[k]); });
 }
+
+/* ===== Países de envío: indicativo, ciudades y largo del celular (sin indicativo) ===== */
+const SHIP_COUNTRIES = [
+  { code: 'CO', name: 'Colombia', iso: 'co', dial: '57', len: [10, 10], stripZero: false, idRequired: true, idLabel: 'Cédula', ph: '300 123 4567',
+    cities: ['Bogotá', 'Medellín', 'Cali', 'Barranquilla', 'Cartagena', 'Bucaramanga', 'Cúcuta', 'Pereira', 'Manizales', 'Santa Marta', 'Ibagué', 'Villavicencio', 'Pasto', 'Armenia', 'Neiva', 'Montería', 'Valledupar', 'Popayán', 'Sincelejo', 'Tunja', 'Soacha', 'Bello', 'Itagüí', 'Envigado', 'Floridablanca', 'Palmira', 'Buenaventura', 'Riohacha', 'Florencia', 'Yopal'] },
+  { code: 'CR', name: 'Costa Rica', iso: 'cr', dial: '506', len: [8, 8], stripZero: false, idRequired: true, idLabel: 'Cédula', ph: '8312 3456',
+    cities: ['San José', 'Alajuela', 'Cartago', 'Heredia', 'Liberia', 'Puntarenas', 'Limón', 'Escazú', 'Desamparados', 'San Ramón', 'Grecia', 'Pérez Zeledón', 'Curridabat', 'Santa Ana', 'Tamarindo', 'Quepos', 'Jacó', 'Turrialba', 'Nicoya', 'San Carlos'] },
+  { code: 'VE', name: 'Venezuela', iso: 've', dial: '58', len: [10, 10], stripZero: true, idRequired: true, idLabel: 'Cédula', ph: '414 123 4567',
+    cities: ['Caracas', 'Maracaibo', 'Valencia', 'Barquisimeto', 'Maracay', 'Ciudad Guayana', 'Barcelona', 'Maturín', 'Puerto La Cruz', 'San Cristóbal', 'Cumaná', 'Mérida', 'Ciudad Bolívar', 'Los Teques', 'Punto Fijo', 'Coro', 'Cabimas', 'Barinas', 'Porlamar', 'Guarenas', 'Guanare', 'San Felipe'] },
+  { code: 'EC', name: 'Ecuador', iso: 'ec', dial: '593', len: [9, 9], stripZero: true, idRequired: true, idLabel: 'Cédula', ph: '99 123 4567',
+    cities: ['Quito', 'Guayaquil', 'Cuenca', 'Santo Domingo', 'Machala', 'Manta', 'Portoviejo', 'Ambato', 'Loja', 'Esmeraldas', 'Riobamba', 'Ibarra', 'Quevedo', 'Milagro', 'Latacunga', 'Babahoyo', 'Durán', 'Daule', 'Samborondón', 'Salinas'] },
+  { code: 'DO', name: 'República Dominicana', iso: 'do', dial: '1', len: [10, 10], stripZero: false, idRequired: true, idLabel: 'Cédula', ph: '809 123 4567',
+    cities: ['Santo Domingo', 'Santiago de los Caballeros', 'Santo Domingo Este', 'Santo Domingo Norte', 'Santo Domingo Oeste', 'San Pedro de Macorís', 'La Romana', 'Puerto Plata', 'San Cristóbal', 'La Vega', 'Higüey', 'San Francisco de Macorís', 'Punta Cana', 'Bávaro', 'Moca', 'Bonao', 'Baní', 'Azua', 'Barahona', 'Sosúa'] },
+  { code: 'US', name: 'Estados Unidos', iso: 'us', dial: '1', len: [10, 10], stripZero: false, idRequired: false, idLabel: 'Documento de identidad (opcional)', ph: '305 123 4567',
+    cities: ['Miami, FL', 'Orlando, FL', 'Tampa, FL', 'Hialeah, FL', 'Fort Lauderdale, FL', 'Jacksonville, FL', 'New York, NY', 'Newark, NJ', 'Paterson, NJ', 'Houston, TX', 'Dallas, TX', 'San Antonio, TX', 'Austin, TX', 'Los Angeles, CA', 'San Francisco, CA', 'San Diego, CA', 'Chicago, IL', 'Atlanta, GA', 'Boston, MA', 'Washington, DC', 'Philadelphia, PA', 'Charlotte, NC', 'Las Vegas, NV', 'Phoenix, AZ', 'Seattle, WA'] },
+  { code: 'OTHER', name: 'Otro país', iso: '', dial: '', len: [6, 14], stripZero: false, idRequired: false, idLabel: 'Documento de identidad (opcional)', ph: 'Número de celular', cities: [] }
+];
 const sb = LOCAL ? makeLocalClient() : window.supabase.createClient(C.SUPABASE_URL, C.SUPABASE_ANON_KEY);
 const imgUrl = path => path ? sb.storage.from('products').getPublicUrl(path).data.publicUrl : SHIRT;
 /* Precio base = precio al detal. (Si el producto es antiguo y solo tiene price_140/180/220, usa el que tenga valor.) */

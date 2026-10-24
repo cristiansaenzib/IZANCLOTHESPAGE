@@ -1556,3 +1556,17 @@ body.cart-page-open > header {
   transform: translateY(-12px);
   transition: opacity .2s ease, visibility 0s linear .2s, transform .2s ease;
 }
+
+/* Casilla de autorización de marketing en datos de envío */
+#quoteModal .sf-consent{display:flex;align-items:flex-start;gap:9px;margin-top:12px;font-size:12px;line-height:1.45;color:#343339;cursor:pointer}
+#quoteModal .sf-consent input{width:17px;height:17px;margin:1px 0 0;flex:0 0 17px;accent-color:#343339}
+
+/* Formulario de envío: listas de país, ciudad e indicativo */
+#quoteModal .shipping-fields select{min-width:0;width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:999px;background:#fff;color:var(--ink);font:inherit;font-size:14px;appearance:auto;cursor:pointer}
+#quoteModal .shipping-fields select:focus{outline:2px solid var(--ink);outline-offset:1px}
+#quoteModal .shipping-fields [hidden]{display:none!important}
+#quoteModal .sf-phone{display:grid;grid-template-columns:minmax(104px,128px) minmax(0,1fr);gap:8px}
+#quoteModal .sf-phone #customerDialOther{grid-column:1/-1;order:3}
+#quoteModal .sf-phone select{padding-left:12px;padding-right:6px}
+@media(max-width:420px){#quoteModal .sf-phone{grid-template-columns:minmax(104px,128px) minmax(0,1fr)}}
+@supports (-webkit-touch-callout:none){#quoteModal .shipping-fields select{font-size:16px!important}}
