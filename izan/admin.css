@@ -493,3 +493,18 @@ body:has(.adm-shell) header{margin-left:10px;margin-right:10px}
 .restock-sz{display:grid;grid-template-columns:repeat(auto-fit,minmax(54px,1fr));gap:8px}
 .restock-sz label{display:block;font-size:11px;font-weight:700;margin-bottom:3px}
 .restock-sz input{width:100%;padding:9px 6px;text-align:center}
+
+/* ---------- Editar producto: en PC todo visible sin scroll (3 columnas) ---------- */
+@media (min-width:1000px){
+  .mo>div:has(.edit-modal.edit-product){width:min(1280px,96vw)!important;max-width:none!important;max-height:96vh;padding:20px 28px}
+  .edit-product h3{font-size:26px;margin:0 0 4px}
+  .edit-product .ep-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0 28px;align-items:start}
+  .edit-product .ep-fields{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
+  .edit-product .ep-fields>div{min-width:0}
+  .edit-product label{margin-top:10px}
+  .edit-product .product-flags{margin:10px 0 0;padding:10px 12px;gap:7px}
+  .edit-product .product-flags label{margin-top:0}
+  .edit-product textarea{min-height:96px}
+  .edit-product .edit-prices{margin-top:0}
+  .edit-product .edit-stock{grid-template-columns:repeat(4,1fr)}
+}

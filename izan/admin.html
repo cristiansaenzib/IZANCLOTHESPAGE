@@ -1728,28 +1728,38 @@ function focusProduct(id) {
 function editProduct(id) {
   const p = products.find(x => x.id == id); if (!p) return;
   const catOptions = cats.map(c => `<option value="${c.id}" ${c.id == p.category_id ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
-  modal(`<div class="edit-modal">
+  modal(`<div class="edit-modal edit-product">
     <h3 style="margin-top:0">Editar producto</h3>
-    <label>Categoría</label><select id="epcat" onchange="togInh('ep_','epcat')">${catOptions}</select>
-    <label>Nombre</label><input id="epname" value="${esc(p.name)}">
-    <label>Número de referencia comercial</label><input id="epreference" type="text" value="${esc(p.reference || '')}" placeholder="Ej. 41" style="width:100%;box-sizing:border-box;margin:4px 0 9px">
-    <label>Color</label><input id="epcolor" value="${esc(p.color || '')}" placeholder="Ej. Negro, verde oliva">
-    ${guideField('epgu', p.size_guide_id)}
-    ${weightField('epwt', p.fabric_weight_id)}
-    <label>Descripción</label><textarea id="epdesc" rows="4">${esc(p.description || '')}</textarea>
-    <fieldset class="product-flags"><legend>Destacar en la tienda</legend>
-      <label><input id="epbest" type="checkbox" ${p.is_best_seller ? 'checked' : ''}> Best seller (aparece en el carrusel de inicio)</label>
-      <label><input id="eplast" type="checkbox" ${p.is_last_units ? 'checked' : ''}> Últimas unidades</label>
-      <label><input id="epnew" type="checkbox" ${p.is_new_arrival ? 'checked' : ''}> Lo más nuevo</label>
-    </fieldset>
-    <div class="edit-prices"><div><label>Precio detal (COP)</label><input id="epprice" type="number" min="0" step="1000" value="${price(p)}"></div>
-    <div><label>Precio promoción (COP) · 0 = sin promoción</label><input id="eppromo" type="number" min="0" step="1000" value="${+p.price_promo || 0}"></div>
-    <div><label>Precio distribuidor (COP)</label><input id="eppd" type="number" min="0" step="1000" value="${+p.price_dist || 0}"></div>
-    <div><label>Precio mayorista (COP)</label><input id="eppm" type="number" min="0" step="1000" value="${+p.price_mayor || 0}"></div></div>
-    <label>Descuentos que usa este producto</label>
-    ${tierPicker('ep_', p.tiers, p.category_id)}
-    <label>Inventario por talla</label>
-    <div class="edit-stock">${SZ.map(z => `<div><label>${z}</label><input id="es${z}" type="number" min="0" step="1" value="${stock(p, z)}"></div>`).join('')}</div>
+    <div class="ep-grid">
+      <div class="ep-col">
+        <div class="ep-fields">
+          <div><label for="epcat">Categoría</label><select id="epcat" onchange="togInh('ep_','epcat')">${catOptions}</select></div>
+          <div><label for="epname">Nombre</label><input id="epname" value="${esc(p.name)}"></div>
+          <div><label for="epreference">Número de referencia comercial</label><input id="epreference" type="text" value="${esc(p.reference || '')}" placeholder="Ej. 41"></div>
+          <div><label for="epcolor">Color</label><input id="epcolor" value="${esc(p.color || '')}" placeholder="Ej. Negro, verde oliva"></div>
+          ${guideField('epgu', p.size_guide_id)}
+          ${weightField('epwt', p.fabric_weight_id)}
+        </div>
+        <label for="epdesc">Descripción</label><textarea id="epdesc" rows="4">${esc(p.description || '')}</textarea>
+      </div>
+      <div class="ep-col">
+        <fieldset class="product-flags"><legend>Destacar en la tienda</legend>
+          <label><input id="epbest" type="checkbox" ${p.is_best_seller ? 'checked' : ''}> Best seller (aparece en el carrusel de inicio)</label>
+          <label><input id="eplast" type="checkbox" ${p.is_last_units ? 'checked' : ''}> Últimas unidades</label>
+          <label><input id="epnew" type="checkbox" ${p.is_new_arrival ? 'checked' : ''}> Lo más nuevo</label>
+        </fieldset>
+        <label>Descuentos que usa este producto</label>
+        ${tierPicker('ep_', p.tiers, p.category_id)}
+      </div>
+      <div class="ep-col">
+        <div class="edit-prices"><div><label>Precio detal (COP)</label><input id="epprice" type="number" min="0" step="1000" value="${price(p)}"></div>
+        <div><label>Precio promoción (COP) · 0 = sin promoción</label><input id="eppromo" type="number" min="0" step="1000" value="${+p.price_promo || 0}"></div>
+        <div><label>Precio distribuidor (COP)</label><input id="eppd" type="number" min="0" step="1000" value="${+p.price_dist || 0}"></div>
+        <div><label>Precio mayorista (COP)</label><input id="eppm" type="number" min="0" step="1000" value="${+p.price_mayor || 0}"></div></div>
+        <label>Inventario por talla</label>
+        <div class="edit-stock">${SZ.map(z => `<div><label>${z}</label><input id="es${z}" type="number" min="0" step="1" value="${stock(p, z)}"></div>`).join('')}</div>
+      </div>
+    </div>
   </div>`, 'Guardar cambios', async () => {
     const update = { category_id: $('#epcat').value, name: $('#epname').value.trim(), reference: $('#epreference').value.trim(), description: $('#epdesc').value.trim(), color: $('#epcolor').value.trim(), price: +$('#epprice').value || 0, price_promo: +$('#eppromo').value || 0, price_dist: +$('#eppd').value || 0, price_mayor: +$('#eppm').value || 0, tiers: $('#ep_inh').checked ? null : JSON.stringify(readBoxes('ep_')), is_best_seller: $('#epbest').checked, is_last_units: $('#eplast').checked, is_new_arrival: $('#epnew').checked };
     if (guidesOk) update.size_guide_id = $('#epgu').value || null;
