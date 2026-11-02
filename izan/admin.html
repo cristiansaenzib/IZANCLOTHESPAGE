@@ -956,7 +956,7 @@ function orderCard(o) {
   const statusText = sold ? 'Vendido' : reserved ? 'Apartado' : cancelled ? 'Cancelado' : 'Pendiente';
   const statusClass = sold ? 'ok' : reserved ? 'wait' : cancelled ? '' : 'wait';
   let actions = `<button class="chip" onclick="downloadOrderPdf('${o.id}')">↓ Descargar PDF</button>`;
-  if (!sold && !cancelled) actions += `<button class="chip" onclick="editOrder('${o.id}')">✎ Editar cotización</button>`;
+  if (!sold && !cancelled) actions += `<button class="chip" onclick="editOrderInPhysicalSale('${o.id}')">✎ Editar cotización</button>`;
   if (!sold && !cancelled && !reserved) actions += `<button class="chip" onclick="reserveOrder('${o.id}')">▣ Apartar</button>`;
   if (!sold && !cancelled) actions += `<button class="chip ok" onclick="markOrderSold('${o.id}')">✓ Marcar vendido</button>`;
   if (reserved) actions += `<button class="chip danger" onclick="cancelReservation('${o.id}')">Cancelar cotización</button>`;
@@ -1035,6 +1035,35 @@ function addEditOrderLine() {
   renderEditOrderAddedItems();
 }
 function removeEditOrderAddedItem(index) { editingOrderAddedItems.splice(index,1); renderEditOrderAddedItems(); }
+
+async function editOrderInPhysicalSale(id) {
+  const o = orders.find(x => String(x.id) === String(id));
+  if (!o) return alert('No se encontró la cotización.');
+  if (isSold(o) || isCancelled(o)) return alert('Esta cotización ya está cerrada y no se puede editar.');
+  const mapped = [];
+  for (const item of (Array.isArray(o.items) ? o.items : [])) {
+    const product = products.find(p => String(p.id) === String(item.product_id));
+    if (!product) { alert(`No se encontró la prenda «${item.product_name || ''}» en el catálogo. No se abrió el modo de edición.`); return; }
+    const size = String(item.size || '').toUpperCase();
+    if (!sizes(product).includes(size)) { alert(`La talla ${size} de «${product.name}» ya no está habilitada en el catálogo.`); return; }
+    const quantity = Number(item.quantity) || 0;
+    if (quantity < 1) continue;
+    mapped.push({ id: product.id, s: size, q: quantity });
+  }
+  if (!mapped.length) return alert('La cotización no contiene prendas editables.');
+  pos.editOrderId = o.id;
+  pos.lines = mapped;
+  pos.code = o.wholesale_code || '';
+  pos.done = null; pos.open = null; pos.q = ''; pos.cat = 'all';
+  pos.cust = { name: o.customer_name === STORE_SALE_NAME ? '' : (o.customer_name || ''), idn: o.customer_id_number || '', phone: o.customer_phone || '', address: o.customer_address || '', city: o.customer_city || '', email: o.customer_email || '' };
+  go('ventafisica');
+  setTimeout(() => {
+    const sel = $('#posCodeSel');
+    if (sel) sel.value = pos.code;
+    posRenderAll();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, 0);
+}
 
 async function editOrder(id) {
   const o = orders.find(x => String(x.id) === String(id));
@@ -1245,12 +1274,12 @@ async function deleteOrder(id) {
    Los datos del cliente y de envío son opcionales. Se puede descargar el PDF, guardar como cotización
    pendiente o registrar la venta (descuenta inventario). */
 const STORE_SALE_NAME = 'Venta en tienda';
-let pos = { open: null, lines: [], code: '', q: '', cat: 'all', done: null, busy: false, cust: { name: '', idn: '', phone: '', address: '', city: '', email: '' } };
+let pos = { open: null, lines: [], code: '', q: '', cat: 'all', done: null, busy: false, editOrderId: null, cust: { name: '', idn: '', phone: '', address: '', city: '', email: '' } };
 const posNorm = s => String(s ?? '').toLocaleLowerCase('es').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 /* Unidades apartadas (estado "reserved") por producto y talla: no se pueden vender en el mostrador. */
 const posReserved = (id, z) => orders.filter(isReserved).reduce((a, o) => a + (Array.isArray(o.items) ? o.items : []).reduce((b, i) => b + (String(i.product_id) === String(id) && String(i.size || '').toLowerCase() === String(z).toLowerCase() ? (Number(i.quantity) || 0) : 0), 0), 0);
 /* Existencia libre para vender = inventario físico − apartados (igual que el catálogo público). */
-const posStock = (p, z) => Math.max(0, stock(p, z) - posReserved(p.id, z));
+const posStock = (p, z) => { const ownReserved = pos.editOrderId ? (orders.find(o => String(o.id) === String(pos.editOrderId) && isReserved(o))?.items || []).reduce((n, i) => n + (String(i.product_id) === String(p.id) && String(i.size || '').toUpperCase() === String(z).toUpperCase() ? Number(i.quantity) || 0 : 0), 0) : 0; return Math.max(0, stock(p, z) - posReserved(p.id, z) + ownReserved); };
 const posProd = id => products.find(x => x.id == id);
 const posCat = p => cats.find(c => c.id == p.category_id);
 const posCatName = p => (posCat(p) || {}).name || 'Sin categoría';
@@ -1286,7 +1315,7 @@ function vVentaFisica() {
       <div class="pos-grid" id="posGrid"></div>
     </section>
     <aside class="panel pos-ticket" id="posTicket" aria-label="Ticket de venta">
-      <div class="panel-h"><h3>Ticket</h3><button class="chip" onclick="posClear()">Vaciar</button></div>
+      <div class="panel-h"><h3>${pos.editOrderId ? `Editar cotización #${esc(shortId(orders.find(o => String(o.id) === String(pos.editOrderId)) || {id:pos.editOrderId}))}` : 'Ticket'}</h3><button class="chip" onclick="posClear()">${pos.editOrderId ? 'Cancelar edición' : 'Vaciar'}</button></div>
       <div id="posLines"></div>
       <label for="posCodeSel">Cliente mayorista (opcional)</label>
       <select id="posCodeSel" onchange="posSetCode(this.value)">${opts}</select>
@@ -1296,7 +1325,7 @@ function vVentaFisica() {
       </details>
       <div class="pos-actions">
         <button class="btn ghost" id="posPdfBtn" onclick="posPdf()">Descargar cotización PDF</button>
-        <button class="btn ghost" id="posQuoteBtn" onclick="posSave(false)">Guardar como cotización</button>
+        <button class="btn ghost" id="posQuoteBtn" onclick="posSave(false)">${pos.editOrderId ? 'Guardar cambios de cotización' : 'Guardar como cotización'}</button>
         <button class="btn acc" id="posSellBtn" onclick="posSave(true)">Registrar venta</button>
       </div>
       <p class="note">Registrar venta descuenta el inventario y queda en Pedidos como vendida. Si no escribes el nombre, se guarda como “${STORE_SALE_NAME}”.</p>
@@ -1362,7 +1391,7 @@ function posRemove(id) { pos.lines = pos.lines.filter(l => l.id != id); posRefre
 function posSetCode(v) { pos.code = v; posRenderTicket(); }
 function posClear() {
   posClose();
-  pos.lines = []; pos.code = ''; pos.done = null; pos.cust = { name: '', idn: '', phone: '', address: '', city: '', email: '' };
+  pos.lines = []; pos.code = ''; pos.done = null; pos.editOrderId = null; pos.cust = { name: '', idn: '', phone: '', address: '', city: '', email: '' };
   renderPanel();
 }
 
@@ -1431,13 +1460,23 @@ async function posSave(sold) {
   }
   pos.busy = true; posRenderTicket();
   try {
-    const { data, error } = await sb.from('orders').insert(posOrderData('pending')).select();
-    if (error || !data || !data[0]) { alert('No se pudo guardar: ' + ((error && error.message) || 'sin respuesta') + '.'); return; }
-    const row = data[0]; orders.unshift(row);
-    if (!sold) { await loadAll(); posClear(); alert('Cotización guardada en Pedidos como pendiente.'); return; }
+    let row, error;
+    if (pos.editOrderId) {
+      const current = orders.find(x => String(x.id) === String(pos.editOrderId));
+      const update = { ...posOrderData(current?.status || 'pending'), status: 'pending' };
+      const result = await sb.from('orders').update(update).eq('id', pos.editOrderId).in('status', ['pending','reserved']).select();
+      error = result.error; row = result.data && result.data[0];
+      if (!error && row) { const idx = orders.findIndex(x => String(x.id) === String(row.id)); if (idx >= 0) orders[idx] = row; }
+    } else {
+      const result = await sb.from('orders').insert(posOrderData('pending')).select();
+      error = result.error; row = result.data && result.data[0];
+      if (!error && row) orders.unshift(row);
+    }
+    if (error || !row) { alert('No se pudo guardar: ' + ((error && error.message) || 'sin respuesta') + '.'); return; }
+    if (!sold) { const wasEditing = !!pos.editOrderId; await loadAll(); posClear(); alert(wasEditing ? 'Cotización actualizada desde Venta física.' : 'Cotización guardada en Pedidos como pendiente.'); return; }
     const ok = await sellOrder(row);
     if (!ok) { alert('La cotización quedó guardada como pendiente en Pedidos, pero no se pudo cerrar la venta. Revisa el inventario antes de reintentar.'); return; }
-    pos.lines = []; pos.code = ''; pos.cust = { name: '', idn: '', phone: '', address: '', city: '', email: '' };
+    pos.lines = []; pos.code = ''; pos.editOrderId = null; pos.cust = { name: '', idn: '', phone: '', address: '', city: '', email: '' };
     pos.done = { id: row.id, short: shortId(row), total: row.total };
     renderPanel();
   } finally { pos.busy = false; if ($('#posTicket')) posRenderTicket(); }
