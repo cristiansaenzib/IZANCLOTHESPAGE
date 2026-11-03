@@ -141,21 +141,46 @@ async function login() {
 async function logout() { if (sb && !LOCAL) await sb.auth.signOut(); }
 
 let deletedRules = [];
-async function loadAll() {
-  const [c, p, s, k, o, mv] = await Promise.all([sb.from('categories').select('*').order('created_at'), sb.from('products').select('*').order('created_at', { ascending: false }), sb.from('settings').select('*'), sb.from('wholesale_codes').select('*').order('created_at', { ascending: false }), sb.from('orders').select('*').order('created_at', { ascending: false }), sb.from('inventory_movements').select('*').order('created_at', { ascending: false })]);
-  const cu = await sb.from('customers').select('*').order('created_at', { ascending: false }); customers = cu.data || []; customersErr = cu.error;
-  codes = k.data || []; codesErr = k.error; orders = o.data || []; ordersErr = o.error; movements = mv.data || []; movementsErr = mv.error;
-  cats = c.data || []; products = p.data || [];
-  const g = await sb.from('size_guides').select('*').order('created_at'); guides = g.data || []; guidesOk = !g.error; guidesErr = g.error;
-  const fw = await sb.from('fabric_weights').select('*').order('created_at'); weights = (fw.data || []).sort(weightSort); weightsOk = !fw.error; weightsErr = fw.error;
-  backOk = LOCAL || (products.length ? ('image_path_back' in products[0]) : !(await sb.from('products').select('image_path_back')).error);
-  const w = (s.data || []).find(r => r.key === 'whatsapp'); settings.whatsapp = (w && w.value) || C.WHATSAPP;
-  const hb = (s.data || []).find(r => r.key === 'hero_banners'); settings.hero_banners = parseHeroAdmin(hb && hb.value);
-  const vc = (s.data || []).find(r => r.key === 'visual_content'); settings.visual_content = parseVisualAdmin(vc && vc.value);
-  const ht = (s.data || []).find(r => r.key === 'home_tiles'); settings.home_tiles = parseHeroAdmin(ht && ht.value);
-  tiers = parseTiers(s.data); countMode = parseCountMode(s.data); deletedRules = parseDeletedRules(s.data);
+/* Carga TODO en paralelo (antes eran 3 rondas seguidas). `only` = lista de partes a refrescar:
+   'cats','products','settings','codes','orders','movements','customers','guides','weights'.
+   Así, guardar un producto o una regla ya no vuelve a descargar pedidos, clientes y movimientos. */
+async function loadAll(only) {
+  const want = k => !only || only.includes(k);
+  const jobs = {
+    cats:      () => sb.from('categories').select('*').order('created_at'),
+    products:  () => sb.from('products').select('*').order('created_at', { ascending: false }),
+    settings:  () => sb.from('settings').select('*'),
+    codes:     () => sb.from('wholesale_codes').select('*').order('created_at', { ascending: false }),
+    orders:    () => sb.from('orders').select('*').order('created_at', { ascending: false }),
+    movements: () => sb.from('inventory_movements').select('*').order('created_at', { ascending: false }).limit(300),
+    customers: () => sb.from('customers').select('*').order('created_at', { ascending: false }),
+    guides:    () => sb.from('size_guides').select('*').order('created_at'),
+    weights:   () => sb.from('fabric_weights').select('*').order('created_at')
+  };
+  const keys = Object.keys(jobs).filter(want);
+  const out = await Promise.all(keys.map(k => Promise.resolve(jobs[k]()).catch(e => ({ data: null, error: e }))));
+  const R = {}; keys.forEach((k, i) => R[k] = out[i]);
+  if (R.codes) { codes = R.codes.data || []; codesErr = R.codes.error; }
+  if (R.orders) { orders = R.orders.data || []; ordersErr = R.orders.error; }
+  if (R.movements) { movements = R.movements.data || []; movementsErr = R.movements.error; }
+  if (R.customers) { customers = R.customers.data || []; customersErr = R.customers.error; }
+  if (R.cats) cats = R.cats.data || [];
+  if (R.products) products = R.products.data || [];
+  if (R.guides) { guides = R.guides.data || []; guidesOk = !R.guides.error; guidesErr = R.guides.error; }
+  if (R.weights) { weights = (R.weights.data || []).sort(weightSort); weightsOk = !R.weights.error; weightsErr = R.weights.error; }
+  if (R.products) backOk = LOCAL || (products.length ? ('image_path_back' in products[0]) : !(await sb.from('products').select('image_path_back')).error);
+  if (R.settings) {
+    const s = R.settings;
+    const w = (s.data || []).find(r => r.key === 'whatsapp'); settings.whatsapp = (w && w.value) || C.WHATSAPP;
+    const hb = (s.data || []).find(r => r.key === 'hero_banners'); settings.hero_banners = parseHeroAdmin(hb && hb.value);
+    const vc = (s.data || []).find(r => r.key === 'visual_content'); settings.visual_content = parseVisualAdmin(vc && vc.value);
+    const ht = (s.data || []).find(r => r.key === 'home_tiles'); settings.home_tiles = parseHeroAdmin(ht && ht.value);
+    tiers = parseTiers(s.data); countMode = parseCountMode(s.data); deletedRules = parseDeletedRules(s.data);
+  }
   renderPanel();
 }
+/* Aplica en memoria un cambio que ya se guardó en la base (evita volver a descargar todo el catálogo). */
+function patchProduct(id, upd) { const p = products.find(x => x.id == id); if (p) Object.assign(p, upd); return p; }
 
 /* ================= NAVEGACIÓN POR SECCIONES ================= */
 const ICON = {
@@ -494,13 +519,13 @@ async function gSave() {
   const q = gDraft.id ? sb.from('size_guides').update(row).eq('id', gDraft.id) : sb.from('size_guides').insert(row);
   const { error } = await q;
   if (error) return say('gmsg', 'Error: ' + error.message);
-  gDraft = null; await loadAll(); say('gmsg', 'Guía guardada ✓');
+  gDraft = null; await loadAll(['guides']); say('gmsg', 'Guía guardada ✓');
 }
 async function gDup(id) {
   const g = guides.find(x => x.id == id); if (!g) return;
   const { error } = await sb.from('size_guides').insert({ name: g.name + ' (copia)', note: g.note || '', measures: g.measures, sizes: g.sizes });
   if (error) return alert('No se pudo duplicar: ' + error.message);
-  await loadAll();
+  await loadAll(['guides']);
 }
 async function gDel(id) {
   const g = guides.find(x => x.id == id), n = products.filter(p => p.size_guide_id == id).length;
@@ -509,7 +534,7 @@ async function gDel(id) {
   const { error } = await sb.from('size_guides').delete().eq('id', id);
   if (error) return alert('No se pudo eliminar: ' + error.message);
   if (gDraft && gDraft.id == id) gDraft = null;
-  await loadAll();
+  await loadAll(['guides', 'products']);
 }
 
 const wBlank = () => ({ id: null, grams: '', name: '', note: '' });
@@ -554,7 +579,7 @@ async function wSave() {
   const q = d.id ? sb.from('fabric_weights').update(row).eq('id', d.id) : sb.from('fabric_weights').insert(row);
   const { error } = await q;
   if (error) return say('wmsg', 'Error: ' + error.message);
-  wDraft = null; await loadAll(); say('wmsg', 'Gramaje guardado ✓');
+  wDraft = null; await loadAll(['weights']); say('wmsg', 'Gramaje guardado ✓');
 }
 async function wDel(id) {
   const w = weights.find(x => x.id == id), n = products.filter(p => p.fabric_weight_id == id).length;
@@ -563,7 +588,7 @@ async function wDel(id) {
   const { error } = await sb.from('fabric_weights').delete().eq('id', id);
   if (error) return alert('No se pudo eliminar: ' + error.message);
   if (wDraft && wDraft.id == id) wDraft = null;
-  await loadAll();
+  await loadAll(['weights', 'products']);
 }
 
 function vNuevo() {
@@ -607,7 +632,7 @@ let flagQ = '';
 function flagMini(p, key, on) {
   const cat = (cats.find(c => c.id == p.category_id) || {}).name || 'Sin categoría';
   return `<div class="flag-item" data-name="${esc(String(p.name).toLowerCase())}">
-    <img src="${imgUrl(p.image_path)}" alt="${esc(p.name)}" loading="lazy">
+    <img src="${imgUrl(p.image_path, 200)}" alt="${esc(p.name)}" loading="lazy" decoding="async">
     <span class="fi-txt"><b>${esc(p.name)}</b><small>${esc(cat)}${p.sold_out ? ' · Agotado' : ''}</small></span>
     ${on ? `<button class="chip danger" onclick="toggleFlag('${p.id}','${key}')">Quitar</button>` : `<button class="chip ok" onclick="toggleFlag('${p.id}','${key}')">+ Agregar</button>`}
   </div>`;
@@ -637,7 +662,7 @@ async function toggleFlag(id, key) {
   const next = !isFlagOn(p[key]);
   const { error } = await sb.from('products').update({ [key]: next }).eq('id', id);
   if (error) return alert('No se pudo actualizar: ' + error.message + '\n\nSi dice que la columna no existe, ejecuta migracion_destacados.sql en Supabase.');
-  p[key] = next; await reloadProducts(); renderPanel();
+  p[key] = next; renderPanel();
   if (view === 'catalogo') focusProduct(id);
 }
 async function clearFlag(key) {
@@ -646,7 +671,7 @@ async function clearFlag(key) {
   const res = await Promise.all(ids.map(i => sb.from('products').update({ [key]: false }).eq('id', i)));
   const bad = res.find(r => r && r.error);
   if (bad) return alert('No se pudo actualizar: ' + bad.error.message);
-  await reloadProducts(); renderPanel();
+  ids.forEach(i => patchProduct(i, { [key]: false })); renderPanel();
 }
 
 function productRow(p) {
@@ -656,7 +681,7 @@ function productRow(p) {
       <button type="button" class="flag-btn ${isFlagOn(p.is_best_seller) ? 'on' : ''}" aria-pressed="${isFlagOn(p.is_best_seller)}" aria-label="Best seller: ${isFlagOn(p.is_best_seller) ? 'quitar' : 'agregar'}" title="${isFlagOn(p.is_best_seller) ? 'Quitar de Best sellers' : 'Agregar a Best sellers'}" onclick="toggleFlag('${p.id}','is_best_seller')"><span class="fire" aria-hidden="true">🔥</span></button>
       <button type="button" class="flag-btn ${isFlagOn(p.is_new_arrival) ? 'on' : ''}" aria-pressed="${isFlagOn(p.is_new_arrival)}" aria-label="Lo más nuevo: ${isFlagOn(p.is_new_arrival) ? 'quitar' : 'agregar'}" title="${isFlagOn(p.is_new_arrival) ? 'Quitar de Lo más nuevo' : 'Agregar a Lo más nuevo'}" onclick="toggleFlag('${p.id}','is_new_arrival')">${ic('tag')}</button>
     </div>
-    <div class="pr-photos"><img class="front" src="${imgUrl(p.image_path)}" alt="${esc(p.name)}">${backOk && p.image_path_back ? `<img class="back" src="${imgUrl(p.image_path_back)}" alt="Parte trasera de ${esc(p.name)}" title="Foto trasera">` : ''}</div>
+    <div class="pr-photos"><img class="front" src="${imgUrl(p.image_path, 400)}" alt="${esc(p.name)}" loading="lazy" decoding="async">${backOk && p.image_path_back ? `<img class="back" src="${imgUrl(p.image_path_back, 400)}" alt="Parte trasera de ${esc(p.name)}" title="Foto trasera" loading="lazy" decoding="async">` : ''}</div>
     <div class="product-info">
       <div class="pi-head"><b>${esc(p.name)}</b>${p.sold_out ? '<span class="pill out">Agotado</span>' : ''}</div>
       <div class="pr-stock">${showSz.map(z => `<span class="${stock(p, z) ? '' : 'zero'}">${z} <b>${stock(p, z)}</b></span>`).join('')}</div>
@@ -731,12 +756,13 @@ async function restockSold(id) {
   Object.entries(add).forEach(([z, n]) => update['stock_' + z.toLowerCase()] = stock(p, z) + n);
   const { error } = await sb.from('products').update(update).eq('id', id);
   if (error) return alert('No se pudo reactivar: ' + error.message);
-  if (total) {
-    const rows = Object.entries(add).map(([z, n]) => ({ product_id: id, product_name: p.name, size: z, delta: n, before_stock: stock(p, z), after_stock: stock(p, z) + n, reason: 'Reposición (reactivado desde Agotados)', source: 'manual' }));
-    const { error: logError } = await sb.from('inventory_movements').insert(rows);
+  const rows = total ? Object.entries(add).map(([z, n]) => ({ product_id: id, product_name: p.name, size: z, delta: n, before_stock: stock(p, z), after_stock: stock(p, z) + n, reason: 'Reposición (reactivado desde Agotados)', source: 'manual' })) : [];
+  patchProduct(id, update); renderPanel();   /* se ve al instante; el historial se guarda enseguida */
+  if (rows.length) {
+    const { data: mv, error: logError } = await sb.from('inventory_movements').insert(rows).select();
     if (logError) console.warn('No se guardó el historial de inventario:', logError.message);
+    else if (Array.isArray(mv)) movements = [...mv, ...movements];
   }
-  await loadAll();
 }
 
 function vReglas() {
@@ -809,10 +835,13 @@ async function adjustStock() {
   if(after<0) return say('mvmsg',`No se puede dejar inventario negativo. Disponible: ${before}.`);
   if(!await ask(`Confirmar ajuste de ${delta>0?'+':''}${delta} unidades para ${p.name}, talla ${size}. Stock: ${before} → ${after}.`)) return;
   const col='stock_'+size.toLowerCase();
-  const {error}=await sb.from('products').update({[col]:after,sold_out: after===0 && !SZ.some(z=>z!==size&&stock(p,z)>0)}).eq('id',id);
+  const upd={[col]:after,sold_out: after===0 && !SZ.some(z=>z!==size&&stock(p,z)>0)};
+  const {error}=await sb.from('products').update(upd).eq('id',id);
   if(error) return say('mvmsg','No se pudo actualizar el stock: '+error.message);
-  const {error: logError}=await sb.from('inventory_movements').insert({product_id:id,product_name:p.name,size,delta,before_stock:before,after_stock:after,reason,source:'manual'});
-  await loadAll();
+  patchProduct(id, upd);
+  const {data: mvRow, error: logError}=await sb.from('inventory_movements').insert({product_id:id,product_name:p.name,size,delta,before_stock:before,after_stock:after,reason,source:'manual'}).select();
+  if(!logError && Array.isArray(mvRow)) movements=[...mvRow,...movements];
+  renderPanel();
   if(logError) { say('mvmsg','Stock actualizado, pero no se guardó el historial. Ejecuta la migración SQL y registra el movimiento manualmente si lo necesitas.'); return; }
   say('mvmsg','Inventario actualizado e historial guardado ✓');
 }
@@ -849,8 +878,11 @@ async function importProductsCsv(file) {
     }
     if(!updates.length) throw new Error('No se encontraron cambios para importar.');
     if(!await ask(`Se actualizarán ${updates.length} productos existentes. Los campos vacíos se conservarán. ¿Continuar?`)) return;
-    for(const item of updates){const {error}=await sb.from('products').update(item.upd).eq('id',item.id);if(error)throw new Error(`Fila ${item.row}: ${error.message}`);}
-    await loadAll();say('csvmsg',`Importación completada: ${updates.length} productos actualizados. Revisa el catálogo.`);
+    for(let i=0;i<updates.length;i+=8){   /* de 8 en 8 en paralelo (antes uno por uno) */
+      const part=updates.slice(i,i+8), res=await Promise.all(part.map(item=>sb.from('products').update(item.upd).eq('id',item.id)));
+      const bad=res.findIndex(r=>r&&r.error); if(bad>=0) throw new Error(`Fila ${part[bad].row}: ${res[bad].error.message}`);
+    }
+    await loadAll(['products']);say('csvmsg',`Importación completada: ${updates.length} productos actualizados. Revisa el catálogo.`);
   } catch(e){say('csvmsg','No se pudo importar: '+(e.message||e));}
 }
 function exportOrdersCsv() {
@@ -938,13 +970,13 @@ async function revokeCustConsent(id) {
   if (!await ask('¿Revocar la autorización de anuncios de este cliente? Dejará de aparecer en las descargas para anuncios.')) return;
   const { error } = await sb.from('customers').update({ marketing_consent: false, consent_at: null }).eq('id', id);
   if (error) { say('custmsg', 'No se pudo actualizar: ' + error.message); return; }
-  await loadAll();
+  await loadAll(['customers']);
 }
 async function delCustomer(id) {
   if (!await ask('¿Eliminar este cliente de la base de datos? Sus cotizaciones en Pedidos no se borran.')) return;
   const { error } = await sb.from('customers').delete().eq('id', id);
   if (error) { say('custmsg', 'No se pudo eliminar: ' + error.message); return; }
-  await loadAll();
+  await loadAll(['customers']);
 }
 
 function orderCard(o) {
@@ -1106,7 +1138,7 @@ async function reserveOrder(id) {
   if (!await ask('¿Apartar esta cotización? Las unidades quedarán bloqueadas para otros clientes hasta que la marques como vendida o canceles la cotización.')) return;
   const {error} = await sb.from('orders').update({status:'reserved'}).eq('id',o.id).eq('status','pending');
   if (error) return alert('No se pudo apartar la cotización: '+error.message);
-  await loadAll();
+  await loadAll(['orders']);
 }
 async function cancelReservation(id) {
   const o = orders.find(x => String(x.id) === String(id));
@@ -1114,7 +1146,7 @@ async function cancelReservation(id) {
   if (!await confirmAs('¿Cancelar esta cotización apartada? Las unidades se liberarán y volverán a estar disponibles para otros clientes. El inventario físico no se modificará.', 'Sí, cancelar cotización')) return;
   const {error} = await sb.from('orders').update({status:'cancelled', cancelled_at:new Date().toISOString()}).eq('id',o.id).eq('status','reserved');
   if (error) return alert('No se pudo cancelar el apartado: '+error.message);
-  await loadAll();
+  await loadAll(['orders']);
 }
 
 async function markOrderSold(id) {
@@ -1144,11 +1176,11 @@ async function sellOrder(o) {
     const product = products.find(x => x.id == pid), update = {};
     Object.entries(qtys).forEach(([z,q]) => update['stock_' + z] = stock(product,z.toUpperCase()) - q);
     const { error } = await sb.from('products').update(update).eq('id', pid);
-    if (error) { alert('Error al actualizar el inventario: ' + error.message + '. Verifica las existencias antes de volver a intentarlo.'); await loadAll(); return false; }
+    if (error) { alert('Error al actualizar el inventario: ' + error.message + '. Verifica las existencias antes de volver a intentarlo.'); await loadAll(['products', 'orders']); return false; }
   }
   const { error } = await sb.from('orders').update({ status: 'sold', sold_at: new Date().toISOString() }).eq('id', o.id).in('status', ['pending','reserved']);
-  if (error) { alert('Se actualizó el inventario, pero no se pudo marcar el pedido como vendido. Contacta al administrador antes de reintentar para evitar un descuento duplicado.'); await loadAll(); return false; }
-  await loadAll();
+  if (error) { alert('Se actualizó el inventario, pero no se pudo marcar el pedido como vendido. Contacta al administrador antes de reintentar para evitar un descuento duplicado.'); await loadAll(['products', 'orders']); return false; }
+  await loadAll(['products', 'orders']);
   return true;
 }
 async function deleteOrder(id) {
@@ -1162,7 +1194,7 @@ async function deleteOrder(id) {
   if (!await confirmAs(msg, 'Sí, eliminar')) return;
   const { error } = await sb.from('orders').delete().eq('id', id).neq('status', 'reserved');
   if (error) { alert('No se pudo eliminar el pedido: ' + error.message); return; }
-  await loadAll();
+  await loadAll(['orders']);
 }
 
 /* ================= VENTA FÍSICA (mostrador) =================
@@ -1249,7 +1281,7 @@ function posRenderGrid() {
 function posSetCat(id) { pos.cat = id; posRenderGrid(); }
 function posCard(p) {
   const av = sizes(p), out = p.sold_out || !av.some(z => posStock(p, z) > 0), inCart = posQty(p.id);
-  return `<article class="card pos-card ${out ? 'so' : ''} ${inCart ? 'in' : ''}" data-id="${esc(p.id)}" title="${esc(p.name)}" ${out ? '' : `onclick="posOpen('${esc(p.id)}')" tabindex="0" onkeydown="if(event.key==='Enter')posOpen('${esc(p.id)}')"`}><div class="im"><img src="${imgUrl(p.image_path)}" alt="${esc(p.name)}" loading="lazy">${inCart ? `<span class="pos-badge">${inCart}</span>` : ''}${out ? '<span class="pos-out">Agotado</span>' : ''}</div>
+  return `<article class="card pos-card ${out ? 'so' : ''} ${inCart ? 'in' : ''}" data-id="${esc(p.id)}" title="${esc(p.name)}" ${out ? '' : `onclick="posOpen('${esc(p.id)}')" tabindex="0" onkeydown="if(event.key==='Enter')posOpen('${esc(p.id)}')"`}><div class="im"><img src="${imgUrl(p.image_path, 400)}" alt="${esc(p.name)}" loading="lazy" decoding="async">${inCart ? `<span class="pos-badge">${inCart}</span>` : ''}${out ? '<span class="pos-out">Agotado</span>' : ''}</div>
     <div class="b"><h3>${esc(p.name)}</h3></div></article>`;
 }
 function posRefreshCard(id) {
@@ -1411,17 +1443,17 @@ async function posSave(sold) {
     if (pos.editing) {
       /* Edición de una cotización existente: se actualiza el mismo registro y se conserva su estado (pendiente/apartada). */
       const cur = orders.find(o => String(o.id) === String(pos.editing));
-      if (!cur || isSold(cur) || isCancelled(cur)) { alert('Esta cotización ya no se puede editar (fue vendida, cancelada o eliminada).'); pos.editing = null; await loadAll(); return; }
+      if (!cur || isSold(cur) || isCancelled(cur)) { alert('Esta cotización ya no se puede editar (fue vendida, cancelada o eliminada).'); pos.editing = null; await loadAll(['orders']); return; }
       const { status, ...upd } = posOrderData(cur.status || 'pending');
       const { data, error } = await sb.from('orders').update(upd).eq('id', cur.id).in('status', ['pending', 'reserved']).select();
       if (error || !data || !data[0]) { alert('No se pudo guardar los cambios: ' + ((error && error.message) || 'la cotización cambió de estado') + '.'); return; }
       row = data[0]; const k = orders.findIndex(o => String(o.id) === String(row.id)); if (k >= 0) orders[k] = row;
-      if (!sold) { await loadAll(); posClear(); alert('Cotización actualizada.'); return; }
+      if (!sold) { renderPanel(); posClear(); alert('Cotización actualizada.'); return; }
     } else {
       const { data, error } = await sb.from('orders').insert(posOrderData('pending')).select();
       if (error || !data || !data[0]) { alert('No se pudo guardar: ' + ((error && error.message) || 'sin respuesta') + '.'); return; }
       row = data[0]; orders.unshift(row);
-      if (!sold) { await loadAll(); posClear(); alert('Cotización guardada en Pedidos como pendiente.'); return; }
+      if (!sold) { renderPanel(); posClear(); alert('Cotización guardada en Pedidos como pendiente.'); return; }
     }
     const ok = await sellOrder(row);
     if (!ok) { alert('La cotización quedó guardada en Pedidos, pero no se pudo cerrar la venta. Revisa el inventario antes de reintentar.'); return; }
@@ -1440,9 +1472,10 @@ function editCat(id) {
     const name = $('#ecn').value.trim(); if (!name) { alert('El nombre es obligatorio.'); return false; }
     const selectedSizes = [...document.querySelectorAll('input[name="ec_sizes"]:checked')].map(x => x.value);
     if (!selectedSizes.length) { alert('Selecciona al menos una talla para la categoría.'); return false; }
-    const { error } = await sb.from('categories').update({ name, sizes: JSON.stringify(selectedSizes), tiers: JSON.stringify(readBoxes('ec_')) }).eq('id', id);
+    const upd = { name, sizes: JSON.stringify(selectedSizes), tiers: JSON.stringify(readBoxes('ec_')) };
+    const { error } = await sb.from('categories').update(upd).eq('id', id);
     if (error) { alert('No se pudo guardar: ' + error.message); return false; }
-    await loadAll();
+    Object.assign(c, upd); renderPanel();
   });
 }
 const DEFAULT_VISUAL = { announcement:'HECHO EN COLOMBIA\nTIENDA EN BOGOTÁ · C.C. PUNTO ONCE\nPIDE TU COTIZACIÓN POR WHATSAPP\nPRECIOS POR MAYOR CON CÓDIGO\nBOXY FIT ✦ OVERSIZED ✦ ACID WASH', featured_label:'LOS FAVORITOS', featured_title:'BEST SELLERS', new_label:'RECIÉN LLEGADO', new_title:'LO MÁS NUEVO', ticker:'PREMIUM 310 ✦ BOXY FIT ✦ ACID WASH ✦ 180 · 210 · 270 G/M² ✦ HECHO EN COLOMBIA ✦ SERIGRAFÍA ✦ TANK TOPS ✦ ACID WASH', catalog_label:'CATEGORÍA', bg_palette:'marfil' };
@@ -1727,7 +1760,7 @@ function editProduct(id) {
     if (update.price_promo && update.price_promo >= update.price) { alert('El precio de promoción debe ser menor al precio detal (o déjalo en 0).'); return false; }
     const { error } = await sb.from('products').update(update).eq('id', id);
     if (error) { alert('No se pudo guardar: ' + error.message); return false; }
-    await loadAll(); focusProduct(id);
+    patchProduct(id, update); renderPanel(); focusProduct(id);
   });
 }
 
@@ -1758,17 +1791,19 @@ async function saveCat() {
   const n = $('#cn').value.trim(); if (!n) return;
   const selectedSizes = [...document.querySelectorAll('input[name="cn_sizes"]:checked')].map(x => x.value);
   if (!selectedSizes.length) return say('cmsg', 'Selecciona al menos una talla.');
-  const { error } = await sb.from('categories').insert({ name: n, sizes: JSON.stringify(selectedSizes), tiers: JSON.stringify(readBoxes('cn_')) });
+  const { data, error } = await sb.from('categories').insert({ name: n, sizes: JSON.stringify(selectedSizes), tiers: JSON.stringify(readBoxes('cn_')) }).select();
   if (error) return say('cmsg', 'Error: ' + error.message);
-  await loadAll();
+  if (data && data[0]) { cats.push(data[0]); renderPanel(); } else await loadAll(['cats']);
 }
 async function delCat(id) {
   const c = cats.find(x => x.id == id), l = products.filter(p => p.category_id == id);
   if (!await ask(`¿Eliminar la categoría "${c ? c.name : ''}"${l.length ? ` y sus ${l.length} diseños` : ''}?`)) return;
-  for (const p of l) { await rmImg(p.image_path); await rmImg(p.image_path_back); }
+  /* Primero se borra de la base; las fotos solo se eliminan si el borrado salió bien (antes se perdían aunque fallara). */
   const { error } = await sb.from('categories').delete().eq('id', id);
   if (error) return say('cmsg', 'Error: ' + error.message);
-  await loadAll();
+  cats = cats.filter(x => x.id != id); products = products.filter(p => p.category_id != id);
+  renderPanel();
+  l.forEach(p => { rmImgFree(p.image_path, p.id); rmImgFree(p.image_path_back, p.id); });
 }
 async function saveNew() {
   if (busy) return;
@@ -1813,7 +1848,7 @@ async function addCustomRule() {
   const key = 'custom_' + Date.now().toString(36), next = [...tiers.map(ruleOut), { key, name, kind: 'pct', min, pct }];
   const error = await writeRules(next);
   if (error) return say('newRuleMsg', 'No se pudo crear: ' + error.message);
-  await loadAll(); say('newRuleMsg', 'Regla creada. Ahora puedes asignarla al producto o categoría.');
+  await loadAll(['settings']); say('newRuleMsg', 'Regla creada. Ahora puedes asignarla al producto o categoría.');
 }
 async function deleteRule(key) {
   const t = tiers.find(x => x.key === key); if (!t || t.kind !== 'pct') return;
@@ -1825,7 +1860,7 @@ async function deleteRule(key) {
   /* Limpia la regla de las listas de categorías y productos (si no, quedarían claves huérfanas). */
   const strip = async (table, rows) => { for (const r of rows) { const k = parseKeys(r.tiers); if (k && k.includes(key)) await sb.from(table).update({ tiers: JSON.stringify(k.filter(x => x !== key)) }).eq('id', r.id); } };
   try { await strip('categories', cats); await strip('products', products); } catch (e) {}
-  await loadAll(); say('tmsg', 'Regla eliminada ✓');
+  await loadAll(['settings', 'cats', 'products']); say('tmsg', 'Regla eliminada ✓');
 }
 
 async function saveRules() {
@@ -1835,7 +1870,7 @@ async function saveRules() {
   /* Ya no se bloquea por cantidades repetidas: en cada producto gana la regla activa de menor precio. */
   const e1 = await writeRules(t);
   const e2 = e1 ? null : (await sb.from('settings').upsert({ key: 'count_mode', value: $('#cm').value })).error;
-  if (!e1 && !e2) await loadAll();
+  if (!e1 && !e2) await loadAll(['settings']);
   say('tmsg', e1 || e2 ? 'Error: ' + (e1 || e2).message : 'Guardado ✓');
 }
 const genCode = () => { const ch = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let s = ''; const r = crypto.getRandomValues(new Uint32Array(8)); r.forEach(n => s += ch[n % ch.length]); $('#wck').value = s; };
@@ -1844,10 +1879,10 @@ async function saveCode() {
   if (code.length < 6) return say('wcmsg', 'El código debe tener al menos 6 caracteres (usa Generar).');
   const { error } = await sb.from('wholesale_codes').insert({ code, client_name: name, active: true });
   if (error) return say('wcmsg', /duplicate|unique/i.test(error.message) ? 'Ese código ya existe.' : 'Error: ' + error.message);
-  await loadAll();
+  await loadAll(['codes']);
 }
-async function toggleCode(id) { const k = codes.find(x => x.id == id); await sb.from('wholesale_codes').update({ active: !k.active }).eq('id', id); await loadAll(); }
-async function delCode(id) { if (!await ask('¿Eliminar este código de mayorista?')) return; await sb.from('wholesale_codes').delete().eq('id', id); await loadAll(); }
+async function toggleCode(id) { const k = codes.find(x => x.id == id); await sb.from('wholesale_codes').update({ active: !k.active }).eq('id', id); await loadAll(['codes']); }
+async function delCode(id) { if (!await ask('¿Eliminar este código de mayorista?')) return; await sb.from('wholesale_codes').delete().eq('id', id); await loadAll(['codes']); }
 /* Una foto puede estar compartida con una copia (Duplicar): solo se borra del almacenamiento si ningún otro producto la usa. */
 const imgInUse = (path, id) => products.some(x => x.id != id && (x.image_path === path || x.image_path_back === path));
 const rmImgFree = async (path, id) => { if (path && !imgInUse(path, id)) await rmImg(path); };
@@ -1856,7 +1891,8 @@ async function newPhoto(id, f, side) {
   try {
     const path = await upload(f);
     const { error } = await sb.from('products').update({ [col]: path }).eq('id', id); if (error) { await rmImg(path); throw error; }
-    await rmImgFree(p && p[col], id); await reloadProducts(); renderPanel(); focusProduct(id);
+    const oldPath = p && p[col]; patchProduct(id, { [col]: path }); renderPanel(); focusProduct(id);
+    rmImgFree(oldPath, id);   /* borrar la foto vieja no hace esperar al usuario */
   } catch (e) { alert('No se pudo subir la foto: ' + (e.message || e)); }
 }
 async function removeBack(id) {
@@ -1864,20 +1900,23 @@ async function removeBack(id) {
   if (!await ask('¿Quitar la foto trasera de este producto?')) return;
   const { error } = await sb.from('products').update({ image_path_back: null }).eq('id', id);
   if (error) return alert('No se pudo quitar la foto: ' + error.message);
-  await rmImgFree(p.image_path_back, id); await reloadProducts(); renderPanel(); focusProduct(id);
+  const oldBack = p.image_path_back; patchProduct(id, { image_path_back: null }); renderPanel(); focusProduct(id);
+  rmImgFree(oldBack, id);
 }
 async function duplicateProduct(id) {
   const p=products.find(x=>x.id===id); if(!p) return;
   const copy={...p}; delete copy.id; delete copy.created_at;
   copy.name=(p.name||'Producto')+' (copia)'; copy.stock_s=0;copy.stock_m=0;copy.stock_l=0;copy.stock_xl=0;copy.sold_out=true;
   if(!await ask(`Crear una copia de “${p.name}” con inventario en cero?`)) return;
-  const {error}=await sb.from('products').insert(copy);
+  const {data, error}=await sb.from('products').insert(copy).select();
   if(error) return alert('No se pudo duplicar el producto: '+error.message);
-  await loadAll();
+  if (data && data[0]) { products.unshift(data[0]); renderPanel(); focusProduct(data[0].id); } else await loadAll(['products']);
 }
 async function toggleSold(id) {
   const p = products.find(x => x.id == id);
-  await sb.from('products').update({ sold_out: !p.sold_out }).eq('id', id); await reloadProducts(); renderPanel(); focusProduct(id);
+  const next = !p.sold_out, { error } = await sb.from('products').update({ sold_out: next }).eq('id', id);
+  if (error) return alert('No se pudo actualizar: ' + error.message);
+  p.sold_out = next; renderPanel(); focusProduct(id);
 }
 async function del(id) {
   if (!await ask('¿Eliminar este diseño definitivamente?')) return;
@@ -1885,14 +1924,17 @@ async function del(id) {
   const { error } = await sb.from('products').delete().eq('id', id);
   if (error) return alert('No se pudo eliminar: ' + error.message);
   products = products.filter(x => x.id != id);
-  await rmImgFree(p && p.image_path, id); await rmImgFree(p && p.image_path_back, id); await loadAll();
+  renderPanel();
+  rmImgFree(p && p.image_path, id); rmImgFree(p && p.image_path_back, id);   /* las fotos se borran en segundo plano */
 }
 async function saveWa(v) {
   const { error } = await sb.from('settings').upsert({ key: 'whatsapp', value: v.trim() || C.WHATSAPP });
   say('wmsg', error ? 'Error: ' + error.message : 'Guardado ✓');
 }
-function exportBackup() {
-  const snapshot = LOCAL ? localExport() : { exported_at:new Date().toISOString(), note:'Copia de datos descargada desde IZAN Admin. Contiene información de clientes/pedidos; guárdala en un lugar privado.', categories:cats, products, settings, wholesale_codes:codes, orders, size_guides:guides, fabric_weights:weights, inventory_movements:movements };
+async function exportBackup() {
+  let allMovements = movements;   /* en pantalla solo se cargan los últimos 300; la copia de seguridad sí los trae todos */
+  if (!LOCAL) { try { const r = await sb.from('inventory_movements').select('*').order('created_at', { ascending: false }); if (!r.error && r.data) allMovements = r.data; } catch (e) {} }
+  const snapshot = LOCAL ? localExport() : { exported_at:new Date().toISOString(), note:'Copia de datos descargada desde IZAN Admin. Contiene información de clientes/pedidos; guárdala en un lugar privado.', categories:cats, products, settings, wholesale_codes:codes, orders, size_guides:guides, fabric_weights:weights, inventory_movements:allMovements };
   const blob = new Blob([JSON.stringify(snapshot,null,2)], { type: 'application/json' });
   const l = document.createElement('a'); l.href = URL.createObjectURL(blob); l.download = 'izan-copia-' + new Date().toISOString().slice(0, 10) + '.json'; l.click(); setTimeout(()=>URL.revokeObjectURL(l.href),1000);
 }

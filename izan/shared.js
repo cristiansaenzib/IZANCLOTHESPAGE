@@ -16,11 +16,11 @@ function makeLocalClient() {
   const toDataURL = b => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(b); });
 
   function from(table) {
-    let op = 'select', payload = null, filters = [], ord = null;
+    let op = 'select', payload = null, filters = [], ord = null, lim = null;
     const q = {
       select() { return q; }, insert(v) { op = 'insert'; payload = v; return q; }, update(v) { op = 'update'; payload = v; return q; },
       upsert(v) { op = 'upsert'; payload = v; return q; }, delete() { op = 'delete'; return q; },
-      eq(c, v) { filters.push([c, v]); return q; },
+      eq(c, v) { filters.push([c, v]); return q; }, limit(n) { lim = n; return q; },
       order(col, o) { ord = { col, asc: !(o && o.ascending === false) }; return q; },
       then(res, rej) { return run().then(res, rej); }
     };
@@ -30,7 +30,7 @@ function makeLocalClient() {
         if (op === 'select') {
           const out = rows.filter(m);
           if (ord) out.sort((a, b) => (a[ord.col] > b[ord.col] ? 1 : a[ord.col] < b[ord.col] ? -1 : 0) * (ord.asc ? 1 : -1));
-          return { data: out, error: null };
+          return { data: lim ? out.slice(0, lim) : out, error: null };
         }
         if (op === 'insert') {
           if (table === 'wholesale_codes' && rows.some(r => String(r.code).toUpperCase() === String(payload.code).toUpperCase())) return { data: null, error: { message: 'duplicate key: unique' } };
@@ -105,7 +105,12 @@ const SHIP_COUNTRIES = [
   { code: 'OTHER', name: 'Otro país', iso: '', dial: '', len: [6, 14], stripZero: false, idRequired: false, idLabel: 'Documento de identidad (opcional)', ph: 'Número de celular', cities: [] }
 ];
 const sb = LOCAL ? makeLocalClient() : window.supabase.createClient(C.SUPABASE_URL, C.SUPABASE_ANON_KEY);
-const imgUrl = path => path ? sb.storage.from('products').getPublicUrl(path).data.publicUrl : SHIRT;
+/* imgUrl(path, w): con w y CONFIG.IMG_TRANSFORM=true pide la foto ya reducida (ancho w) a Supabase; si no, la original. */
+const imgUrl = (path, w) => {
+  if (!path) return SHIRT;
+  if (w && C.IMG_TRANSFORM && !LOCAL) { try { return sb.storage.from('products').getPublicUrl(path, { transform: { width: w, quality: 75, resize: 'contain' } }).data.publicUrl; } catch (e) {} }
+  return sb.storage.from('products').getPublicUrl(path).data.publicUrl;
+};
 /* Precio base = precio al detal. (Si el producto es antiguo y solo tiene price_140/180/220, usa el que tenga valor.) */
 const price = p => +p.price || +p.price_220 || +p.price_180 || +p.price_140 || 0;
 /* Promoción: price_promo > 0 y menor al precio full => se vende y se muestra a ese precio. */
@@ -381,7 +386,7 @@ function campFreeHTML(b, dev, o = {}) {
   const desk = o.imgD || heroSrc(b.image || b.mobile_image), mob = o.imgM || heroSrc(b.mobile_image || b.image);
   let pic = '';
   if (o.preview) { const u = dev === 'm' ? (mob || desk) : desk; pic = u ? `<img class="camp-bg" src="${esc(u)}" alt="">` : ''; }
-  else if (desk) pic = `<picture class="camp-bg">${mob && mob !== desk ? `<source media="(max-width:700px)" srcset="${esc(mob)}">` : ''}<img src="${esc(desk)}" alt="" loading="eager"></picture>`;
+  else if (desk) pic = `<picture class="camp-bg">${mob && mob !== desk ? `<source media="(max-width:700px)" srcset="${esc(mob)}">` : ''}<img src="${esc(desk)}" alt="" loading="eager" fetchpriority="high" decoding="async"></picture>`;
   const href = o.preview ? '#' : esc(campLink(b.link)), stop = o.preview ? ' onclick="return false"' : '';
   const els = [];
   if (cfg.eyebrow.on && (b.eyebrow || o.preview)) els.push(`<small class="cf-el cf-eyebrow" data-el="eyebrow" style="${campElStyle(cfg.eyebrow)}">${esc(b.eyebrow || 'Etiqueta')}</small>`);

@@ -248,3 +248,14 @@ create policy "admin gramajes" on public.fabric_weights for all to authenticated
 -- Cada producto puede tener un gramaje (si se elimina el gramaje, el producto queda sin gramaje)
 alter table public.products
   add column if not exists fabric_weight_id uuid references public.fabric_weights(id) on delete set null;
+
+-- ===== RENDIMIENTO: índices para listar y filtrar más rápido (seguro de ejecutar varias veces) =====
+create index if not exists products_created_at_idx on public.products (created_at desc);
+create index if not exists products_category_id_idx on public.products (category_id);
+create index if not exists orders_created_at_idx on public.orders (created_at desc);
+create index if not exists orders_status_idx on public.orders (status);
+do $$ begin
+  if to_regclass('public.customers') is not null then
+    execute 'create index if not exists customers_created_at_idx on public.customers (created_at desc)';
+  end if;
+end $$;

@@ -264,7 +264,7 @@ function campaignHTML(b) {
   }
   if (b.design) { const free = campFreeHTML(b, mqMobile.matches ? 'm' : 'd'); if (free) return free; }   /* diseño libre (editado en Administrar) */
   const desktop = heroSrc(b.image || b.mobile_image), mobile = heroSrc(b.mobile_image || b.image);
-  const pic = desktop ? `<picture class="camp-bg">${mobile && mobile !== desktop ? `<source media="(max-width:700px)" srcset="${esc(mobile)}">` : ''}<img src="${esc(desktop)}" alt="" loading="eager"></picture>` : '';
+  const pic = desktop ? `<picture class="camp-bg">${mobile && mobile !== desktop ? `<source media="(max-width:700px)" srcset="${esc(mobile)}">` : ''}<img src="${esc(desktop)}" alt="" loading="eager" fetchpriority="high" decoding="async"></picture>` : '';
   return `<div class="camp-slide camp-single">${pic}<div class="camp-shade"></div><div class="camp-copy"><small>${esc(b.eyebrow || 'IZAN CLOTHES')}</small><h2>${esc(b.title || 'Nueva colección').replace(/\n/g,'<br>')}</h2>${b.subtitle ? `<p>${esc(b.subtitle)}</p>` : ''}<a class="btn acc" href="${esc(safeHref(b.link))}">${esc(b.cta || 'Ver colección')}</a></div></div>`;
 }
 function renderCampaigns(list) {
@@ -442,7 +442,7 @@ function card(p) {
   const categoryName = cats.find(c => String(c.id) === String(p.category_id))?.name || 'Sin categoría';
   const isFlag = v => v === true || v === 1 || v === '1' || String(v).toLowerCase() === 'true';
   const featuredTags = [isFlag(p.is_best_seller) ? 'Best seller' : '', (SZ.reduce((n,z)=>n+stock(p,z),0) < 4) ? 'Últimas unidades' : '', isFlag(p.is_new_arrival) ? 'Lo más nuevo' : ''].filter(Boolean);
-  return `<article class="card ${out ? 'so' : ''}" data-id="${esc(p.id)}"><div class="im${p.image_path_back ? ' has-back' : ''}"><img class="img-front" src="${imgUrl(p.image_path)}" alt="${esc(p.name)}" loading="lazy">${p.image_path_back ? `<img class="img-back" src="${imgUrl(p.image_path_back)}" alt="" aria-hidden="true" loading="lazy" onerror="this.parentNode.classList.remove('has-back');this.remove()">` : ''}${guideBtn(p)}<div class="im-actions">${bulkBtn(p)}</div></div><div class="b"><div class="product-labels"><span class="category-label">${esc(categoryName)}</span>${weightTag(p)}${out ? '<span class="mini-tag soldout">Agotado</span>' : ''}${onPromo(p) && !out ? `<span class="mini-tag promo">Promo −${promoPct(p)}%</span>` : ''}${featuredTags.map(t=>`<span class="mini-tag">${esc(t)}</span>`).join('')}</div><h3>${esc(p.name)}</h3><p>${esc(p.description)}</p>
+  return `<article class="card ${out ? 'so' : ''}" data-id="${esc(p.id)}"><div class="im${p.image_path_back ? ' has-back' : ''}"><img class="img-front" src="${imgUrl(p.image_path, 640)}" alt="${esc(p.name)}" loading="lazy" decoding="async">${p.image_path_back ? `<img class="img-back" src="${imgUrl(p.image_path_back, 640)}" alt="" aria-hidden="true" loading="lazy" decoding="async" onerror="this.parentNode.classList.remove('has-back');this.remove()">` : ''}${guideBtn(p)}<div class="im-actions">${bulkBtn(p)}</div></div><div class="b"><div class="product-labels"><span class="category-label">${esc(categoryName)}</span>${weightTag(p)}${out ? '<span class="mini-tag soldout">Agotado</span>' : ''}${onPromo(p) && !out ? `<span class="mini-tag promo">Promo −${promoPct(p)}%</span>` : ''}${featuredTags.map(t=>`<span class="mini-tag">${esc(t)}</span>`).join('')}</div><h3>${esc(p.name)}</h3><p>${esc(p.description)}</p>
   <div class="gr sz">${av.map(z => `<button class="${z == cs && stock(p, z) > 0 && !out ? 'on' : ''}" ${stock(p, z) > 0 && !p.sold_out ? '' : 'disabled'} title="${stock(p, z) > 0 && !p.sold_out ? stock(p, z) + ' disponibles' : 'Agotada'}" onclick="pickS('${p.id}','${z}')">${z}</button>`).join('')}</div>
   <div class="row"><span class="price">${wu ? `<s class="old">${fmt(eff(p))}</s> ${fmt(wu)}` : onPromo(p) ? `<s class="old">${fmt(price(p))}</s> <span class="promo-now">${fmt(eff(p))}</span>` : fmt(price(p))}</span><button class="btn acc" ${out ? 'disabled' : ''} onclick="add('${p.id}','${cs}')">${out ? 'Agotado' : 'Añadir'}</button></div>${wu ? '<small class="note">Precio mayorista</small>' : onPromo(p) ? '<small class="note">Precio de promoción</small>' : volume(p)}</div></article>`;
 }
@@ -651,13 +651,21 @@ const setColor = value => { catalogExpanded = false; colorF = value; render(); }
 const setWeight = value => { catalogExpanded = false; weightF = value; render(); };
 const setSize = value => { catalogExpanded = false; sizeF = sizeF === value ? 'all' : value; render(); };
 const clearFilters = () => { catalogExpanded = false; colorF = 'all'; sizeF = 'all'; weightF = 'all'; catF = 'all'; render(); };
-const pickS = (id, z) => { selS[id] = z; render(); };
+/* Elegir talla solo redibuja las tarjetas de ESE producto (antes reconstruía todo el catálogo, filtros y carrito). */
+const pickS = (id, z) => {
+  selS[id] = z;
+  const p = products.find(x => String(x.id) === String(id));
+  const els = p ? document.querySelectorAll('.card[data-id="' + String(id).replace(/["\\]/g, '') + '"]') : [];
+  if (!els.length) return render();
+  els.forEach(el => { el.outerHTML = card(p); });
+  if (detailId && !$('#dmodal').hidden) renderDetail();
+};
 
 function add(id, z) {
   const p = products.find(x => x.id == id); if (!p || p.sold_out || !z || !stock(p, z)) return;
   const i = cart.find(c => c.id == id && c.s == z);
   if (i && i.q >= stock(p, z)) { alert(`Solo hay ${stock(p, z)} unidades disponibles en talla ${z}.`); return cartOpen(true, 'mini'); }
-  i ? i.q++ : cart.push({ id, s: z, q: 1 }); render(); cartOpen(true, 'mini');
+  i ? i.q++ : cart.push({ id, s: z, q: 1 }); renderCart(); if (detailId && !$('#dmodal').hidden) renderDetail(); cartOpen(true, 'mini');
 }
 /* Unidades que cuentan para los descuentos %: las de esa referencia (todas las tallas) o el total del pedido */
 function countFor(id) { return cart.reduce((a, c) => a + ((countMode == 'order' || c.id == id) && products.some(x => x.id == c.id) ? c.q : 0), 0); }
@@ -682,7 +690,7 @@ function renderCart() {
       const q = G.lines.filter(l => l.c.s == z).reduce((a, l) => a + l.c.q, 0), st = stock(G.p, z), canAdd = !G.p.sold_out && q < st;
       return `<div class="zr ${q ? 'on' : ''} ${!st && !q ? 'off' : ''}"><span class="zl">${z}</span><div class="zb"><button type="button" aria-label="Restar talla ${z}" ${q ? '' : 'disabled'} onclick="qtySize('${id}','${z}',-1)">−</button><button type="button" aria-label="Sumar talla ${z}" ${canAdd ? '' : 'disabled'} title="${st ? st + ' disponibles' : 'Agotada'}" onclick="qtySize('${id}','${z}',1)">+</button></div><b class="zq" aria-label="Cantidad talla ${z}">${q}</b></div>`;
     }).join('');
-    return `<div class="cg"><div class="cg-img"><img src="${imgUrl(G.p.image_path)}" alt=""></div><div class="cg-body"><div class="cg-head"><b class="an">${esc(G.p.name)}</b><button type="button" class="chip cg-del" aria-label="Quitar este diseño" onclick="removeDesign('${id}')">Quitar</button></div><span class="note cg-unit">${unitTxt}</span><div class="cg-rows">${steps}</div><div class="cg-total"><span>Total</span><b>${G.q}</b></div></div></div>`;
+    return `<div class="cg"><div class="cg-img"><img src="${imgUrl(G.p.image_path, 240)}" alt="" loading="lazy" decoding="async"></div><div class="cg-body"><div class="cg-head"><b class="an">${esc(G.p.name)}</b><button type="button" class="chip cg-del" aria-label="Quitar este diseño" onclick="removeDesign('${id}')">Quitar</button></div><span class="note cg-unit">${unitTxt}</span><div class="cg-rows">${steps}</div><div class="cg-total"><span>Total</span><b>${G.q}</b></div></div></div>`;
   }).join('') : '<p class="note serif">Tu carrito está vacío.</p>';
   const seen = new Set(), hints = [];
   if (!wcode) lines.forEach(L => {
