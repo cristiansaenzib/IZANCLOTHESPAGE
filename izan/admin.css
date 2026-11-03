@@ -392,6 +392,10 @@ body:has(.adm-shell) header{margin-left:10px;margin-right:10px}
 .pos-actions{display:grid;gap:8px;margin-top:14px}
 .pos-actions .btn{width:100%;justify-content:center}
 .pos-actions .btn:disabled{opacity:.4;cursor:not-allowed}
+.pos-edit{display:flex;gap:10px;align-items:flex-start;justify-content:space-between;padding:11px 12px;margin-bottom:10px;border-radius:12px;background:#fff7e6;border:1px solid #f0d9a8}
+.pos-edit b{display:block;font:700 13px Inter,sans-serif}
+.pos-edit small{display:block;margin-top:3px;font:500 12px Inter,sans-serif;color:var(--mute);line-height:1.4}
+#posLoadSel{width:100%;box-sizing:border-box;margin-bottom:10px}
 .pos-done{display:grid;gap:6px;padding:16px;border-radius:14px;background:var(--chip);margin-bottom:6px}
 .pos-done b{font:700 16px Inter,sans-serif}
 .pos-done span{font:500 13px Inter,sans-serif;color:var(--mute)}
