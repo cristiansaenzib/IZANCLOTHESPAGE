@@ -1576,3 +1576,90 @@ body.cart-page-open > header {
 @supports (content-visibility: auto) {
   #grid > .card { content-visibility: auto; contain-intrinsic-size: auto 560px; }
 }
+
+/* ===== IZAN RESPONSIVE 2.0: tabletas y Android de pantalla grande ===== */
+/* Tabletas en vertical y equipos híbridos: el catálogo gana espacio y la cabecera no se comprime. */
+@media (min-width: 701px) and (max-width: 900px) {
+  header {
+    padding: 10px 22px !important;
+    gap: 12px;
+    align-items: center;
+  }
+  header .brand .logo { height: 34px; max-width: 150px; }
+  header .shop-nav {
+    gap: 5px;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+  header .shop-nav > .btn,
+  header .shop-nav .category-menu > .btn {
+    min-height: 40px;
+    padding: 9px 10px !important;
+    font-size: 9px !important;
+    letter-spacing: .08em !important;
+    white-space: nowrap;
+  }
+  header .shop-nav .cart-icon-btn { min-width: 44px; min-height: 44px; }
+  #catalogo { padding-left: 24px; padding-right: 24px; }
+  #catalogo #grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 14px; }
+  #catalogo .card .b { padding: 13px 12px 15px; gap: 9px; }
+  #catalogo .card h3 { font-size: clamp(20px, 2.7vw, 25px); line-height: 1.05; }
+  #catalogo .card .row { gap: 8px; flex-wrap: wrap; }
+  #catalogo .card .row .btn { min-height: 42px; }
+  .featured-section { padding-left: 24px; padding-right: 24px; }
+  .site-footer .in, footer .in { gap: 24px 18px; }
+}
+
+/* Tabletas apaisadas y pantallas Android grandes: tres productos por fila sin tarjetas estrechas. */
+@media (min-width: 901px) and (max-width: 1180px) {
+  header { padding-left: 28px !important; padding-right: 28px !important; gap: 14px; }
+  header .brand .logo { height: 36px; }
+  header .shop-nav { gap: 5px; }
+  header .shop-nav > .btn,
+  header .shop-nav .category-menu > .btn {
+    padding: 9px 11px !important;
+    font-size: 9px !important;
+    letter-spacing: .08em !important;
+  }
+  #catalogo { padding-left: 30px; padding-right: 30px; }
+  #catalogo #grid { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 16px; }
+  #catalogo .card .b { padding: 14px 12px 16px; }
+  #catalogo .card h3 { font-size: clamp(21px, 2.2vw, 27px); }
+}
+
+/* Android de pantalla grande: botones cómodos y tarjetas legibles en táctil. */
+@media (min-width: 391px) and (max-width: 700px) {
+  #catalogo { padding-left: 14px; padding-right: 14px; }
+  #catalogo #grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 10px; }
+  #catalogo .card .b { padding: 11px 10px 13px; gap: 8px; }
+  #catalogo .card h3 { font-size: clamp(18px, 4.3vw, 23px); line-height: 1.05; }
+  #catalogo .card p { font-size: 12px; line-height: 1.35; }
+  #catalogo .card .row { align-items: center; flex-wrap: wrap; gap: 7px; }
+  #catalogo .card .row .btn { min-height: 40px; padding: 10px 11px; font-size: 9px; }
+  .gr button, .chip, .hero-dot { min-height: 38px; }
+  .featured-section { padding-left: 14px; padding-right: 14px; }
+}
+
+/* En móviles/tabletas Android apaisados se evita una portada excesivamente alta. */
+@media (orientation: landscape) and (max-height: 520px) and (min-width: 600px) {
+  .campaign { height: max(520px, 100svh); min-height: 520px; }
+  .campaign .hero-controls { bottom: 16px; }
+  header { top: 8px !important; }
+}
+
+/* Accesibilidad táctil y prevención de desbordamientos en todos los tamaños intermedios. */
+@media (hover: none) and (min-width: 701px) and (max-width: 1180px) {
+  header .shop-nav button,
+  header .shop-nav a,
+  .category-dropdown button,
+  #catalogo .card button { min-height: 42px; }
+  .card:hover { transform: none; }
+}
+@media (min-width: 701px) and (max-width: 1180px) {
+  html, body { max-width: 100%; overflow-x: clip; }
+  #catalogo .catalog-layout,
+  #catalogo #grid,
+  .featured-carousel { min-width: 0; }
+  img, video, canvas { max-width: 100%; }
+}
