@@ -18,6 +18,44 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Syncopate:wght@400;700&family=Playfair+Display:ital@1&family=Inter:wght@400;500;600&display=swap" media="print" onload="this.media='all'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Syncopate:wght@400;700&family=Playfair+Display:ital@1&family=Inter:wght@400;500;600&display=swap"></noscript>
 <link rel="stylesheet" href="styles.css">
+<script src="config.js"></script>
+<script>
+/* ARRANQUE ANTICIPADO: pide el catálogo y precarga la imagen de la portada YA, sin esperar a que se descargue
+   la librería de Supabase ni shared.js. load() reutiliza estas respuestas (si fallan, consulta como antes). */
+(function () {
+  var C = window.CONFIG || {};
+  if (!C.SUPABASE_URL || !C.SUPABASE_ANON_KEY) return;
+  var base = C.SUPABASE_URL.replace(/\/$/, ''), H = { apikey: C.SUPABASE_ANON_KEY, Authorization: 'Bearer ' + C.SUPABASE_ANON_KEY };
+  function get(path, post) {
+    var o = post ? { method: 'POST', headers: { apikey: H.apikey, Authorization: H.Authorization, 'Content-Type': 'application/json' }, body: '{}' } : { headers: H };
+    return fetch(base + '/rest/v1/' + path, o)
+      .then(function (r) { return r.ok ? r.json().then(function (d) { return { data: d, error: null }; }) : { data: null, error: { message: 'HTTP ' + r.status } }; })
+      .catch(function (e) { return { data: null, error: e }; });
+  }
+  var settings = get('settings?select=*');
+  window.__pre = Promise.all([get('categories?select=*&order=created_at.asc'), get('products?select=*&order=created_at.desc'), settings,
+    get('rpc/get_reserved_stock', true), get('size_guides?select=*'), get('fabric_weights?select=*')]);
+  var done = {};
+  function preloadHero(rows) {
+    try {
+      if (C.IMG_TRANSFORM) return;
+      var hb = rows.filter(function (r) { return r.key === 'hero_banners'; })[0]; if (!hb) return;
+      var list = typeof hb.value === 'string' ? JSON.parse(hb.value) : hb.value; if (!Array.isArray(list)) return;
+      var mob = matchMedia('(max-width:700px)').matches, want = mob ? 'mobile' : 'desktop';
+      list = list.filter(function (b) { return b && b.active !== false && (b.layout !== 'triple' || (Array.isArray(b.tiles) && b.tiles.length === 3)); });
+      var ok = list.filter(function (b) { var d = ['all', 'desktop', 'mobile'].indexOf(b.device) >= 0 ? b.device : (b.layout === 'triple' ? 'desktop' : 'all'); return d === 'all' || d === want; });
+      var b = (ok.length ? ok : list)[0]; if (!b || b.layout === 'triple') return;
+      var v = mob ? (b.mobile_image || b.image) : (b.image || b.mobile_image); if (!v) return;
+      var url = /^(https?:|\/|\.\/)/.test(v) ? v : (/^data:/.test(v) ? '' : base + '/storage/v1/object/public/products/' + v);
+      if (!url || done[url]) return; done[url] = 1;
+      var l = document.createElement('link'); l.rel = 'preload'; l.as = 'image'; l.href = url; l.setAttribute('fetchpriority', 'high'); document.head.appendChild(l);
+    } catch (e) {}
+  }
+  /* Visita repetida: la portada guardada en caché se precarga al instante, antes incluso de la red. */
+  try { var c = JSON.parse(localStorage.getItem('izan_catalog_v1')); if (c && c.settings) preloadHero(c.settings); } catch (e) {}
+  settings.then(function (r) { if (r.data) preloadHero(r.data); });
+})();
+</script>
 <script>try{var pc=localStorage.getItem('izan_palette_css');if(pc&&/^[-a-z0-9:#;,.() %]+$/i.test(pc))document.documentElement.style.cssText+=pc}catch(e){}</script>
 </head>
 <body>
@@ -152,7 +190,6 @@
 </aside>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="config.js"></script>
 <script src="shared.js"></script>
 <script>
 let guides = [], weights = [], weightF = 'all', cats = [], products = [], tiers = parseTiers(), countMode = 'ref', catF = 'all', colorF = 'all', sizeF = 'all', featuredFilter = 'all', catalogExpanded = false, selS = {}, cart = [], waDest = C.WHATSAPP, savedQuoteId = null;
@@ -201,7 +238,10 @@ async function load() {
     if (cachedRaw) applyCatalog(JSON.parse(cachedRaw));
   } catch (e) { cachedRaw = null; }
   const q = fn => (async () => fn())().catch(e => ({ error: e, data: null }));
-  const [c, p, s, rs, g, fw] = await Promise.all([
+  let early = null;
+  if (window.__pre) { try { early = await window.__pre; } catch (e) {} window.__pre = null; }
+  if (early && (early[0].error || early[1].error)) early = null;   /* si la petición anticipada falló, se consulta como antes */
+  const [c, p, s, rs, g, fw] = early || await Promise.all([
     q(() => sb.from('categories').select('*').order('created_at')),
     q(() => sb.from('products').select('*').order('created_at', { ascending: false })),
     q(() => sb.from('settings').select('*')),
