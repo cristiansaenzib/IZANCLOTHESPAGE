@@ -1570,3 +1570,9 @@ body.cart-page-open > header {
 #quoteModal .sf-phone select{padding-left:12px;padding-right:6px}
 @media(max-width:420px){#quoteModal .sf-phone{grid-template-columns:minmax(104px,128px) minmax(0,1fr)}}
 @supports (-webkit-touch-callout:none){#quoteModal .shipping-fields select{font-size:16px!important}}
+
+
+/* OPTIMIZACIÓN DE RENDERIZADO: difiere el cálculo visual de tarjetas fuera de pantalla. */
+@supports (content-visibility: auto) {
+  #grid > .card { content-visibility: auto; contain-intrinsic-size: auto 560px; }
+}

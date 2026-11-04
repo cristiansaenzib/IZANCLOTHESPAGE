@@ -664,9 +664,9 @@ function render() {
   renderCart();
   if (detailId && !$('#dmodal').hidden) renderDetail();
 }
-/* Catálogo paginado: 6 filas en escritorio, 15 filas en móvil. Las columnas se leen del CSS real
-   (la cuadrícula es auto-fill), así que el número de productos se ajusta solo a cada pantalla. */
-const CATALOG_ROWS_DESKTOP = 6, CATALOG_ROWS_MOBILE = 15;
+/* Catálogo paginado para reducir el trabajo inicial del navegador.
+   El botón Ver más conserva el acceso al catálogo completo. */
+const CATALOG_ROWS_DESKTOP = 4, CATALOG_ROWS_MOBILE = 6;
 function catalogLimit() {
   const grid = $('#grid');
   const cols = grid ? getComputedStyle(grid).gridTemplateColumns.split(' ').filter(Boolean).length : 0;
