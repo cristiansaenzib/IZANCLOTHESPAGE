@@ -38,7 +38,7 @@
 <script src="config.js"></script>
 <script src="shared.js"></script>
 <script>
-let backOk = false, guides = [], guidesOk = false, guidesErr = null, gDraft = null, weights = [], weightsOk = false, weightsErr = null, wDraft = null, movements = [], movementsErr = null;
+let backOk = false, refOk = true, guides = [], guidesOk = false, guidesErr = null, gDraft = null, weights = [], weightsOk = false, weightsErr = null, wDraft = null, movements = [], movementsErr = null;
 let customers = [], customersErr = null, custState = { q: '', f: 'consent' };
 let cats = [], products = [], codes = [], orders = [], ordersErr = null, codesErr = null, tiers = parseTiers(), countMode = 'ref', settings = { whatsapp: C.WHATSAPP, hero_banners: [], home_tiles: [], visual_content: {} }, lastCat = '', logged = null, busy = false;
 const MODAL_OK = 'Sí, eliminar';
@@ -168,6 +168,7 @@ async function loadAll(only) {
   if (R.products) products = R.products.data || [];
   if (R.guides) { guides = R.guides.data || []; guidesOk = !R.guides.error; guidesErr = R.guides.error; }
   if (R.weights) { weights = (R.weights.data || []).sort(weightSort); weightsOk = !R.weights.error; weightsErr = R.weights.error; }
+  if (R.products) refOk = LOCAL || (products.length ? ('reference' in products[0]) : !(await sb.from('products').select('reference').limit(1)).error);
   if (R.products) backOk = LOCAL || (products.length ? ('image_path_back' in products[0]) : !(await sb.from('products').select('image_path_back')).error);
   if (R.settings) {
     const s = R.settings;
@@ -591,9 +592,68 @@ async function wDel(id) {
   await loadAll(['weights', 'products']);
 }
 
+/* ---- ID / referencia: buscar un producto existente y copiar sus datos al formulario ---- */
+const REF_GROUPS = [['cat', 'Categoría', true], ['guide', 'Guía de tallas y gramaje', true], ['price', 'Precios', true], ['desc', 'Descripción', true], ['tiers', 'Descuentos', true], ['color', 'Color', false]];
+const normRef = v => String(v == null ? '' : v).trim().toLowerCase();
+function refMatches(q) {
+  const k = normRef(q); if (!k) return [];
+  let m = products.filter(p => normRef(p.reference) === k);
+  if (!m.length) m = products.filter(p => String(p.id).toLowerCase() === k || (k.length >= 6 && String(p.id).toLowerCase().startsWith(k)));
+  return m;   /* products ya viene del más nuevo al más antiguo */
+}
+let refDone = '';   /* última referencia ya autocompletada: evita volver a pisar lo que el usuario editó (Enter no dispara "change") */
+let refTimer = null;
+/* Mientras escribe: espera a que pare y autocompleta solo si ya existe esa referencia (sin depender de "change"/blur, que movía el formulario justo al hacer clic en Guardar). */
+function refTyping() { clearTimeout(refTimer); refTimer = setTimeout(() => lookupRef(false, true), 450); }
+function lookupRef(force, quiet) {
+  clearTimeout(refTimer);
+  const inp = $('#nref'); if (!inp) return;
+  const q = inp.value.trim(), pick = $('#nrefpick');
+  if (!force && q && normRef(q) === refDone) return;
+  pick.innerHTML = '';
+  if (!q) { refDone = ''; if (!quiet) say('nrefmsg', 'Escribe el ID o número de referencia.'); return; }
+  refDone = normRef(q);
+  const m = refMatches(q);
+  if (!m.length) { if (quiet) return; return say('nrefmsg', `No hay productos con la referencia “${q}”: se creará como referencia nueva. Llena los campos a mano.`); }
+  /* Si escribió el ID interno, la referencia del nuevo producto pasa a ser la del original (si la tiene). */
+  if (normRef(m[0].reference) !== normRef(q) && m[0].reference) inp.value = m[0].reference;
+  refDone = normRef(inp.value);
+  if (m.length > 1) {
+    pick.innerHTML = `<label for="nrefsel">Hay ${m.length} productos con esta referencia. Copiar de:</label><select id="nrefsel" onchange="fillFromProduct(this.value)">${m.map(p => `<option value="${esc(p.id)}">${esc(p.name)}${p.color ? ' · ' + esc(p.color) : ''}</option>`).join('')}</select>`;
+  }
+  fillFromProduct(m[0].id);
+}
+function fillFromProduct(id) {
+  const p = products.find(x => x.id == id); if (!p) return;
+  const on = k => { const el = $('#rc_' + k); return !!(el && el.checked); }, set = (sel, v) => { const el = $(sel); if (el) el.value = v == null ? '' : v; };
+  const done = [];
+  if (on('cat') && p.category_id) { set('#nc', p.category_id); lastCat = p.category_id; togInh('nt_', 'nc'); done.push('categoría'); }
+  if (on('guide')) { set('#ngu', p.size_guide_id); set('#nwt', p.fabric_weight_id); done.push('guía de tallas y gramaje'); }
+  if (on('price')) { set('#np', p.price || ''); set('#npp', p.price_promo || ''); set('#npd', p.price_dist || ''); set('#npm', p.price_mayor || ''); done.push('precios'); }
+  if (on('desc')) { set('#nd', p.description); done.push('descripción'); }
+  if (on('color')) { set('#ncolor', p.color); done.push('color'); }
+  if (on('tiers')) {
+    const own = parseKeys(p.tiers), inh = $('#nt_inh'); 
+    if (inh) {
+      inh.checked = own == null; $('#nt_box').hidden = own == null;
+      tiers.forEach(t => { const c = $('#nt_' + t.key); if (c) c.checked = own == null ? effectiveCat($('#nc').value).includes(t.key) : own.includes(t.key); });
+      done.push('descuentos');
+    }
+  }
+  say('nrefmsg', done.length ? `Se copiaron ${done.join(', ')} de “${p.name}”. Revisa el nombre, el color, las fotos y el inventario antes de guardar.` : 'No hay ninguna casilla marcada para copiar.');
+}
+
 function vNuevo() {
+  refDone = '';
   if (!cats.length) return `<section class="panel"><div class="empty-box">Crea primero una categoría para poder agregar productos.<br><button class="btn acc" style="margin-top:14px" onclick="go('categorias')">Ir a Categorías</button></div></section>`;
   return `<section class="panel">
+    ${refOk ? `<div class="ref-box">
+      <label for="nref">ID / número de referencia del producto *</label>
+      <div class="ref-row"><input id="nref" type="text" autocomplete="off" placeholder="Ej. 41" oninput="refTyping()" onkeydown="if(event.key==='Enter'){event.preventDefault();lookupRef(true);}"><button type="button" class="btn ghost" onclick="lookupRef(true)">Autocompletar</button></div>
+      <div class="ref-opts"><span class="note">Al buscar, copiar de ese producto:</span>${REF_GROUPS.map(g => `<label class="tk"><input type="checkbox" id="rc_${g[0]}" ${g[2] ? 'checked' : ''}> ${g[1]}</label>`).join('')}</div>
+      <div id="nrefpick"></div>
+      <p class="note" id="nrefmsg">Si la referencia ya existe (por ejemplo, otro color del mismo diseño), se llenan los campos marcados con los datos de ese producto. También puedes pegar el ID interno del producto. Nombre, fotos e inventario no se copian.</p>
+    </div>` : '<p class="note">Para usar el ID de referencia ejecuta <b>una sola vez</b> el archivo <b>migracion_referencia_comercial.sql</b> en Supabase → SQL Editor.</p>'}
     <div class="fg">
       <div><label for="nc">Categoría</label><select id="nc" onchange="lastCat=this.value;togInh('nt_','nc')">${cats.map(c => `<option value="${c.id}" ${c.id == lastCat ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></div>
       <div><label for="nn">Nombre del producto</label><input id="nn" placeholder="Ej. Boxy Fit 270 g"></div>
@@ -676,14 +736,14 @@ async function clearFlag(key) {
 
 function productRow(p) {
   const showSz = sizes(p);
-  return `<div class="product-row" id="prod-${p.id}" data-id="${p.id}" data-name="${esc(String(p.name).toLowerCase())}" data-cat="${esc(p.category_id)}">
+  return `<div class="product-row" id="prod-${p.id}" data-id="${p.id}" data-name="${esc((String(p.name) + ' ' + (p.reference || '')).toLowerCase())}" data-cat="${esc(p.category_id)}">
     <div class="flag-btns">
       <button type="button" class="flag-btn ${isFlagOn(p.is_best_seller) ? 'on' : ''}" aria-pressed="${isFlagOn(p.is_best_seller)}" aria-label="Best seller: ${isFlagOn(p.is_best_seller) ? 'quitar' : 'agregar'}" title="${isFlagOn(p.is_best_seller) ? 'Quitar de Best sellers' : 'Agregar a Best sellers'}" onclick="toggleFlag('${p.id}','is_best_seller')"><span class="fire" aria-hidden="true">🔥</span></button>
       <button type="button" class="flag-btn ${isFlagOn(p.is_new_arrival) ? 'on' : ''}" aria-pressed="${isFlagOn(p.is_new_arrival)}" aria-label="Lo más nuevo: ${isFlagOn(p.is_new_arrival) ? 'quitar' : 'agregar'}" title="${isFlagOn(p.is_new_arrival) ? 'Quitar de Lo más nuevo' : 'Agregar a Lo más nuevo'}" onclick="toggleFlag('${p.id}','is_new_arrival')">${ic('tag')}</button>
     </div>
     <div class="pr-photos"><img class="front" src="${imgUrl(p.image_path, 400)}" alt="${esc(p.name)}" loading="lazy" decoding="async">${backOk && p.image_path_back ? `<img class="back" src="${imgUrl(p.image_path_back, 400)}" alt="Parte trasera de ${esc(p.name)}" title="Foto trasera" loading="lazy" decoding="async">` : ''}</div>
     <div class="product-info">
-      <div class="pi-head"><b>${esc(p.name)}</b>${p.sold_out ? '<span class="pill out">Agotado</span>' : ''}</div>
+      <div class="pi-head"><b>${esc(p.name)}</b>${p.reference ? `<span class="pill" title="ID / referencia">Ref. ${esc(p.reference)}</span>` : ''}${p.sold_out ? '<span class="pill out">Agotado</span>' : ''}</div>
       <div class="pr-stock">${showSz.map(z => `<span class="${stock(p, z) ? '' : 'zero'}">${z} <b>${stock(p, z)}</b></span>`).join('')}</div>
       <div class="row-actions">
         <button class="chip" onclick="editProduct('${p.id}')">✎ Editar</button>
@@ -721,7 +781,7 @@ function filterCatalog() {
 function vCatalogo() {
   if (!cats.length) return `<section class="panel"><div class="empty-box">Todavía no hay categorías ni productos.<br><button class="btn acc" style="margin-top:14px" onclick="go('categorias')">Crear una categoría</button></div></section>`;
   return `<section class="panel">
-    <div class="toolbar"><input id="catq" type="search" value="${esc(catState.q)}" placeholder="Buscar producto por nombre…" oninput="filterCatalog()" aria-label="Buscar producto"><select id="catf" onchange="filterCatalog()" aria-label="Filtrar por categoría"><option value="all">Todas las categorías</option>${cats.map(c => `<option value="${c.id}" ${String(catState.c) === String(c.id) ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select><button class="btn acc" onclick="go('nuevo')">+ Nuevo producto</button></div>
+    <div class="toolbar"><input id="catq" type="search" value="${esc(catState.q)}" placeholder="Buscar por nombre o referencia…" oninput="filterCatalog()" aria-label="Buscar producto"><select id="catf" onchange="filterCatalog()" aria-label="Filtrar por categoría"><option value="all">Todas las categorías</option>${cats.map(c => `<option value="${c.id}" ${String(catState.c) === String(c.id) ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select><button class="btn acc" onclick="go('nuevo')">+ Nuevo producto</button></div>
     <p class="note">Cada tarjeta muestra el inventario por talla. Los precios (detal, promoción, distribuidor y mayorista), el nombre, el color, la descripción, la categoría y los descuentos se editan con ✎ Editar. En Más ▾ están las fotos, duplicar, agotado y eliminar. Las referencias agotadas no aparecen aquí: están en la sección <a href="#agotados" onclick="go('agotados');return false">Agotados</a>.</p>
     ${cats.map(c => { const l = products.filter(p => p.category_id == c.id && !isAgotado(p));
       return `<div class="cat-block"><div class="ch"><b>${esc(c.name)}</b><span class="pill">${l.length}</span><span class="grow"></span><button class="chip" onclick="editCat('${c.id}')">✎ Editar categoría</button></div>${l.length ? `<div class="product-grid">${l.map(productRow).join('')}</div>` : '<p class="note">Sin productos.</p>'}</div>`; }).join('')}
@@ -808,6 +868,25 @@ function vAjustes() {
       <button class="chip" onclick="exportBackup()">↓ Exportar copia</button> <label class="chip">↑ Importar copia<input type="file" accept=".json" hidden onchange="importBackup(this.files[0])"></label></section>` : ''}`;
 }
 
+/* Total de unidades por ID / referencia (suma de todos los productos que la comparten, p. ej. varios colores del mismo diseño). */
+function stockByRef() {
+  const g = new Map();
+  products.forEach(p => {
+    const ref = String(p.reference || '').trim(), key = ref.toLowerCase();
+    if (!g.has(key)) g.set(key, { ref, items: [], bySize: Object.fromEntries(SZ.map(z => [z, 0])), total: 0 });
+    const r = g.get(key); r.items.push(p);
+    SZ.forEach(z => { const n = Math.max(0, Number(stock(p, z)) || 0); r.bySize[z] += n; r.total += n; });
+  });
+  return [...g.values()].sort((a, b) => !a.ref - !b.ref || a.ref.localeCompare(b.ref, 'es', { numeric: true }));
+}
+function refTotalsPanel() {
+  const rows = stockByRef(); if (!rows.length) return '';
+  const tot = rows.reduce((a, r) => a + r.total, 0);
+  const body = rows.map(r => `<tr><td><b>${r.ref ? esc(r.ref) : '<span class="note">Sin ID</span>'}</b></td><td>${r.items.map(p => esc(p.name) + (p.color ? ' (' + esc(p.color) + ')' : '')).join(', ')}</td>${SZ.map(z => `<td style="text-align:right">${r.bySize[z]}</td>`).join('')}<td style="text-align:right"><b>${r.total}</b></td></tr>`).join('');
+  return `<section class="panel"><div class="panel-h"><div><h3>Total por ID</h3><p class="note">Unidades disponibles de cada ID / referencia, sumando todos los productos que lo comparten (por ejemplo, el mismo diseño en varios colores). Los productos sin ID aparecen juntos en una sola fila.</p></div></div>
+    <div style="overflow-x:auto"><table class="data-table"><thead><tr><th>ID</th><th>Productos</th>${SZ.map(z => `<th style="text-align:right">${z}</th>`).join('')}<th style="text-align:right">Total</th></tr></thead><tbody>${body}</tbody><tfoot><tr><td colspan="${2 + SZ.length}"><b>Total general</b></td><td style="text-align:right"><b>${tot}</b></td></tr></tfoot></table></div>
+  </section>`;
+}
 function vHerramientas() {
   const available = products.length ? products.map(p => `<option value="${p.id}">${esc(p.name)} · ${esc((cats.find(c=>c.id===p.category_id)||{}).name||'Sin categoría')} · stock S ${stock(p,'S')} / M ${stock(p,'M')} / L ${stock(p,'L')} / XL ${stock(p,'XL')}</option>`).join('') : '<option value="">No hay productos</option>';
   const recent = movements.slice(0,12).map(m => `<tr><td>${m.created_at ? new Date(m.created_at).toLocaleString('es-CO') : '—'}</td><td>${esc(m.product_name||'Producto')}</td><td>${esc(String(m.size||'').toUpperCase())}</td><td>${Number(m.delta)>0?'+':''}${Number(m.delta)||0}</td><td>${esc(m.reason||'—')}</td></tr>`).join('');
@@ -819,6 +898,7 @@ function vHerramientas() {
     <div style="grid-column:1/-1"><label for="mvreason">Motivo del movimiento</label><input id="mvreason" maxlength="160" placeholder="Ej. Entrada de proveedor, conteo físico, devolución"></div></div>
     <p><button class="btn acc" onclick="adjustStock()" ${products.length?'':'disabled'}>Guardar movimiento</button> <span class="note" id="mvmsg"></span></p>
   </section>
+  ${refTotalsPanel()}
   <section class="panel"><div class="panel-h"><div><h3>Importar y exportar productos</h3><p class="note">Descarga un CSV editable en Excel. Para actualizar en bloque, conserva la columna <b>id</b> y no la modifiques. La importación solo actualiza referencias existentes; no crea ni elimina productos.</p></div></div>
     <div class="row-actions"><button class="btn acc" onclick="exportProductsCsv()">↓ Descargar inventario CSV editable</button><button class="chip" onclick="exportInventoryDetailCsv()">↓ Descargar inventario detallado (Excel)</button><label class="chip">↑ Importar CSV actualizado<input type="file" accept=".csv,text/csv" hidden onchange="importProductsCsv(this.files[0])"></label><button class="chip" onclick="exportOrdersCsv()">↓ Exportar cotizaciones CSV</button><button class="chip" onclick="exportBackup()">↓ Copia JSON de respaldo</button></div><p class="note" id="csvmsg"></p>
   </section>
@@ -1809,7 +1889,10 @@ async function saveNew() {
   if (busy) return;
   const name = $('#nn').value.trim(), cat = $('#nc').value; lastCat = cat;
   if (!name) return say('msg', 'Escribe un nombre.');
+  const ref = refOk && $('#nref') ? $('#nref').value.trim() : '';
+  if (refOk && !ref) return say('msg', 'Escribe el ID / número de referencia del producto.');
   const row = { category_id: cat, name, color: $('#ncolor').value.trim(), description: $('#nd').value.trim(), price: +$('#np').value || 0, price_promo: +$('#npp').value || 0, price_dist: +$('#npd').value || 0, price_mayor: +$('#npm').value || 0, tiers: $('#nt_inh').checked ? null : JSON.stringify(readBoxes('nt_')), is_best_seller: $('#nbest').checked, is_last_units: $('#nlast').checked, is_new_arrival: $('#nnew').checked };
+  if (refOk) row.reference = ref;
   if (guidesOk) row.size_guide_id = $('#ngu').value || null;
   if (weightsOk) row.fabric_weight_id = $('#nwt').value || null;
   SZ.forEach(z => row['stock_' + z.toLowerCase()] = Math.max(0, parseInt($('#ns' + z).value) || 0));

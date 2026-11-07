@@ -512,3 +512,11 @@ body:has(.adm-shell) header{margin-left:10px;margin-right:10px}
   .edit-product .edit-prices{margin-top:0}
   .edit-product .edit-stock{grid-template-columns:repeat(4,1fr)}
 }
+
+/* ===== ID / referencia en Nuevo producto ===== */
+.ref-box{border:1px solid var(--line);border-radius:12px;padding:14px;margin:0 0 16px;background:color-mix(in srgb,var(--line) 14%,var(--card))}
+.ref-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center}
+.ref-opts{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;margin-top:10px}
+.ref-opts .tk{margin:2px 10px 2px 0}
+#nrefpick{margin-top:10px}
+@media(max-width:600px){.ref-row{grid-template-columns:1fr}}

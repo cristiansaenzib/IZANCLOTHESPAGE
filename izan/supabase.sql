@@ -56,6 +56,7 @@ alter table public.products add column if not exists price_promo integer not nul
 alter table public.products add column if not exists price_dist integer not null default 0;
 alter table public.products add column if not exists price_mayor integer not null default 0;
 alter table public.products add column if not exists tiers text;
+alter table public.products add column if not exists reference text;
 alter table public.products add column if not exists size_guide_id uuid references public.size_guides(id) on delete set null;
 alter table public.products add column if not exists is_best_seller boolean not null default false;
 alter table public.products add column if not exists is_last_units boolean not null default false;
