@@ -39,7 +39,7 @@
 <script src="shared.js"></script>
 <script>
 let backOk = false, refOk = true, guides = [], guidesOk = false, guidesErr = null, gDraft = null, weights = [], weightsOk = false, weightsErr = null, wDraft = null, movements = [], movementsErr = null;
-let customers = [], customersErr = null, custState = { q: '', f: 'consent' };
+let customersLoaded = false, customersLoading = false, customers = [], customersErr = null, custState = { q: '', f: 'consent' };
 let cats = [], products = [], codes = [], orders = [], ordersErr = null, codesErr = null, tiers = parseTiers(), countMode = 'ref', settings = { whatsapp: C.WHATSAPP, hero_banners: [], home_tiles: [], visual_content: {} }, lastCat = '', logged = null, busy = false;
 const MODAL_OK = 'Sí, eliminar';
 
@@ -145,7 +145,8 @@ let deletedRules = [];
    'cats','products','settings','codes','orders','movements','customers','guides','weights'.
    Así, guardar un producto o una regla ya no vuelve a descargar pedidos, clientes y movimientos. */
 async function loadAll(only) {
-  const want = k => !only || only.includes(k);
+  /* Clientes solo se descarga al abrir esa sección (ahorra consultas en cada ingreso al panel). */
+  const want = k => only ? only.includes(k) : k !== 'customers';
   const jobs = {
     cats:      () => sb.from('categories').select('*').order('created_at'),
     products:  () => sb.from('products').select('*').order('created_at', { ascending: false }),
@@ -163,7 +164,7 @@ async function loadAll(only) {
   if (R.codes) { codes = R.codes.data || []; codesErr = R.codes.error; }
   if (R.orders) { orders = R.orders.data || []; ordersErr = R.orders.error; }
   if (R.movements) { movements = R.movements.data || []; movementsErr = R.movements.error; }
-  if (R.customers) { customers = R.customers.data || []; customersErr = R.customers.error; }
+  if (R.customers) { customers = R.customers.data || []; customersErr = R.customers.error; customersLoaded = true; }
   if (R.cats) cats = R.cats.data || [];
   if (R.products) products = R.products.data || [];
   if (R.guides) { guides = R.guides.data || []; guidesOk = !R.guides.error; guidesErr = R.guides.error; }
@@ -246,6 +247,7 @@ const shortId = o => o.label || String(o.id).slice(0, 8).toUpperCase();
 /* ================= SHELL ================= */
 let catState = { q: '', c: 'all' }, lastRendered = null;
 function renderPanel() {
+  if (view === 'clientes' && !customersLoaded && !customersLoading) { customersLoading = true; Promise.resolve(loadAll(['customers'])).finally(() => { customersLoading = false; }); }
   const cur = VIEWS.find(v => v.id === view) || VIEWS[0], pend = orders.filter(o => o.status === 'pending' || !o.status).length, nAgot = products.filter(isAgotado).length;
   const body = { resumen: vResumen, pedidos: vPedidos, clientes: vClientes, ventafisica: vVentaFisica, campanas: vCampanas, visual: vVisual, pie: vPie, categorias: vCategorias, guias: vGuias, gramajes: vGramajes, nuevo: vNuevo, destacados: vDestacados, catalogo: vCatalogo, agotados: vAgotados, reglas: vReglas, codigos: vCodigos, ajustes: vAjustes, herramientas: vHerramientas }[cur.id]();
   document.title = cur.name + ' · Administrar · IZAN Clothes';
@@ -2023,7 +2025,7 @@ async function exportBackup() {
 }
 async function importBackup(f) {
   if (!f || !await ask('Esto reemplazará todo lo que hay ahora en modo local. ¿Continuar?')) return;
-  try { localImport(JSON.parse(await f.text())); await loadAll(); } catch (e) { alert('Archivo no válido.'); }
+  try { localImport(JSON.parse(await f.text())); customersLoaded = false; await loadAll(); } catch (e) { alert('Archivo no válido.'); }
 }
 init();
 </script>

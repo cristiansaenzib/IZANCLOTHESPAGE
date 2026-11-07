@@ -32,8 +32,10 @@
       .then(function (r) { return r.ok ? r.json().then(function (d) { return { data: d, error: null }; }) : { data: null, error: { message: 'HTTP ' + r.status } }; })
       .catch(function (e) { return { data: null, error: e }; });
   }
-  var settings = get('settings?select=*');
-  window.__pre = Promise.all([get('categories?select=*&order=created_at.asc'), get('products?select=*&order=created_at.desc'), settings,
+  /* AHORRO DE SUPABASE: si el catálogo guardado en este navegador tiene menos de 5 minutos (izan_catalog_ts), no se consulta la base. */
+  var fresh = false; try { fresh = !!localStorage.getItem('izan_catalog_v1') && (Date.now() - Number(localStorage.getItem('izan_catalog_ts') || 0)) < 300000; } catch (e) {}
+  var settings = fresh ? { then: function () {} } : get('settings?select=*');
+  if (!fresh) window.__pre = Promise.all([get('categories?select=*&order=created_at.asc'), get('products?select=*&order=created_at.desc'), settings,
     get('rpc/get_reserved_stock', true), get('size_guides?select=*'), get('fabric_weights?select=*')]);
   var done = {};
   function preloadHero(rows) {
@@ -197,7 +199,9 @@ let wcode = '', wname = '';   /* código de mayorista validado */
 
 const catOf = p => cats.find(c => c.id == p.category_id);
 
-const CATALOG_CACHE = 'izan_catalog_v1';
+const CATALOG_CACHE = 'izan_catalog_v1', CATALOG_TS = 'izan_catalog_ts';
+/* Minutos que se reutiliza el catálogo guardado antes de volver a consultar Supabase (menos consultas = menos consumo). */
+const CATALOG_TTL_MIN = 5;
 let firstApply = true;
 function applyCatalog(d) {
   cats = d.cats || []; products = (d.products || []).map(x => Object.assign({}, x));
@@ -237,6 +241,10 @@ async function load() {
     cachedRaw = localStorage.getItem(CATALOG_CACHE);
     if (cachedRaw) applyCatalog(JSON.parse(cachedRaw));
   } catch (e) { cachedRaw = null; }
+  if (cachedRaw && Date.now() - Number(localStorage.getItem(CATALOG_TS) || 0) < CATALOG_TTL_MIN * 60000) {
+    setTimeout(() => { loadJsPDF().catch(() => {}); }, 4000);
+    return;   /* catálogo reciente: no se consulta Supabase */
+  }
   const q = fn => (async () => fn())().catch(e => ({ error: e, data: null }));
   let early = null;
   if (window.__pre) { try { early = await window.__pre; } catch (e) {} window.__pre = null; }
@@ -260,6 +268,7 @@ async function load() {
     guides: g.error ? [] : (g.data || []), weights: fw.error ? [] : (fw.data || [])
   };
   const fresh = JSON.stringify(data);
+  try { localStorage.setItem(CATALOG_TS, String(Date.now())); } catch (e) {}
   if (fresh !== cachedRaw) {
     applyCatalog(data);
     try { localStorage.setItem(CATALOG_CACHE, fresh); } catch (e) {}
