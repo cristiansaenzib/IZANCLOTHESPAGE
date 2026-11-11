@@ -694,7 +694,7 @@ let flagQ = '';
 function flagMini(p, key, on) {
   const cat = (cats.find(c => c.id == p.category_id) || {}).name || 'Sin categoría';
   return `<div class="flag-item" data-name="${esc(String(p.name).toLowerCase())}">
-    <img src="${imgUrl(p.image_path, 200)}" alt="${esc(p.name)}" loading="lazy" decoding="async">
+    <img src="${imgUrl(p.image_path, 200)}" alt="${esc(p.name)}" loading="lazy" decoding="async" onerror="${imgOnErr(p.image_path)}">
     <span class="fi-txt"><b>${esc(p.name)}</b><small>${esc(cat)}${p.sold_out ? ' · Agotado' : ''}</small></span>
     ${on ? `<button class="chip danger" onclick="toggleFlag('${p.id}','${key}')">Quitar</button>` : `<button class="chip ok" onclick="toggleFlag('${p.id}','${key}')">+ Agregar</button>`}
   </div>`;
@@ -743,7 +743,7 @@ function productRow(p) {
       <button type="button" class="flag-btn ${isFlagOn(p.is_best_seller) ? 'on' : ''}" aria-pressed="${isFlagOn(p.is_best_seller)}" aria-label="Best seller: ${isFlagOn(p.is_best_seller) ? 'quitar' : 'agregar'}" title="${isFlagOn(p.is_best_seller) ? 'Quitar de Best sellers' : 'Agregar a Best sellers'}" onclick="toggleFlag('${p.id}','is_best_seller')"><span class="fire" aria-hidden="true">🔥</span></button>
       <button type="button" class="flag-btn ${isFlagOn(p.is_new_arrival) ? 'on' : ''}" aria-pressed="${isFlagOn(p.is_new_arrival)}" aria-label="Lo más nuevo: ${isFlagOn(p.is_new_arrival) ? 'quitar' : 'agregar'}" title="${isFlagOn(p.is_new_arrival) ? 'Quitar de Lo más nuevo' : 'Agregar a Lo más nuevo'}" onclick="toggleFlag('${p.id}','is_new_arrival')">${ic('tag')}</button>
     </div>
-    <div class="pr-photos"><img class="front" src="${imgUrl(p.image_path, 400)}" alt="${esc(p.name)}" loading="lazy" decoding="async">${backOk && p.image_path_back ? `<img class="back" src="${imgUrl(p.image_path_back, 400)}" alt="Parte trasera de ${esc(p.name)}" title="Foto trasera" loading="lazy" decoding="async">` : ''}</div>
+    <div class="pr-photos"><img class="front" src="${imgUrl(p.image_path, 400)}" alt="${esc(p.name)}" loading="lazy" decoding="async" onerror="${imgOnErr(p.image_path)}">${backOk && p.image_path_back ? `<img class="back" src="${imgUrl(p.image_path_back, 400)}" alt="Parte trasera de ${esc(p.name)}" title="Foto trasera" loading="lazy" decoding="async">` : ''}</div>
     <div class="product-info">
       <div class="pi-head"><b>${esc(p.name)}</b>${p.reference ? `<span class="pill" title="ID / referencia">Ref. ${esc(p.reference)}</span>` : ''}${p.sold_out ? '<span class="pill out">Agotado</span>' : ''}</div>
       <div class="pr-stock">${showSz.map(z => `<span class="${stock(p, z) ? '' : 'zero'}">${z} <b>${stock(p, z)}</b></span>`).join('')}</div>
@@ -902,7 +902,7 @@ function vHerramientas() {
   </section>
   ${refTotalsPanel()}
   <section class="panel"><div class="panel-h"><div><h3>Importar y exportar productos</h3><p class="note">Descarga un CSV editable en Excel. Para actualizar en bloque, conserva la columna <b>id</b> y no la modifiques. La importación solo actualiza referencias existentes; no crea ni elimina productos.</p></div></div>
-    <div class="row-actions"><button class="btn acc" onclick="exportProductsCsv()">↓ Descargar inventario CSV editable</button><button class="chip" onclick="exportInventoryDetailCsv()">↓ Descargar inventario detallado (Excel)</button><label class="chip">↑ Importar CSV actualizado<input type="file" accept=".csv,text/csv" hidden onchange="importProductsCsv(this.files[0])"></label><button class="chip" onclick="exportOrdersCsv()">↓ Exportar cotizaciones CSV</button><button class="chip" onclick="exportBackup()">↓ Copia JSON de respaldo</button></div><p class="note" id="csvmsg"></p>
+    <div class="row-actions"><button class="btn acc" onclick="generateThumbs(this)" title="Hazlo una sola vez: reduce el consumo de Supabase">Generar miniaturas de fotos existentes</button><button class="btn acc" onclick="exportProductsCsv()">↓ Descargar inventario CSV editable</button><button class="chip" onclick="exportInventoryDetailCsv()">↓ Descargar inventario detallado (Excel)</button><label class="chip">↑ Importar CSV actualizado<input type="file" accept=".csv,text/csv" hidden onchange="importProductsCsv(this.files[0])"></label><button class="chip" onclick="exportOrdersCsv()">↓ Exportar cotizaciones CSV</button><button class="chip" onclick="exportBackup()">↓ Copia JSON de respaldo</button></div><p class="note" id="csvmsg"></p>
   </section>
   <section class="panel"><div class="panel-h"><div><h3>Historial de inventario</h3><p class="note">Últimos movimientos registrados por el administrador. Las ventas anteriores a activar este historial no aparecerán retroactivamente.</p></div></div>
     ${movementsErr && !LOCAL ? '<p class="note">Historial no disponible hasta ejecutar la migración SQL indicada arriba.</p>' : recent ? `<div style="overflow-x:auto"><table class="data-table"><thead><tr><th>Fecha</th><th>Producto</th><th>Talla</th><th>Variación</th><th>Motivo</th></tr></thead><tbody>${recent}</tbody></table></div>` : '<div class="empty-box">Todavía no hay movimientos registrados.</div>'}
@@ -1858,16 +1858,40 @@ async function shrink(file, max = 1000) {
   if (!blob || blob.type !== 'image/webp') blob = await new Promise(r => c.toBlob(r, 'image/jpeg', .85));
   return blob;
 }
-async function upload(file, max) {
+async function upload(file, max, thumb) {
   const blob = await shrink(file, max), ext = blob.type === 'image/webp' ? 'webp' : 'jpg';
   const path = crypto.randomUUID() + '.' + ext;
+  /* Miniatura (640 px) para la tienda: así cada visitante descarga ~30 KB por foto en vez de la original. */
+  const tUp = thumb ? shrink(file, 640).then(tb => sb.storage.from('products').upload('t_' + path, tb, { contentType: tb.type, cacheControl: '31536000' })).catch(() => {}) : null;
   const up = sb.storage.from('products').upload(path, blob, { contentType: blob.type, cacheControl: '31536000' });
   const { error } = await Promise.race([up, new Promise((_, rej) => setTimeout(() => rej(new Error('La subida de la foto tardó demasiado. Revisa tu conexión e inténtalo de nuevo.')), 45000))]);
+  if (tUp) await tUp;
   if (error) throw error; return path;
+}
+/* Genera las miniaturas de las fotos que ya estaban subidas (se ejecuta una sola vez desde Inventario y reportes). */
+async function generateThumbs(btn) {
+  if (LOCAL) return alert('Solo funciona conectado a Supabase.');
+  const paths = [...new Set(products.flatMap(p => [p.image_path, p.image_path_back]).filter(Boolean))];
+  if (!paths.length) return alert('No hay fotos de productos.');
+  const label = btn ? btn.textContent : ''; let made = 0, skipped = 0, failed = 0;
+  for (let i = 0; i < paths.length; i++) {
+    if (btn) btn.textContent = `Generando miniaturas… ${i + 1}/${paths.length}`;
+    const path = paths[i];
+    try {
+      const head = await fetch(pubUrl('t_' + path), { method: 'HEAD' });
+      if (head.ok) { skipped++; continue; }
+      const orig = await fetch(pubUrl(path)); if (!orig.ok) throw new Error('HTTP ' + orig.status);
+      const tb = await shrink(await orig.blob(), 640);
+      const { error } = await sb.storage.from('products').upload('t_' + path, tb, { contentType: tb.type, cacheControl: '31536000', upsert: true });
+      if (error) throw error; made++;
+    } catch (e) { failed++; console.warn('Miniatura fallida', path, e); }
+  }
+  if (btn) btn.textContent = label;
+  alert(`Miniaturas listas.\nCreadas: ${made}\nYa existían: ${skipped}\nCon error: ${failed}`);
 }
 /* Recarga solo los productos (loadAll descarga también pedidos, movimientos, códigos, guías… y es lento). */
 async function reloadProducts() { const p = await sb.from('products').select('*').order('created_at', { ascending: false }); if (!p.error) products = p.data || []; }
-const rmImg = async path => { if (path) try { await sb.storage.from('products').remove([path]); } catch (e) {} };
+const rmImg = async path => { if (path) try { await sb.storage.from('products').remove([path, 't_' + path]); } catch (e) {} };
 
 async function saveCat() {
   const n = $('#cn').value.trim(); if (!n) return;
@@ -1903,7 +1927,7 @@ async function saveNew() {
   busy = true; say('msg', 'Guardando…');
   try {
     const f = $('#nf').files[0], fb = backOk && $('#nfb') ? $('#nfb').files[0] : null;
-    const [p1, p2] = await Promise.all([f ? upload(f) : null, fb ? upload(fb) : null]);
+    const [p1, p2] = await Promise.all([f ? upload(f, undefined, true) : null, fb ? upload(fb, undefined, true) : null]);
     if (p1) row.image_path = p1; if (p2) row.image_path_back = p2;
     const ins = sb.from('products').insert(row).select();
     const { data, error } = await Promise.race([ins, new Promise((_, rej) => setTimeout(() => rej(new Error('El guardado tardó demasiado. Recarga la página e inténtalo de nuevo.')), 30000))]);
@@ -1974,7 +1998,7 @@ const rmImgFree = async (path, id) => { if (path && !imgInUse(path, id)) await r
 async function newPhoto(id, f, side) {
   if (!f) return; const p = products.find(x => x.id == id), col = side === 'back' ? 'image_path_back' : 'image_path';
   try {
-    const path = await upload(f);
+    const path = await upload(f, undefined, true);
     const { error } = await sb.from('products').update({ [col]: path }).eq('id', id); if (error) { await rmImg(path); throw error; }
     const oldPath = p && p[col]; patchProduct(id, { [col]: path }); renderPanel(); focusProduct(id);
     rmImgFree(oldPath, id);   /* borrar la foto vieja no hace esperar al usuario */
