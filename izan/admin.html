@@ -35,8 +35,8 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
-<script src="config.js"></script>
-<script src="shared.js"></script>
+<script src="config.js?v=20261110"></script>
+<script src="shared.js?v=20261110"></script>
 <script>
 let backOk = false, refOk = true, guides = [], guidesOk = false, guidesErr = null, gDraft = null, weights = [], weightsOk = false, weightsErr = null, wDraft = null, movements = [], movementsErr = null;
 let customersLoaded = false, customersLoading = false, customers = [], customersErr = null, custState = { q: '', f: 'consent' };
@@ -1873,7 +1873,7 @@ async function generateThumbs(btn) {
   if (LOCAL) return alert('Solo funciona conectado a Supabase.');
   const paths = [...new Set(products.flatMap(p => [p.image_path, p.image_path_back]).filter(Boolean))];
   if (!paths.length) return alert('No hay fotos de productos.');
-  const label = btn ? btn.textContent : ''; let made = 0, skipped = 0, failed = 0;
+  const label = btn ? btn.textContent : ''; let made = 0, skipped = 0, failed = 0, firstErr = '';
   for (let i = 0; i < paths.length; i++) {
     if (btn) btn.textContent = `Generando miniaturas… ${i + 1}/${paths.length}`;
     const path = paths[i];
@@ -1884,10 +1884,10 @@ async function generateThumbs(btn) {
       const tb = await shrink(await orig.blob(), 640);
       const { error } = await sb.storage.from('products').upload('t_' + path, tb, { contentType: tb.type, cacheControl: '31536000', upsert: true });
       if (error) throw error; made++;
-    } catch (e) { failed++; console.warn('Miniatura fallida', path, e); }
+    } catch (e) { failed++; if (!firstErr) firstErr = (e && e.message) || String(e); console.warn('Miniatura fallida', path, e); }
   }
   if (btn) btn.textContent = label;
-  alert(`Miniaturas listas.\nCreadas: ${made}\nYa existían: ${skipped}\nCon error: ${failed}`);
+  alert(`Miniaturas listas.\nCreadas: ${made}\nYa existían: ${skipped}\nCon error: ${failed}` + (firstErr ? `\nPrimer error: ${firstErr}` : ''));
 }
 /* Recarga solo los productos (loadAll descarga también pedidos, movimientos, códigos, guías… y es lento). */
 async function reloadProducts() { const p = await sb.from('products').select('*').order('created_at', { ascending: false }); if (!p.error) products = p.data || []; }

@@ -106,11 +106,16 @@ const SHIP_COUNTRIES = [
 ];
 const sb = LOCAL ? makeLocalClient() : window.supabase.createClient(C.SUPABASE_URL, C.SUPABASE_ANON_KEY);
 /* imgUrl(path, w): con w y CONFIG.IMG_TRANSFORM=true pide la foto ya reducida (ancho w) a Supabase; si no, la original. */
+const pubUrl = path => sb.storage.from('products').getPublicUrl(path).data.publicUrl;
 const imgUrl = (path, w) => {
   if (!path) return SHIRT;
   if (w && C.IMG_TRANSFORM && !LOCAL) { try { return sb.storage.from('products').getPublicUrl(path, { transform: { width: w, quality: 75, resize: 'contain' } }).data.publicUrl; } catch (e) {} }
-  return sb.storage.from('products').getPublicUrl(path).data.publicUrl;
+  /* AHORRO DE SUPABASE: para tamaños pequeños se pide la miniatura "t_<archivo>" (≈640 px, ~30 KB) que el admin genera al subir la foto. */
+  if (w && w <= 700 && !LOCAL) return pubUrl('t_' + path);
+  return pubUrl(path);
 };
+/* Si la miniatura no existe (fotos antiguas), se usa la foto original. */
+const imgOnErr = path => LOCAL || !path ? '' : `if(!this.dataset.f){this.dataset.f=1;this.src='${pubUrl(path)}'}`;
 /* Precio base = precio al detal. (Si el producto es antiguo y solo tiene price_140/180/220, usa el que tenga valor.) */
 const price = p => +p.price || +p.price_220 || +p.price_180 || +p.price_140 || 0;
 /* Promoción: price_promo > 0 y menor al precio full => se vende y se muestra a ese precio. */

@@ -18,7 +18,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Syncopate:wght@400;700&family=Playfair+Display:ital@1&family=Inter:wght@400;500;600&display=swap" media="print" onload="this.media='all'">
 <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Syncopate:wght@400;700&family=Playfair+Display:ital@1&family=Inter:wght@400;500;600&display=swap"></noscript>
 <link rel="stylesheet" href="styles.css">
-<script src="config.js"></script>
+<script src="config.js?v=20261110"></script>
 <script>
 /* ARRANQUE ANTICIPADO: pide el catálogo y precarga la imagen de la portada YA, sin esperar a que se descargue
    la librería de Supabase ni shared.js. load() reutiliza estas respuestas (si fallan, consulta como antes). */
@@ -32,8 +32,8 @@
       .then(function (r) { return r.ok ? r.json().then(function (d) { return { data: d, error: null }; }) : { data: null, error: { message: 'HTTP ' + r.status } }; })
       .catch(function (e) { return { data: null, error: e }; });
   }
-  /* AHORRO DE SUPABASE: si el catálogo guardado en este navegador tiene menos de 5 minutos (izan_catalog_ts), no se consulta la base. */
-  var fresh = false; try { fresh = !!localStorage.getItem('izan_catalog_v1') && (Date.now() - Number(localStorage.getItem('izan_catalog_ts') || 0)) < 300000; } catch (e) {}
+  /* AHORRO DE SUPABASE: si el catálogo guardado en este navegador tiene menos de 15 minutos (izan_catalog_ts), no se consulta la base. */
+  var fresh = false; try { fresh = !!localStorage.getItem('izan_catalog_v1') && (Date.now() - Number(localStorage.getItem('izan_catalog_ts') || 0)) < 900000; } catch (e) {}
   var settings = fresh ? { then: function () {} } : get('settings?select=*');
   if (!fresh) window.__pre = Promise.all([get('categories?select=*&order=created_at.asc'), get('products?select=*&order=created_at.desc'), settings,
     get('rpc/get_reserved_stock', true), get('size_guides?select=*'), get('fabric_weights?select=*')]);
@@ -192,7 +192,7 @@
 </aside>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="shared.js"></script>
+<script src="shared.js?v=20261110"></script>
 <script>
 let guides = [], weights = [], weightF = 'all', cats = [], products = [], tiers = parseTiers(), countMode = 'ref', catF = 'all', colorF = 'all', sizeF = 'all', featuredFilter = 'all', catalogExpanded = false, selS = {}, cart = [], waDest = C.WHATSAPP, savedQuoteId = null;
 let wcode = '', wname = '';   /* código de mayorista validado */
@@ -201,7 +201,7 @@ const catOf = p => cats.find(c => c.id == p.category_id);
 
 const CATALOG_CACHE = 'izan_catalog_v1', CATALOG_TS = 'izan_catalog_ts';
 /* Minutos que se reutiliza el catálogo guardado antes de volver a consultar Supabase (menos consultas = menos consumo). */
-const CATALOG_TTL_MIN = 5;
+const CATALOG_TTL_MIN = 15;
 let firstApply = true;
 function applyCatalog(d) {
   cats = d.cats || []; products = (d.products || []).map(x => Object.assign({}, x));
@@ -491,7 +491,7 @@ function card(p) {
   const categoryName = cats.find(c => String(c.id) === String(p.category_id))?.name || 'Sin categoría';
   const isFlag = v => v === true || v === 1 || v === '1' || String(v).toLowerCase() === 'true';
   const featuredTags = [isFlag(p.is_best_seller) ? 'Best seller' : '', (SZ.reduce((n,z)=>n+stock(p,z),0) < 4) ? 'Últimas unidades' : '', isFlag(p.is_new_arrival) ? 'Lo más nuevo' : ''].filter(Boolean);
-  return `<article class="card ${out ? 'so' : ''}" data-id="${esc(p.id)}"><div class="im${p.image_path_back ? ' has-back' : ''}"><img class="img-front" src="${imgUrl(p.image_path, 640)}" alt="${esc(p.name)}" loading="lazy" decoding="async">${p.image_path_back ? `<img class="img-back" src="${imgUrl(p.image_path_back, 640)}" alt="" aria-hidden="true" loading="lazy" decoding="async" onerror="this.parentNode.classList.remove('has-back');this.remove()">` : ''}${guideBtn(p)}<div class="im-actions">${bulkBtn(p)}</div></div><div class="b"><div class="product-labels"><span class="category-label">${esc(categoryName)}</span>${weightTag(p)}${out ? '<span class="mini-tag soldout">Agotado</span>' : ''}${onPromo(p) && !out ? `<span class="mini-tag promo">Promo −${promoPct(p)}%</span>` : ''}${featuredTags.map(t=>`<span class="mini-tag">${esc(t)}</span>`).join('')}</div><h3>${esc(p.name)}</h3><p>${esc(p.description)}</p>
+  return `<article class="card ${out ? 'so' : ''}" data-id="${esc(p.id)}"><div class="im${p.image_path_back ? ' has-back' : ''}"><img class="img-front" src="${imgUrl(p.image_path, 640)}" alt="${esc(p.name)}" loading="lazy" decoding="async" onerror="${imgOnErr(p.image_path)}">${p.image_path_back ? `<img class="img-back" src="${imgUrl(p.image_path_back, 640)}" alt="" aria-hidden="true" loading="lazy" decoding="async" onerror="if(!this.dataset.f){this.dataset.f=1;this.src='${pubUrl(p.image_path_back)}'}else{this.parentNode.classList.remove('has-back');this.remove()}">` : ''}${guideBtn(p)}<div class="im-actions">${bulkBtn(p)}</div></div><div class="b"><div class="product-labels"><span class="category-label">${esc(categoryName)}</span>${weightTag(p)}${out ? '<span class="mini-tag soldout">Agotado</span>' : ''}${onPromo(p) && !out ? `<span class="mini-tag promo">Promo −${promoPct(p)}%</span>` : ''}${featuredTags.map(t=>`<span class="mini-tag">${esc(t)}</span>`).join('')}</div><h3>${esc(p.name)}</h3><p>${esc(p.description)}</p>
   <div class="gr sz">${av.map(z => `<button class="${z == cs && stock(p, z) > 0 && !out ? 'on' : ''}" ${stock(p, z) > 0 && !p.sold_out ? '' : 'disabled'} title="${stock(p, z) > 0 && !p.sold_out ? stock(p, z) + ' disponibles' : 'Agotada'}" onclick="pickS('${p.id}','${z}')">${z}</button>`).join('')}</div>
   <div class="row"><span class="price">${wu ? `<s class="old">${fmt(eff(p))}</s> ${fmt(wu)}` : onPromo(p) ? `<s class="old">${fmt(price(p))}</s> <span class="promo-now">${fmt(eff(p))}</span>` : fmt(price(p))}</span><button class="btn acc" ${out ? 'disabled' : ''} onclick="add('${p.id}','${cs}')">${out ? 'Agotado' : 'Añadir'}</button></div>${wu ? '<small class="note">Precio mayorista</small>' : onPromo(p) ? '<small class="note">Precio de promoción</small>' : volume(p)}</div></article>`;
 }
@@ -739,7 +739,7 @@ function renderCart() {
       const q = G.lines.filter(l => l.c.s == z).reduce((a, l) => a + l.c.q, 0), st = stock(G.p, z), canAdd = !G.p.sold_out && q < st;
       return `<div class="zr ${q ? 'on' : ''} ${!st && !q ? 'off' : ''}"><span class="zl">${z}</span><div class="zb"><button type="button" aria-label="Restar talla ${z}" ${q ? '' : 'disabled'} onclick="qtySize('${id}','${z}',-1)">−</button><button type="button" aria-label="Sumar talla ${z}" ${canAdd ? '' : 'disabled'} title="${st ? st + ' disponibles' : 'Agotada'}" onclick="qtySize('${id}','${z}',1)">+</button></div><b class="zq" aria-label="Cantidad talla ${z}">${q}</b></div>`;
     }).join('');
-    return `<div class="cg"><div class="cg-img"><img src="${imgUrl(G.p.image_path, 240)}" alt="" loading="lazy" decoding="async"></div><div class="cg-body"><div class="cg-head"><b class="an">${esc(G.p.name)}</b><button type="button" class="chip cg-del" aria-label="Quitar este diseño" onclick="removeDesign('${id}')">Quitar</button></div><span class="note cg-unit">${unitTxt}</span><div class="cg-rows">${steps}</div><div class="cg-total"><span>Total</span><b>${G.q}</b></div></div></div>`;
+    return `<div class="cg"><div class="cg-img"><img src="${imgUrl(G.p.image_path, 240)}" alt="" loading="lazy" decoding="async" onerror="${imgOnErr(G.p.image_path)}"></div><div class="cg-body"><div class="cg-head"><b class="an">${esc(G.p.name)}</b><button type="button" class="chip cg-del" aria-label="Quitar este diseño" onclick="removeDesign('${id}')">Quitar</button></div><span class="note cg-unit">${unitTxt}</span><div class="cg-rows">${steps}</div><div class="cg-total"><span>Total</span><b>${G.q}</b></div></div></div>`;
   }).join('') : '<p class="note serif">Tu carrito está vacío.</p>';
   const seen = new Set(), hints = [];
   if (!wcode) lines.forEach(L => {
