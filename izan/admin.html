@@ -1682,7 +1682,7 @@ async function readCampaignForm(old = {}) {
       draft.push({ title: $('#hbttitle'+i).value.trim(), description: $('#hbtdesc'+i).value.trim(), cta: $('#hbtcta'+i).value.trim() || 'EXPLORAR', link, category_id: $('#hbtcat'+i).value || '', file, image: (oldTiles[i] && oldTiles[i].image) || '' });
     }
     const tiles = [];
-    await Promise.all(draft.map(async d => { if (d.file) d.image = await upload(d.file, 1400); }));
+    await Promise.all(draft.map(async d => { if (d.file) d.image = await upload(d.file, 1200, false, .75); }));
     for (const d of draft) { const { file, ...t } = d; tiles.push(t); }
     return { ...old, id, layout: 'triple', device, title: $('#hbname').value.trim() || 'Campaña de tres imágenes', active, duration_seconds: Math.min(30, Math.max(1, Number($('#hbduration').value) || 2)), tiles };
   }
@@ -1693,7 +1693,7 @@ async function readCampaignForm(old = {}) {
   const b = { ...old, id, layout: 'single', device, duration_seconds: Math.round(duration), eyebrow: $('#hbeyebrow').value.trim(), title, subtitle: $('#hbsubtitle').value.trim(), cta: $('#hbcta').value.trim(), link, active, image: old.image || '' };
   if ($('#hbfree') && $('#hbfree').checked && cd) b.design = cdExport(); else delete b.design;
   const f = $('#hbfile').files[0], mf = $('#hbmobilefile').files[0];
-  const [pi, pm] = await Promise.all([f ? upload(f, 2000) : null, mf ? upload(mf, 1400) : null]); if (pi) b.image = pi; if (pm) b.mobile_image = pm;
+  const [pi, pm] = await Promise.all([f ? upload(f, 1600, false, .75) : null, mf ? upload(mf, 1200, false, .75) : null]); if (pi) b.image = pi; if (pm) b.mobile_image = pm;
   return b;
 }
 
@@ -1849,20 +1849,20 @@ function editProduct(id) {
 /* Reduce la foto antes de subirla. max = lado mayor en px (productos 1000, campañas más grande).
    - Decodifica respetando la orientación de la cámara.
    - Safari/iPhone no sabe codificar WebP: antes devolvía un PNG pesado etiquetado como .webp (subida lentísima); ahora cae a JPEG. */
-async function shrink(file, max = 1000) {
+async function shrink(file, max = 1000, q = .82) {
   let bmp; try { bmp = await createImageBitmap(file, { imageOrientation: 'from-image' }); } catch (e) { bmp = await createImageBitmap(file); }
   const s = Math.min(1, max / Math.max(bmp.width, bmp.height));
   const c = document.createElement('canvas'); c.width = Math.round(bmp.width * s); c.height = Math.round(bmp.height * s);
   c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height); if (bmp.close) bmp.close();
-  let blob = await new Promise(r => c.toBlob(r, 'image/webp', .82));
-  if (!blob || blob.type !== 'image/webp') blob = await new Promise(r => c.toBlob(r, 'image/jpeg', .85));
+  let blob = await new Promise(r => c.toBlob(r, 'image/webp', q));
+  if (!blob || blob.type !== 'image/webp') blob = await new Promise(r => c.toBlob(r, 'image/jpeg', Math.min(.9, q + .03)));
   return blob;
 }
-async function upload(file, max, thumb) {
-  const blob = await shrink(file, max), ext = blob.type === 'image/webp' ? 'webp' : 'jpg';
+async function upload(file, max, thumb, q) {
+  const blob = await shrink(file, max, q), ext = blob.type === 'image/webp' ? 'webp' : 'jpg';
   const path = crypto.randomUUID() + '.' + ext;
-  /* Miniatura (640 px) para la tienda: así cada visitante descarga ~30 KB por foto en vez de la original. */
-  const tUp = thumb ? shrink(file, 640).then(tb => sb.storage.from('products').upload('t_' + path, tb, { contentType: tb.type, cacheControl: '31536000' })).catch(() => {}) : null;
+  /* Miniatura (480 px) para la tienda: así cada visitante descarga ~30 KB por foto en vez de la original. */
+  const tUp = thumb ? shrink(file, 480, .72).then(tb => sb.storage.from('products').upload('t_' + path, tb, { contentType: tb.type, cacheControl: '31536000' })).catch(() => {}) : null;
   const up = sb.storage.from('products').upload(path, blob, { contentType: blob.type, cacheControl: '31536000' });
   const { error } = await Promise.race([up, new Promise((_, rej) => setTimeout(() => rej(new Error('La subida de la foto tardó demasiado. Revisa tu conexión e inténtalo de nuevo.')), 45000))]);
   if (tUp) await tUp;
@@ -1881,7 +1881,7 @@ async function generateThumbs(btn) {
       const head = await fetch(pubUrl('t_' + path), { method: 'HEAD' });
       if (head.ok) { skipped++; continue; }
       const orig = await fetch(pubUrl(path)); if (!orig.ok) throw new Error('HTTP ' + orig.status);
-      const tb = await shrink(await orig.blob(), 640);
+      const tb = await shrink(await orig.blob(), 480, .72);
       const { error } = await sb.storage.from('products').upload('t_' + path, tb, { contentType: tb.type, cacheControl: '31536000', upsert: true });
       if (error) throw error; made++;
     } catch (e) { failed++; if (!firstErr) firstErr = (e && e.message) || String(e); console.warn('Miniatura fallida', path, e); }
